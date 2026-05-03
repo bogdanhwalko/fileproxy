@@ -63,6 +63,96 @@
         </div>
     </section>
 
+    <section class="panel upload-panel">
+        <div class="upload-panel-head">
+            <div>
+                <span class="section-kicker">Нове завантаження</span>
+                <h2>Додайте файли у вибране сховище</h2>
+                <p>Підтримується багато файлів за раз. Один файл - до {{ $telegramUploadMaxMb }} MB.</p>
+            </div>
+            <div class="upload-limit">
+                <span>Ліміт файла</span>
+                <strong>{{ $telegramUploadMaxMb }} MB</strong>
+            </div>
+        </div>
+
+        <form class="upload-form premium-upload-form" action="{{ route('files.store') }}" method="post" enctype="multipart/form-data">
+            @csrf
+            <div class="upload-fields">
+                <div class="field-group upload-target">
+                    <label for="folder_id">Папка</label>
+                    <select class="field" id="folder_id" name="folder_id">
+                        <option value="">Без папки</option>
+                        @foreach ($folders as $folder)
+                            <option value="{{ $folder->id }}" @selected($activeFolder?->id === $folder->id)>{{ $folder->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="field-group upload-target">
+                    <label for="telegram_storage_group_id">Сховище</label>
+                    <select class="field" id="telegram_storage_group_id" name="telegram_storage_group_id">
+                        @if ($canUseLocalStorage)
+                            <option value="">Локальне сховище</option>
+                        @elseif ($telegramStorageGroups->isEmpty() && $systemTelegramStorageAvailable)
+                            <option value="">Системне Telegram-сховище</option>
+                        @elseif ($telegramStorageGroups->isEmpty())
+                            <option value="">Telegram-сховище не налаштоване</option>
+                        @else
+                            <option value="">Оберіть Telegram-групу</option>
+                        @endif
+                        @foreach ($telegramStorageGroups as $storageGroup)
+                            <option value="{{ $storageGroup->id }}" @selected((string) old('telegram_storage_group_id', $storageGroup->is_default ? $storageGroup->id : '') === (string) $storageGroup->id)>
+                                Telegram: {{ $storageGroup->title }} · {{ $storageGroup->botToken?->name ?? 'бот' }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                @if (! $canUseLocalStorage && $telegramStorageGroups->isEmpty())
+                    <div class="upload-meta">
+                        @if ($systemTelegramStorageAvailable)
+                            Буде використано системне Telegram-сховище адміністратора. Залишилось {{ $systemTelegramRemainingUploads }} з {{ $systemTelegramUploadLimit }} файлів.
+                        @else
+                            Власну Telegram-групу ще не підключено або системний ліміт вичерпано. Додайте власного бота і групу в налаштуваннях.
+                        @endif
+                    </div>
+                @endif
+            </div>
+
+            <label class="dropzone">
+                <span class="dropzone-inner">
+                    <span class="dropzone-icon">+</span>
+                    <span class="dropzone-copy">
+                        <strong>Оберіть файли для завантаження</strong>
+                        <span>
+                            @if ($canUseLocalStorage)
+                                Локально або Telegram, залежно від обраного сховища.
+                            @else
+                                Для звичайних користувачів доступне тільки Telegram-сховище.
+                            @endif
+                        </span>
+                    </span>
+                    <input type="file" name="files[]" multiple required>
+                </span>
+            </label>
+
+            <div class="upload-footer">
+                <div class="upload-meta">
+                    Метадані зберігаються в MariaDB, а файли - у дозволеному сховищі.
+                </div>
+                <div class="upload-actions">
+                    <button class="button" type="submit">Завантажити</button>
+                    @if (! $telegramStorageGroups->count() && ! $systemTelegramStorageAvailable)
+                        <a class="button secondary" href="{{ route('telegram-settings.index') }}">Як прив’язати Telegram</a>
+                    @elseif (! $telegramStorageGroups->count())
+                        <a class="button secondary" href="{{ route('telegram-settings.index') }}">Власне Telegram-сховище</a>
+                    @endif
+                </div>
+            </div>
+        </form>
+    </section>
+
     <section class="workspace">
         <aside class="sidebar-stack">
             <section class="panel">
@@ -101,84 +191,6 @@
                         </div>
                     @endforeach
                 </div>
-            </section>
-
-            <section class="panel">
-                <div class="panel-header">
-                    <h2>Нове завантаження</h2>
-                    <p>Можна додати один або кілька файлів за раз. Один файл - до {{ $telegramUploadMaxMb }} MB.</p>
-                </div>
-
-                <form class="upload-form" action="{{ route('files.store') }}" method="post" enctype="multipart/form-data">
-                    @csrf
-                    <div class="field-group upload-target">
-                        <label for="folder_id">Папка для файлів</label>
-                        <select class="field" id="folder_id" name="folder_id">
-                            <option value="">Без папки</option>
-                            @foreach ($folders as $folder)
-                                <option value="{{ $folder->id }}" @selected($activeFolder?->id === $folder->id)>{{ $folder->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="field-group upload-target">
-                        <label for="telegram_storage_group_id">Сховище</label>
-                        <select class="field" id="telegram_storage_group_id" name="telegram_storage_group_id">
-                            @if ($canUseLocalStorage)
-                                <option value="">Локальне сховище</option>
-                            @elseif ($telegramStorageGroups->isEmpty() && $systemTelegramStorageAvailable)
-                                <option value="">Системне Telegram-сховище</option>
-                            @elseif ($telegramStorageGroups->isEmpty())
-                                <option value="">Telegram-сховище не налаштоване</option>
-                            @else
-                                <option value="">Оберіть Telegram-групу</option>
-                            @endif
-                            @foreach ($telegramStorageGroups as $storageGroup)
-                                <option value="{{ $storageGroup->id }}" @selected((string) old('telegram_storage_group_id', $storageGroup->is_default ? $storageGroup->id : '') === (string) $storageGroup->id)>
-                                    Telegram: {{ $storageGroup->title }} · {{ $storageGroup->botToken?->name ?? 'бот' }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    @if (! $canUseLocalStorage && $telegramStorageGroups->isEmpty())
-                        <div class="upload-meta">
-                            @if ($systemTelegramStorageAvailable)
-                                Буде використано системне Telegram-сховище адміністратора. Залишилось {{ $systemTelegramRemainingUploads }} з {{ $systemTelegramUploadLimit }} файлів.
-                            @else
-                                Власну Telegram-групу ще не підключено або системний ліміт вичерпано. Додайте власного бота і групу в налаштуваннях.
-                            @endif
-                        </div>
-                    @endif
-
-                    <label class="dropzone">
-                        <span class="dropzone-inner">
-                            <span class="dropzone-icon">+</span>
-                            <strong>Оберіть файли</strong>
-                            <input type="file" name="files[]" multiple required>
-                            <p class="hint">
-                                @if ($canUseLocalStorage)
-                                    Файли зберігаються локально або в обраній Telegram-групі, а службові дані записуються в MariaDB.
-                                @else
-                                    Файли звичайних користувачів зберігаються тільки в Telegram-групі, а службові дані записуються в MariaDB.
-                                @endif
-                            </p>
-                        </span>
-                    </label>
-
-                    <div class="upload-meta">
-                        Підтримується багато файлів за раз. Ліміт одного файла відповідає Telegram Bot API: {{ $telegramUploadMaxMb }} MB для multipart-завантаження.
-                    </div>
-
-                    <div class="upload-actions">
-                        <button class="button" type="submit">Завантажити</button>
-                        @if (! $telegramStorageGroups->count() && ! $systemTelegramStorageAvailable)
-                            <a class="button secondary" href="{{ route('telegram-settings.index') }}">Як прив’язати Telegram</a>
-                        @elseif (! $telegramStorageGroups->count())
-                            <a class="button secondary" href="{{ route('telegram-settings.index') }}">Власне Telegram-сховище</a>
-                        @endif
-                    </div>
-                </form>
             </section>
         </aside>
 
