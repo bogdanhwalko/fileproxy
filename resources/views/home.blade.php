@@ -8,7 +8,7 @@
             <div class="brand-mark">FP</div>
             <div>
                 <strong>FileProxy</strong>
-                <p>Приватне файлове сховище на Laravel</p>
+                <p>Безкоштовне сховище для ваших файлів</p>
             </div>
         </a>
 
@@ -28,11 +28,12 @@
 
     <section class="welcome-hero">
         <div class="welcome-copy">
-            <p class="eyebrow">Laravel + Docker + MariaDB + Telegram</p>
-            <h1>Керування файлами без зайвого інтерфейсного шуму</h1>
+            <p class="eyebrow">Безкоштовне завантаження та порядок у файлах</p>
+            <h1>Завантажуйте, зберігайте й знаходьте файли безкоштовно</h1>
             <p>
-                FileProxy поєднує приватний кабінет, папки, Telegram-сховище та адміністративний контроль
-                в одному простому шаблоні для розгортання в Docker.
+                FileProxy допомагає тримати документи, фото, архіви та робочі матеріали в одному
+                приватному кабінеті. Додавайте файли, групуйте їх у папки, швидко шукайте потрібне
+                і відкривайте доступ до своїх матеріалів з будь-якого пристрою.
             </p>
 
             <div class="hero-actions">
@@ -50,16 +51,16 @@
 
         <div class="welcome-summary" aria-label="Ключові можливості">
             <div>
-                <span>Сховище</span>
-                <strong>Telegram або локально</strong>
+                <span>Вартість</span>
+                <strong>Безкоштовний старт</strong>
             </div>
             <div>
-                <span>Доступ</span>
-                <strong>Телефон і код</strong>
+                <span>Порядок</span>
+                <strong>Папки, пошук і фільтри</strong>
             </div>
             <div>
-                <span>Керування</span>
-                <strong>Папки, фільтри, перегляд</strong>
+                <span>Контроль</span>
+                <strong>Ваші файли тільки для вас</strong>
             </div>
         </div>
     </section>
@@ -67,20 +68,20 @@
     <section class="welcome-grid" aria-label="Можливості FileProxy">
         <article class="welcome-card">
             <span class="welcome-card-index">01</span>
-            <strong>Приватний доступ</strong>
-            <p>Кожен користувач бачить тільки власні файли, папки та прив'язані Telegram-групи.</p>
+            <strong>Безкоштовне завантаження</strong>
+            <p>Додавайте важливі файли без складних налаштувань і зайвих платежів за базове користування.</p>
         </article>
 
         <article class="welcome-card">
             <span class="welcome-card-index">02</span>
-            <strong>Telegram-сховище</strong>
-            <p>Файли можуть зберігатися в Telegram-групах з метаданими в MariaDB і тимчасовим завантаженням для перегляду.</p>
+            <strong>Зручне керування</strong>
+            <p>Створюйте папки, фільтруйте список, переглядайте зображення й текстові файли без скачування.</p>
         </article>
 
         <article class="welcome-card">
             <span class="welcome-card-index">03</span>
-            <strong>Адміністрування</strong>
-            <p>Адмін керує користувачами, блокуванням, дефолтними групами та доступом до локального сховища.</p>
+            <strong>Приватний кабінет</strong>
+            <p>Вхід за номером телефону й кодом допомагає швидко повернутися до файлів без запам'ятовування пароля.</p>
         </article>
     </section>
 @endsection

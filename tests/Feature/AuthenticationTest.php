@@ -24,7 +24,10 @@ class AuthenticationTest extends TestCase
         $this->get(route('home'))
             ->assertOk()
             ->assertSee('FileProxy')
-            ->assertDontSee('Мої файли');
+            ->assertSee('безкоштовно')
+            ->assertDontSee('Мої файли')
+            ->assertDontSee('Docker')
+            ->assertDontSee('Laravel');
     }
 
     public function test_guest_is_redirected_from_files_to_login(): void
