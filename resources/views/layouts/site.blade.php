@@ -1674,6 +1674,28 @@
             transform: translateY(-1px);
         }
 
+        .file-tile-preview {
+            display: block;
+            width: 100%;
+            aspect-ratio: 16 / 10;
+            overflow: hidden;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--surface-subtle);
+        }
+
+        .file-tile-preview img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 180ms ease;
+        }
+
+        .file-tile-preview:hover img {
+            transform: scale(1.03);
+        }
+
         .file-tile-head {
             display: grid;
             grid-template-columns: 46px minmax(0, 1fr);

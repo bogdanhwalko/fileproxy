@@ -213,8 +213,18 @@
             <div class="file-view-bar">
                 <span data-file-summary data-total="{{ $files->total() }}">Показано {{ $files->count() }} з {{ $files->total() }}</span>
                 <div class="view-toggle" aria-label="Вигляд списку файлів">
-                    <a class="button secondary {{ $display === 'table' ? 'active' : '' }}" href="{{ route('files.index', array_merge(request()->except(['page', 'view']), ['view' => 'table'])) }}">Таблиця</a>
+                    <a class="button secondary {{ $display === 'table' ? 'active' : '' }}" href="{{ route('files.index', array_merge(request()->except(['page', 'view', 'image_previews']), ['view' => 'table'])) }}">Таблиця</a>
                     <a class="button secondary {{ $display === 'grid' ? 'active' : '' }}" href="{{ route('files.index', array_merge(request()->except(['page', 'view']), ['view' => 'grid'])) }}">Плитки</a>
+                    @if ($display === 'grid')
+                        <a
+                            class="button secondary {{ $imagePreviews ? 'active' : '' }}"
+                            href="{{ route('files.index', $imagePreviews
+                                ? array_merge(request()->except(['page', 'image_previews']), ['view' => 'grid'])
+                                : array_merge(request()->except(['page']), ['view' => 'grid', 'image_previews' => 1])) }}"
+                        >
+                            {{ $imagePreviews ? 'Фото увімкнено' : 'Передзавантажити фото' }}
+                        </a>
+                    @endif
                 </div>
             </div>
 
@@ -222,6 +232,11 @@
                 <div class="file-grid" data-file-items>
                     @forelse ($files as $file)
                         <article class="file-tile" data-file-item>
+                            @if ($imagePreviews && $file->is_image)
+                                <a class="file-tile-preview" href="{{ route('files.preview', $file) }}" aria-label="Відкрити {{ $file->original_name }}">
+                                    <img src="{{ route('files.inline', $file) }}" alt="{{ $file->original_name }}" loading="eager" decoding="async">
+                                </a>
+                            @endif
                             <div class="file-tile-head">
                                 <span class="file-icon">{{ $file->type_label }}</span>
                                 <div class="file-tile-title">

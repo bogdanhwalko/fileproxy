@@ -26,6 +26,7 @@ class FileController extends Controller
         $display = in_array($request->query('view'), ['table', 'grid'], true)
             ? (string) $request->query('view')
             : 'table';
+        $imagePreviews = $display === 'grid' && $request->boolean('image_previews');
         $folderFilter = (string) $request->query('folder', 'all');
         $user = $request->user();
         $activeFolder = null;
@@ -83,6 +84,7 @@ class FileController extends Controller
             'files' => $files,
             'folderFilter' => $folderFilter,
             'folders' => $folders,
+            'imagePreviews' => $imagePreviews,
             'telegramUploadMaxMb' => (int) (self::TELEGRAM_UPLOAD_MAX_KB / 1024),
             'search' => $search,
             'stats' => $stats,

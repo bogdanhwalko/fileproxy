@@ -98,6 +98,54 @@ class FileManagementTest extends TestCase
             ->assertSee('Плитки');
     }
 
+    public function test_grid_view_can_preload_image_previews_for_current_page(): void
+    {
+        $user = User::factory()->create(['is_admin' => true]);
+
+        for ($i = 1; $i <= 21; $i++) {
+            ManagedFile::create([
+                'user_id' => $user->id,
+                'storage_driver' => 'local',
+                'original_name' => "photo-{$i}.png",
+                'stored_name' => "photo-{$i}.png",
+                'path' => "uploads/photo-{$i}.png",
+                'mime_type' => 'image/png',
+                'extension' => 'png',
+                'size' => 10,
+                'created_at' => now()->addSeconds($i),
+                'updated_at' => now()->addSeconds($i),
+            ]);
+        }
+
+        $withoutPreload = $this->actingAs($user)
+            ->get(route('files.index', ['view' => 'grid']));
+
+        $withoutPreload
+            ->assertOk()
+            ->assertSee('Передзавантажити фото')
+            ->assertDontSee('class="file-tile-preview"', false);
+
+        $response = $this->actingAs($user)
+            ->get(route('files.index', [
+                'view' => 'grid',
+                'image_previews' => 1,
+            ]));
+
+        $response
+            ->assertOk()
+            ->assertSee('Фото увімкнено')
+            ->assertSee('image_previews=1', false);
+
+        $this->assertMatchesRegularExpression(
+            '/href="[^"]*(?:image_previews=1[^"]*page=2|page=2[^"]*image_previews=1)[^"]*"[^>]*data-load-more-link/',
+            $response->getContent()
+        );
+
+        preg_match_all('/class="file-tile-preview"/', $response->getContent(), $matches);
+
+        $this->assertCount(20, $matches[0]);
+    }
+
     public function test_regular_user_cannot_upload_without_telegram_group(): void
     {
         Storage::fake('local');
