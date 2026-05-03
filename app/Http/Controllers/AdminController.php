@@ -55,6 +55,7 @@ class AdminController extends Controller
         $display = in_array(request()->query('view'), ['table', 'grid'], true)
             ? (string) request()->query('view')
             : 'table';
+        $imagePreviews = $display === 'grid' && request()->boolean('image_previews');
         $folderFilter = (string) request()->query('folder', 'all');
         $activeFolder = null;
 
@@ -98,6 +99,7 @@ class AdminController extends Controller
             'files' => $files,
             'folderFilter' => $folderFilter,
             'folders' => $folders,
+            'imagePreviews' => $imagePreviews,
             'search' => $search,
             'stats' => [
                 'total' => $user->files()->count(),

@@ -9,6 +9,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Psr\Http\Message\StreamInterface;
 use RuntimeException;
 
 class TelegramFileStorageService
@@ -83,6 +84,26 @@ class TelegramFileStorageService
         Storage::disk('local')->put($storagePath, $response->body());
 
         return Storage::disk('local')->path($storagePath);
+    }
+
+    public function downloadStream(ManagedFile $file): StreamInterface
+    {
+        $bot = $file->telegramBotToken;
+
+        if (! $bot || ! $file->telegram_file_id) {
+            throw new RuntimeException('Telegram file metadata is missing for download.');
+        }
+
+        $filePath = $this->getTelegramFilePath($bot, $file->telegram_file_id);
+        $response = Http::timeout(120)
+            ->withOptions(['stream' => true])
+            ->get($this->fileUrl($bot->token, $filePath));
+
+        if (! $response->successful()) {
+            throw new RuntimeException('Could not stream file from Telegram.');
+        }
+
+        return $response->toPsrResponse()->getBody();
     }
 
     public function deleteMessage(ManagedFile $file): bool

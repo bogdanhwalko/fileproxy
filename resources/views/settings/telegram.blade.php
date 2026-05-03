@@ -41,15 +41,30 @@
 
     <section class="panel settings-guide">
         <div class="panel-header compact">
-            <h2>Інструкція підключення</h2>
-            <p>Створіть бота в BotFather, додайте його в Telegram-групу, отримайте chat_id і внесіть ці дані нижче.</p>
+            <h2>Інструкція підключення Telegram</h2>
+            <p>Створіть власного бота, збережіть його token у FileProxy, додайте бота в Telegram-групу і напишіть у ній /storage. Група автоматично зʼявиться у списку сховищ.</p>
+        </div>
+        <div class="guide-actions">
+            <a class="button" href="{{ $botFatherNewBotUrl }}" target="_blank" rel="noopener">Створити бота в BotFather</a>
+            <span>Посилання відкриває @BotFather одразу зі сценарієм створення нового бота. Назву, username і token потрібно підтвердити у Telegram. Для автоматичного додавання через /storage сайт має бути доступний Telegram за публічним HTTPS APP_URL.</span>
         </div>
         <div class="guide-steps">
-            <div><strong>1. BotFather</strong><span>Скопіюйте token створеного бота.</span></div>
-            <div><strong>2. Група</strong><span>Додайте бота в групу для файлів.</span></div>
-            <div><strong>3. Chat ID</strong><span>Вкажіть ID у форматі на кшталт -1001234567890.</span></div>
-            <div><strong>4. Завантаження</strong><span>Виберіть групу у формі файлів.</span></div>
+            <div><strong>1. Створіть бота</strong><span>Перейдіть за кнопкою, введіть назву бота і username, який закінчується на bot.</span></div>
+            <div><strong>2. Додайте token</strong><span>BotFather видасть API token. Вставте його у форму ботів нижче, щоб FileProxy налаштував webhook для команди /storage.</span></div>
+            <div><strong>3. Додайте бота в групу</strong><span>Створіть групу для файлів, додайте туди бота і дозвольте йому надсилати повідомлення.</span></div>
+            <div><strong>4. Напишіть /storage</strong><span>Надішліть команду /storage у цій групі. Бот відповість, а група автоматично додасться до списку сховищ.</span></div>
+            <div><strong>5. Перевірте список</strong><span>Після відповіді бота оновіть цю сторінку. Нова група буде в таблиці нижче з її Telegram chat_id.</span></div>
+            <div><strong>6. Завантажте файл</strong><span>Поверніться до файлів, виберіть Telegram-групу в полі сховища і завантажте тестовий файл.</span></div>
         </div>
+        @if (! auth()->user()->is_admin && $storageGroups->isEmpty())
+            <div class="settings-note system-limit-note">
+                @if ($systemTelegramStorageAvailable)
+                    У вас ще немає власного Telegram-сховища. Тимчасово доступне загальне сховище адміністратора: використано {{ $systemTelegramUsedUploads }} з {{ $systemTelegramUploadLimit }}, залишилось {{ $systemTelegramRemainingUploads }} файлів.
+                @else
+                    У вас ще немає власного Telegram-сховища, а загальне сховище зараз недоступне або ліміт {{ $systemTelegramUploadLimit }} файлів уже вичерпано. Підключіть власного бота і групу за інструкцією вище.
+                @endif
+            </div>
+        @endif
         <div class="settings-note">
             @if (auth()->user()->is_admin)
                 Системних груп: {{ $globalDefaultGroupsCount }}. Позначте одну або кілька своїх груп як системні, щоб користувачі без власного сховища могли завантажити до 100 файлів.
@@ -60,13 +75,13 @@
     </section>
 
     <section class="settings-compact-grid">
-        <section class="panel">
+        <section class="panel settings-panel-bots">
             <div class="panel-header compact">
                 <h2>Боти</h2>
                 <p>Token зберігається зашифрованим і використовується тільки для Telegram API.</p>
             </div>
 
-            <form class="settings-form compact-settings-form" action="{{ route('telegram-settings.bots.store') }}" method="post">
+            <form class="settings-form compact-settings-form bot-settings-form" action="{{ route('telegram-settings.bots.store') }}" method="post">
                 @csrf
                 <div class="field-group">
                     <label for="bot_name">Назва</label>
@@ -137,13 +152,13 @@
             </div>
         </section>
 
-        <section class="panel">
+        <section class="panel settings-panel-groups">
             <div class="panel-header compact">
                 <h2>Групи</h2>
-                <p>Кожна група прив'язана до конкретного бота, який має бути учасником цієї групи.</p>
+                <p>Групи додаються автоматично командою /storage у Telegram. Форма нижче лишається як ручний запасний варіант, якщо webhook недоступний.</p>
             </div>
 
-            <form class="settings-form compact-settings-form" action="{{ route('telegram-settings.groups.store') }}" method="post">
+            <form class="settings-form compact-settings-form group-settings-form" action="{{ route('telegram-settings.groups.store') }}" method="post">
                 @csrf
                 <div class="field-group">
                     <label for="telegram_bot_token_id">Бот</label>

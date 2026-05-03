@@ -14,6 +14,7 @@ class FileFolder extends Model
     protected $fillable = [
         'user_id',
         'name',
+        'share_token',
     ];
 
     public function user(): BelongsTo

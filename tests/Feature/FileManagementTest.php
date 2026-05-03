@@ -66,6 +66,9 @@ class FileManagementTest extends TestCase
 
         $response
             ->assertOk()
+            ->assertSee('data-upload-form', false)
+            ->assertSee('data-upload-progress', false)
+            ->assertSee('data-ajax-form', false)
             ->assertSee('compact-file-table')
             ->assertSee('Завантажити ще')
             ->assertSee('Показано 20 з 25');
@@ -144,6 +147,43 @@ class FileManagementTest extends TestCase
         preg_match_all('/class="file-tile-preview"/', $response->getContent(), $matches);
 
         $this->assertCount(20, $matches[0]);
+    }
+
+    public function test_grid_view_keeps_preview_slot_for_non_images_when_previews_are_enabled(): void
+    {
+        $user = User::factory()->create(['is_admin' => true]);
+        $image = ManagedFile::create([
+            'user_id' => $user->id,
+            'storage_driver' => 'local',
+            'original_name' => 'photo.png',
+            'stored_name' => 'photo.png',
+            'path' => 'uploads/photo.png',
+            'mime_type' => 'image/png',
+            'extension' => 'png',
+            'size' => 10,
+        ]);
+        $document = ManagedFile::create([
+            'user_id' => $user->id,
+            'storage_driver' => 'local',
+            'original_name' => 'contract.pdf',
+            'stored_name' => 'contract.pdf',
+            'path' => 'uploads/contract.pdf',
+            'mime_type' => 'application/pdf',
+            'extension' => 'pdf',
+            'size' => 10,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('files.index', [
+                'view' => 'grid',
+                'image_previews' => 1,
+            ]));
+
+        $response
+            ->assertOk()
+            ->assertSee('file-tile-preview file-tile-preview-empty', false)
+            ->assertSee(route('files.inline', $image), false)
+            ->assertDontSee(route('files.inline', $document), false);
     }
 
     public function test_regular_user_cannot_upload_without_telegram_group(): void
@@ -527,5 +567,61 @@ class FileManagementTest extends TestCase
             ->get(route('files.inline', $file))
             ->assertOk()
             ->assertHeader('content-type', 'image/png');
+    }
+
+    public function test_telegram_image_file_is_streamed_inline_without_temp_file(): void
+    {
+        Storage::fake('local');
+        Http::fake([
+            'https://api.telegram.org/bot123456:ABCDEF/getFile' => Http::response([
+                'ok' => true,
+                'result' => [
+                    'file_path' => 'photos/avatar.png',
+                ],
+            ]),
+            'https://api.telegram.org/file/bot123456:ABCDEF/photos/avatar.png' => Http::response('telegram image bytes', 200, [
+                'Content-Type' => 'image/png',
+            ]),
+        ]);
+
+        $user = User::factory()->create();
+        $bot = TelegramBotToken::create([
+            'user_id' => $user->id,
+            'name' => 'Storage Bot',
+            'token' => '123456:ABCDEF',
+        ]);
+        $group = TelegramStorageGroup::create([
+            'user_id' => $user->id,
+            'telegram_bot_token_id' => $bot->id,
+            'title' => 'Archive',
+            'chat_id' => '-1001234567890',
+        ]);
+        $file = ManagedFile::create([
+            'user_id' => $user->id,
+            'storage_driver' => 'telegram',
+            'telegram_bot_token_id' => $bot->id,
+            'telegram_storage_group_id' => $group->id,
+            'telegram_chat_id' => '-1001234567890',
+            'telegram_message_id' => 777,
+            'telegram_file_id' => 'telegram-file-id',
+            'telegram_file_unique_id' => 'telegram-unique-id',
+            'original_name' => 'avatar.png',
+            'stored_name' => 'avatar.png',
+            'path' => 'telegram/'.$user->id.'/avatar.png',
+            'mime_type' => 'image/png',
+            'extension' => 'png',
+            'size' => 20,
+        ]);
+
+        $response = $this->actingAs($user)->get(route('files.inline', $file));
+
+        $response
+            ->assertOk()
+            ->assertHeader('content-type', 'image/png');
+
+        $this->assertSame('telegram image bytes', $response->streamedContent());
+        $this->assertSame([], Storage::disk('local')->allFiles('telegram-temp/'.$user->id));
+        Http::assertSent(fn ($request) => $request->url() === 'https://api.telegram.org/bot123456:ABCDEF/getFile');
+        Http::assertSent(fn ($request) => $request->url() === 'https://api.telegram.org/file/bot123456:ABCDEF/photos/avatar.png');
     }
 }

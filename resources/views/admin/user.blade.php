@@ -106,6 +106,9 @@
                     <input type="hidden" name="folder" value="{{ $folderFilter }}">
                 @endif
                 <input type="hidden" name="view" value="{{ $display }}">
+                @if ($imagePreviews)
+                    <input type="hidden" name="image_previews" value="1">
+                @endif
                 <input class="field" type="search" name="search" value="{{ $search }}" placeholder="Пошук за назвою, MIME або розширенням">
                 <select class="field" name="type">
                     <option value="all" @selected($type === 'all')>Усі типи</option>
@@ -119,15 +122,34 @@
             <div class="file-view-bar">
                 <span>Показано {{ $files->count() }} з {{ $files->total() }}</span>
                 <div class="view-toggle" aria-label="Вигляд файлів користувача">
-                    <a class="button secondary {{ $display === 'table' ? 'active' : '' }}" href="{{ route('admin.users.show', array_merge(['user' => $user], request()->except(['page', 'view']), ['view' => 'table'])) }}">Таблиця</a>
+                    <a class="button secondary {{ $display === 'table' ? 'active' : '' }}" href="{{ route('admin.users.show', array_merge(['user' => $user], request()->except(['page', 'view', 'image_previews']), ['view' => 'table'])) }}">Таблиця</a>
                     <a class="button secondary {{ $display === 'grid' ? 'active' : '' }}" href="{{ route('admin.users.show', array_merge(['user' => $user], request()->except(['page', 'view']), ['view' => 'grid'])) }}">Плитки</a>
+                    @if ($display === 'grid')
+                        <a
+                            class="button secondary {{ $imagePreviews ? 'active' : '' }}"
+                            href="{{ route('admin.users.show', $imagePreviews
+                                ? array_merge(['user' => $user], request()->except(['page', 'image_previews']), ['view' => 'grid'])
+                                : array_merge(['user' => $user], request()->except(['page']), ['view' => 'grid', 'image_previews' => 1])) }}"
+                        >
+                            {{ $imagePreviews ? 'Фото увімкнено' : 'Передзавантажити фото' }}
+                        </a>
+                    @endif
                 </div>
             </div>
 
             @if ($display === 'grid')
-                <div class="file-grid">
+                <div class="file-grid {{ $imagePreviews ? 'with-previews' : '' }}">
                     @forelse ($files as $file)
                         <article class="file-tile">
+                            @if ($imagePreviews && $file->is_image)
+                                <a class="file-tile-preview" href="{{ route('admin.users.files.preview', [$user, $file]) }}" aria-label="Відкрити {{ $file->original_name }}">
+                                    <img src="{{ route('admin.users.files.inline', [$user, $file]) }}" alt="{{ $file->original_name }}" loading="eager" decoding="async">
+                                </a>
+                            @elseif ($imagePreviews)
+                                <div class="file-tile-preview file-tile-preview-empty" aria-hidden="true">
+                                    <span>{{ $file->type_label }}</span>
+                                </div>
+                            @endif
                             <div class="file-tile-head">
                                 <span class="file-icon">{{ $file->type_label }}</span>
                                 <div class="file-tile-title">

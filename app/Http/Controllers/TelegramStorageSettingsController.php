@@ -2,36 +2,56 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ManagedFile;
 use App\Models\TelegramBotToken;
 use App\Models\TelegramStorageGroup;
+use App\Services\TelegramStorageBotService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class TelegramStorageSettingsController extends Controller
 {
+    private const SYSTEM_TELEGRAM_UPLOAD_LIMIT = 100;
+
     public function index(Request $request): View
     {
         $user = $request->user();
+        $storageGroups = $user->telegramStorageGroups()
+            ->with('botToken')
+            ->orderByDesc('is_global_default')
+            ->orderByDesc('is_default')
+            ->orderBy('title')
+            ->get();
+        $globalDefaultGroupIds = TelegramStorageGroup::where('is_global_default', true)->pluck('id');
+        $systemTelegramUsedUploads = $globalDefaultGroupIds->isEmpty()
+            ? 0
+            : (int) ManagedFile::query()
+                ->where('user_id', $user->id)
+                ->where('storage_driver', 'telegram')
+                ->whereIn('telegram_storage_group_id', $globalDefaultGroupIds)
+                ->count();
 
         return view('settings.telegram', [
+            'botFatherNewBotUrl' => 'https://telegram.me/botfather/newbot',
             'botTokens' => $user->telegramBotTokens()
                 ->withCount('storageGroups')
                 ->orderByDesc('is_default')
                 ->orderBy('name')
                 ->get(),
-            'globalDefaultGroupsCount' => TelegramStorageGroup::where('is_global_default', true)->count(),
-            'storageGroups' => $user->telegramStorageGroups()
-                ->with('botToken')
-                ->orderByDesc('is_global_default')
-                ->orderByDesc('is_default')
-                ->orderBy('title')
-                ->get(),
+            'globalDefaultGroupsCount' => $globalDefaultGroupIds->count(),
+            'storageGroups' => $storageGroups,
+            'systemTelegramRemainingUploads' => max(0, self::SYSTEM_TELEGRAM_UPLOAD_LIMIT - $systemTelegramUsedUploads),
+            'systemTelegramStorageAvailable' => $globalDefaultGroupIds->isNotEmpty()
+                && $systemTelegramUsedUploads < self::SYSTEM_TELEGRAM_UPLOAD_LIMIT,
+            'systemTelegramUploadLimit' => self::SYSTEM_TELEGRAM_UPLOAD_LIMIT,
+            'systemTelegramUsedUploads' => $systemTelegramUsedUploads,
         ]);
     }
 
-    public function storeBot(Request $request): RedirectResponse
+    public function storeBot(Request $request, TelegramStorageBotService $telegram): RedirectResponse
     {
         $user = $request->user();
 
@@ -48,16 +68,23 @@ class TelegramStorageSettingsController extends Controller
             $user->telegramBotTokens()->update(['is_default' => false]);
         }
 
-        $user->telegramBotTokens()->create([
+        $bot = $user->telegramBotTokens()->create([
             'name' => $validated['name'],
             'username' => $validated['username'] ?? null,
             'token' => $validated['token'],
+            'webhook_secret' => Str::random(48),
             'is_default' => $isDefault,
         ]);
+        $webhookConfigured = $telegram->setWebhook(
+            $bot,
+            route('telegram.storage-webhook', ['bot' => $bot, 'secret' => $bot->webhook_secret])
+        );
 
         return redirect()
             ->route('telegram-settings.index')
-            ->with('status', 'Telegram-бота додано.');
+            ->with('status', $webhookConfigured
+                ? 'Telegram-бота додано. Додайте його в групу та напишіть /storage, щоб група автоматично зʼявилась у сховищах.'
+                : 'Telegram-бота додано, але webhook не налаштовано. Перевірте публічний APP_URL і token бота, після цього додайте бота повторно або налаштуйте webhook вручну.');
     }
 
     public function destroyBot(TelegramBotToken $bot): RedirectResponse

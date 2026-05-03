@@ -2,10 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Models\ManagedFile;
 use App\Models\TelegramBotToken;
 use App\Models\TelegramStorageGroup;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class TelegramStorageSettingsTest extends TestCase
@@ -14,6 +16,10 @@ class TelegramStorageSettingsTest extends TestCase
 
     public function test_user_can_add_bot_token_and_storage_group(): void
     {
+        Http::fake([
+            'https://api.telegram.org/bot123456:ABCDEF/setWebhook' => Http::response(['ok' => true]),
+        ]);
+
         $user = User::factory()->create();
 
         $this->actingAs($user)
@@ -29,6 +35,9 @@ class TelegramStorageSettingsTest extends TestCase
         $this->assertSame('Storage Bot', $bot->name);
         $this->assertSame('@storage_bot', $bot->username);
         $this->assertSame('123456:ABCDEF', $bot->token);
+        $this->assertNotEmpty($bot->webhook_secret);
+        Http::assertSent(fn ($request) => $request->url() === 'https://api.telegram.org/bot123456:ABCDEF/setWebhook'
+            && $request['url'] === route('telegram.storage-webhook', ['bot' => $bot, 'secret' => $bot->webhook_secret]));
 
         $this->actingAs($user)
             ->post(route('telegram-settings.groups.store'), [
@@ -50,6 +59,44 @@ class TelegramStorageSettingsTest extends TestCase
             ->assertOk()
             ->assertSee('Storage Bot')
             ->assertSee('Archive');
+    }
+
+    public function test_storage_webhook_adds_group_after_storage_command(): void
+    {
+        Http::fake([
+            'https://api.telegram.org/bot123456:ABCDEF/sendMessage' => Http::response(['ok' => true]),
+        ]);
+
+        $user = User::factory()->create();
+        $bot = TelegramBotToken::create([
+            'user_id' => $user->id,
+            'name' => 'Storage Bot',
+            'username' => '@storage_bot',
+            'token' => '123456:ABCDEF',
+            'webhook_secret' => 'storage-secret',
+        ]);
+
+        $this->postJson(route('telegram.storage-webhook', ['bot' => $bot, 'secret' => 'storage-secret']), [
+            'message' => [
+                'message_id' => 15,
+                'text' => '/storage@storage_bot',
+                'chat' => [
+                    'id' => -1001234567890,
+                    'type' => 'supergroup',
+                    'title' => 'Project Archive',
+                ],
+            ],
+        ])->assertOk();
+
+        $this->assertDatabaseHas('telegram_storage_groups', [
+            'user_id' => $user->id,
+            'telegram_bot_token_id' => $bot->id,
+            'title' => 'Project Archive',
+            'chat_id' => '-1001234567890',
+            'is_default' => true,
+        ]);
+        Http::assertSent(fn ($request) => $request->url() === 'https://api.telegram.org/bot123456:ABCDEF/sendMessage'
+            && $request['chat_id'] === '-1001234567890');
     }
 
     public function test_user_cannot_use_another_users_bot_for_group(): void
@@ -182,6 +229,51 @@ class TelegramStorageSettingsTest extends TestCase
             ->assertOk()
             ->assertSee('Прив’язка Telegram')
             ->assertSee('Налаштувати Telegram-сховище');
+    }
+
+    public function test_settings_show_botfather_link_and_system_limit_without_own_storage(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+        $user = User::factory()->create(['is_admin' => false]);
+        $bot = TelegramBotToken::create([
+            'user_id' => $admin->id,
+            'name' => 'System Bot',
+            'token' => '123456:ABCDEF',
+        ]);
+        $group = TelegramStorageGroup::create([
+            'user_id' => $admin->id,
+            'telegram_bot_token_id' => $bot->id,
+            'title' => 'System Archive',
+            'chat_id' => '-1001234567890',
+            'is_global_default' => true,
+        ]);
+
+        for ($i = 1; $i <= 2; $i++) {
+            ManagedFile::create([
+                'user_id' => $user->id,
+                'storage_driver' => 'telegram',
+                'telegram_bot_token_id' => $bot->id,
+                'telegram_storage_group_id' => $group->id,
+                'telegram_chat_id' => '-1001234567890',
+                'telegram_message_id' => $i,
+                'telegram_file_id' => "system-file-{$i}",
+                'original_name' => "system-file-{$i}.txt",
+                'stored_name' => "system-file-{$i}.txt",
+                'path' => "telegram/{$user->id}/system-file-{$i}.txt",
+                'mime_type' => 'text/plain',
+                'extension' => 'txt',
+                'size' => 10,
+            ]);
+        }
+
+        $this->actingAs($user)
+            ->get(route('telegram-settings.index'))
+            ->assertOk()
+            ->assertSee('https://telegram.me/botfather/newbot', false)
+            ->assertSee('Створити бота в BotFather')
+            ->assertSee('У вас ще немає власного Telegram-сховища')
+            ->assertSee('використано 2 з 100')
+            ->assertSee('залишилось 98 файлів');
     }
 
     public function test_user_can_delete_storage_group(): void

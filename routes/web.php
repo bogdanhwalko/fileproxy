@@ -5,11 +5,21 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\FolderController;
+use App\Http\Controllers\ShareController;
 use App\Http\Controllers\TelegramSetupController;
 use App\Http\Controllers\TelegramStorageSettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'home')->name('home');
+
+Route::get('/share/files/{token}', [ShareController::class, 'showFile'])->name('share.files.show');
+Route::get('/share/files/{token}/inline', [ShareController::class, 'inlineFile'])->name('share.files.inline');
+Route::get('/share/files/{token}/download', [ShareController::class, 'downloadFile'])->name('share.files.download');
+Route::get('/share/folders/{token}', [ShareController::class, 'showFolder'])->name('share.folders.show');
+Route::get('/share/folders/{token}/download', [ShareController::class, 'downloadFolder'])->name('share.folders.download');
+Route::get('/share/folders/{token}/files/{file}', [ShareController::class, 'showFolderFile'])->name('share.folders.files.show');
+Route::get('/share/folders/{token}/files/{file}/inline', [ShareController::class, 'inlineFolderFile'])->name('share.folders.files.inline');
+Route::get('/share/folders/{token}/files/{file}/download', [ShareController::class, 'downloadFolderFile'])->name('share.folders.files.download');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
@@ -29,9 +39,14 @@ Route::middleware(['auth', 'not.blocked'])->group(function () {
     Route::get('/files/{file}/preview', [FileController::class, 'preview'])->name('files.preview');
     Route::get('/files/{file}/inline', [FileController::class, 'inline'])->name('files.inline');
     Route::get('/files/{file}/download', [FileController::class, 'download'])->name('files.download');
+    Route::post('/files/{file}/share', [ShareController::class, 'shareFile'])->name('files.share');
+    Route::patch('/files/{file}/share', [ShareController::class, 'updateFileShareSettings'])->name('files.share.update');
+    Route::delete('/files/{file}/share', [ShareController::class, 'unshareFile'])->name('files.share.destroy');
     Route::delete('/files/{file}', [FileController::class, 'destroy'])->name('files.destroy');
 
     Route::post('/folders', [FolderController::class, 'store'])->name('folders.store');
+    Route::post('/folders/{folder}/share', [ShareController::class, 'shareFolder'])->name('folders.share');
+    Route::delete('/folders/{folder}/share', [ShareController::class, 'unshareFolder'])->name('folders.share.destroy');
     Route::delete('/folders/{folder}', [FolderController::class, 'destroy'])->name('folders.destroy');
 
     Route::get('/telegram/setup', TelegramSetupController::class)->name('telegram.setup');

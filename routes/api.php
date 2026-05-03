@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\TelegramWebhookController;
+use App\Http\Controllers\TelegramStorageWebhookController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -21,3 +22,6 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 Route::post('/telegram/webhook/{secret}', TelegramWebhookController::class)
     ->name('telegram.webhook');
+
+Route::post('/telegram/storage/{bot}/{secret}', TelegramStorageWebhookController::class)
+    ->name('telegram.storage-webhook');

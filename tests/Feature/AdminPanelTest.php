@@ -88,6 +88,57 @@ class AdminPanelTest extends TestCase
             ->assertDontSee('root-report.txt');
     }
 
+    public function test_admin_can_enable_image_previews_on_user_grid(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+        $user = User::factory()->create(['name' => 'Target User']);
+        $image = ManagedFile::create([
+            'user_id' => $user->id,
+            'storage_driver' => 'local',
+            'original_name' => 'avatar.png',
+            'stored_name' => 'avatar.png',
+            'path' => 'uploads/avatar.png',
+            'mime_type' => 'image/png',
+            'extension' => 'png',
+            'size' => 10,
+        ]);
+        $document = ManagedFile::create([
+            'user_id' => $user->id,
+            'storage_driver' => 'local',
+            'original_name' => 'contract.pdf',
+            'stored_name' => 'contract.pdf',
+            'path' => 'uploads/contract.pdf',
+            'mime_type' => 'application/pdf',
+            'extension' => 'pdf',
+            'size' => 10,
+        ]);
+
+        $withoutPreviews = $this->actingAs($admin)
+            ->get(route('admin.users.show', [
+                'user' => $user,
+                'view' => 'grid',
+            ]));
+
+        $withoutPreviews
+            ->assertOk()
+            ->assertSee('image_previews=1', false)
+            ->assertDontSee('class="file-tile-preview"', false);
+
+        $response = $this->actingAs($admin)
+            ->get(route('admin.users.show', [
+                'user' => $user,
+                'view' => 'grid',
+                'image_previews' => 1,
+            ]));
+
+        $response
+            ->assertOk()
+            ->assertSee('Фото увімкнено')
+            ->assertSee(route('admin.users.files.inline', [$user, $image]), false)
+            ->assertDontSee(route('admin.users.files.inline', [$user, $document]), false)
+            ->assertSee('file-tile-preview file-tile-preview-empty', false);
+    }
+
     public function test_admin_can_preview_and_delete_user_file(): void
     {
         Storage::fake('local');

@@ -101,14 +101,26 @@ class ManagedFileStorageService
             ]);
         }
 
-        $temporaryPath = $this->telegram->downloadToTemporaryPath($file);
+        $stream = $this->telegram->downloadStream($file);
 
-        return response()
-            ->file($temporaryPath, [
-                'Content-Type' => $file->mime_type ?: 'application/octet-stream',
-                'Content-Disposition' => 'inline; filename="'.$file->original_name.'"',
-            ])
-            ->deleteFileAfterSend();
+        return response()->stream(function () use ($stream): void {
+            try {
+                while (! $stream->eof()) {
+                    echo $stream->read(1024 * 1024);
+
+                    if (ob_get_level() > 0) {
+                        @ob_flush();
+                    }
+
+                    flush();
+                }
+            } finally {
+                $stream->close();
+            }
+        }, 200, [
+            'Content-Type' => $file->mime_type ?: 'application/octet-stream',
+            'Content-Disposition' => 'inline; filename="'.$file->original_name.'"',
+        ]);
     }
 
     public function readTextPreview(ManagedFile $file): array
@@ -142,6 +154,15 @@ class ManagedFileStorageService
         }
 
         return [$content, $isTruncated];
+    }
+
+    public function temporaryPathForArchive(ManagedFile $file): array
+    {
+        if ($file->is_telegram) {
+            return [$this->telegram->downloadToTemporaryPath($file), true];
+        }
+
+        return [Storage::disk('local')->path($file->path), false];
     }
 
     public function delete(ManagedFile $file): void

@@ -16,6 +16,7 @@ class TelegramBotToken extends Model
         'name',
         'username',
         'token',
+        'webhook_secret',
         'is_default',
     ];
 
