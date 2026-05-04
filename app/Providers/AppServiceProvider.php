@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Database\SafeDatabaseMigrationRepository;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -11,7 +12,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->extend('migration.repository', function ($repository, $app) {
+            return new SafeDatabaseMigrationRepository(
+                $app['db'],
+                $app['config']['database.migrations']
+            );
+        });
     }
 
     /**

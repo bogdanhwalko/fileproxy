@@ -5,57 +5,327 @@
 ## Стек
 
 - Laravel 10
-- PHP-FPM 8.2
-- Nginx
-- MariaDB 11.4
-- Docker Compose
+- PHP 8.2+
+- MySQL або MariaDB
+- Composer
+- cPanel-хостинг з HTTPS-доменом
 
-## Запуск у Docker
+## Інструкція розгортання
 
-```bash
-docker compose up -d --build
-```
+### 1. Вимоги
 
-Після старту сайт буде доступний за адресою:
+Для розгортання на cPanel потрібні:
+
+- PHP 8.2 або новіший;
+- Composer на хостингу або можливість завантажити готову папку `vendor`;
+- MySQL або MariaDB база даних;
+- доступ до Terminal/SSH у cPanel бажаний, але не обов'язковий;
+- домен з HTTPS, якщо планується Telegram webhook;
+- Telegram-бот для авторизації користувачів;
+- Telegram-боти та групи для файлового сховища, якщо файли будуть зберігатися в Telegram.
+
+У PHP Extensions мають бути увімкнені мінімум:
 
 ```text
-http://localhost:8080
+bcmath, ctype, curl, dom, fileinfo, json, mbstring, openssl, pdo_mysql, tokenizer, xml, zip
 ```
 
-Основні сторінки:
+### 2. Підготовка проєкту
 
-- `http://localhost:8080` - головна сторінка з описом проєкту
-- `http://localhost:8080/register` - реєстрація
-- `http://localhost:8080/login` - вхід
-- `http://localhost:8080/files` - приватне керування файлами
-- `http://localhost:8080/admin` - адмінка користувачів, доступна тільки admin-користувачам
+Найзручніший варіант для cPanel - розмістити Laravel-проєкт поза `public_html`, а document root домену або піддомену направити в папку `public`.
 
-Контейнер `app` автоматично виконує `composer install`, створює `APP_KEY`, якщо він порожній, і запускає міграції.
+Приклад структури:
 
-## Корисні команди
+```text
+/home/cpanel_user/fileproxy
+/home/cpanel_user/fileproxy/app
+/home/cpanel_user/fileproxy/public
+/home/cpanel_user/fileproxy/storage
+```
+
+У cPanel це можна зробити через `Domains` або `Subdomains`, вказавши document root:
+
+```text
+/home/cpanel_user/fileproxy/public
+```
+
+Якщо хостинг не дозволяє вибрати `public` як document root, тоді Laravel-код залишають поза `public_html`, а в `public_html` кладуть тільки вміст папки `public` і вручну виправляють шляхи в `public_html/index.php` до `vendor/autoload.php` та `bootstrap/app.php`.
+
+Завантажити код можна одним із способів:
+
+- через `Git Version Control` у cPanel;
+- через Terminal/SSH командою `git clone`;
+- архівом через `File Manager`.
+
+Приклад через Terminal/SSH:
 
 ```bash
-docker compose exec app php artisan migrate
-docker compose exec app php artisan route:list
-docker compose exec app php artisan test
-docker compose exec app php artisan telegram:poll
-docker compose down
+git clone <repo-url> fileproxy
+cd fileproxy
 ```
 
-MariaDB доступна з хоста на порту `3307`.
+Встановіть PHP-залежності:
 
-## Налаштування БД
+```bash
+composer install --no-dev --optimize-autoloader
+```
 
-Значення за замовчуванням у `.env`:
+Якщо Composer на хостингу недоступний, виконайте цю команду локально на тій самій версії PHP, після чого завантажте на хостинг папку `vendor`.
+
+Створіть `.env`:
+
+```bash
+cp .env.example .env
+```
+
+### 3. База даних у cPanel
+
+У cPanel відкрийте `MySQL Databases` і створіть:
+
+- базу даних, наприклад `cpaneluser_fileproxy`;
+- користувача бази, наприклад `cpaneluser_fileproxy_user`;
+- пароль користувача;
+- прив'яжіть користувача до бази з правами `ALL PRIVILEGES`.
+
+У більшості cPanel-хостингів `DB_HOST` дорівнює `localhost`. Якщо хостинг показує інший host для MySQL, використайте його.
+
+Приклад `.env` для cPanel:
 
 ```env
+APP_NAME=FileProxy
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://your-domain.com
+
 DB_CONNECTION=mysql
-DB_HOST=db
+DB_HOST=localhost
 DB_PORT=3306
-DB_DATABASE=fileproxy
-DB_USERNAME=fileproxy
-DB_PASSWORD=fileproxy
+DB_DATABASE=cpaneluser_fileproxy
+DB_USERNAME=cpaneluser_fileproxy_user
+DB_PASSWORD=strong-password
+
+TELEGRAM_BOT_TOKEN=123456:ABCDEF
+TELEGRAM_BOT_USERNAME=your_bot_username
+TELEGRAM_WEBHOOK_SECRET=random-long-secret
+PHONE_AUTH_SHOW_CODE_LOCALLY=false
 ```
+
+`APP_URL` має бути реальною публічною HTTPS-адресою. Це важливо для Telegram webhook, відкриття публічних посилань і коректної генерації URL.
+
+### 4. Перший запуск
+
+У Terminal/SSH з папки проєкту виконайте:
+
+```bash
+php artisan key:generate
+php artisan migrate --force
+php artisan storage:link
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+```
+
+Якщо `storage:link` на cPanel не працює через обмеження symlink, це не критично для Telegram-сховища. Для локального сховища адміністратора може знадобитися дозволити symlink у хостингу або віддавати файли тільки через контролер.
+
+### 5. Права доступу
+
+Папки `storage` і `bootstrap/cache` мають бути доступні для запису PHP-процесу.
+
+Типові права:
+
+```bash
+chmod -R 775 storage bootstrap/cache
+```
+
+Якщо хостинг працює від вашого cPanel-користувача, зазвичай цього достатньо. Не ставте `777`, якщо хостинг цього прямо не вимагає.
+
+### 6. Налаштування PHP-лімітів
+
+У cPanel відкрийте `MultiPHP INI Editor` або `Select PHP Version` і виставте:
+
+```ini
+upload_max_filesize = 55M
+post_max_size = 60M
+memory_limit = 256M
+max_execution_time = 120
+max_input_time = 120
+```
+
+Для Telegram Bot API максимальний розмір файла через multipart upload - 50 MB, тому більші значення для звичайних користувачів не потрібні.
+
+### 7. Cron
+
+У cPanel відкрийте `Cron Jobs` і додайте Laravel scheduler:
+
+```bash
+* * * * * cd /home/cpanel_user/fileproxy && /usr/local/bin/php artisan schedule:run >> /dev/null 2>&1
+```
+
+Шлях до PHP може відрізнятися. Перевірити його можна в Terminal:
+
+```bash
+which php
+```
+
+Якщо на хостингу немає Terminal, шлях до PHP зазвичай можна побачити в документації хостингу або в `MultiPHP Manager`.
+
+### 8. Telegram авторизація
+
+Для cPanel краще використовувати webhook, а не polling. Після налаштування `.env` відкрийте в браузері:
+
+```text
+https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook?url=https://your-domain.com/api/telegram/webhook/<TELEGRAM_WEBHOOK_SECRET>
+```
+
+Перевірити webhook:
+
+```text
+https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/getWebhookInfo
+```
+
+Якщо `getWebhookInfo` показує помилку, перевірте:
+
+- `APP_URL` починається з `https://`;
+- SSL-сертифікат домену активний;
+- маршрут `/api/telegram/webhook/<secret>` відкривається з інтернету;
+- `TELEGRAM_WEBHOOK_SECRET` у URL збігається зі значенням у `.env`;
+- після зміни `.env` виконано `php artisan config:clear` або `php artisan config:cache`.
+
+### 9. Telegram-сховище
+
+Для Telegram-сховища домен також має бути публічним і працювати через HTTPS. Коли користувач додає token свого бота в розділі `Telegram-сховище`, система намагається автоматично встановити webhook для команд сховища.
+
+Порядок підключення сховища:
+
+1. Користувач створює бота через BotFather.
+2. Додає token бота на сторінці `Telegram-сховище`.
+3. Додає бота в Telegram-групу.
+4. Пише в групі команду `/storage`.
+5. Група автоматично додається до списку сховищ користувача.
+
+Якщо група не додається, перевірте:
+
+- token бота правильний;
+- бот доданий у групу;
+- webhook для цього бота встановився без помилок;
+- група не забороняє повідомлення від бота.
+
+### 10. Перший адміністратор
+
+Перший зареєстрований користувач автоматично отримує `is_admin=true`, якщо у базі ще немає адміністратора.
+
+Призначити адміністратора вручну можна з Terminal/SSH:
+
+```bash
+php artisan user:set-admin +380501234567
+```
+
+Зняти права адміністратора:
+
+```bash
+php artisan user:set-admin +380501234567 --remove
+```
+
+Команда приймає `id`, номер телефону або email користувача.
+
+Якщо Terminal/SSH недоступний, адміністратора можна виставити через phpMyAdmin: у таблиці `users` знайдіть потрібного користувача і встановіть `is_admin = 1`.
+
+### 11. Оновлення проєкту
+
+Типовий порядок оновлення через Terminal/SSH:
+
+```bash
+git pull
+composer install --no-dev --optimize-autoloader
+php artisan migrate --force
+php artisan config:clear
+php artisan route:clear
+php artisan view:clear
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+```
+
+Якщо код оновлюється через архів, перед завантаженням зробіть backup `.env`, `storage` і бази даних.
+
+### 12. Backup і відновлення
+
+Базу даних можна експортувати через `phpMyAdmin` у cPanel або через Terminal:
+
+```bash
+mysqldump -u cpaneluser_fileproxy_user -p cpaneluser_fileproxy > backup.sql
+```
+
+Відновлення:
+
+```bash
+mysql -u cpaneluser_fileproxy_user -p cpaneluser_fileproxy < backup.sql
+```
+
+Також варто регулярно зберігати:
+
+- `.env`;
+- папку `storage`;
+- дамп бази даних.
+
+### 13. Типові проблеми
+
+`500 Server Error`:
+
+- перевірте `storage/logs/laravel.log`;
+- переконайтеся, що `APP_KEY` створений;
+- перевірте доступи на `storage` і `bootstrap/cache`;
+- після зміни `.env` виконайте `php artisan config:clear`.
+
+Сторінка відкриває список файлів Laravel замість сайту:
+
+- document root домену має вести саме в `fileproxy/public`;
+- якщо використовується `public_html`, у ньому має бути вміст папки `public`, а не весь Laravel-проєкт.
+
+Файл не завантажується через розмір:
+
+- Laravel-ліміт у коді: 50 MB для Telegram Bot API;
+- PHP: `upload_max_filesize=55M`, `post_max_size=60M`;
+- перевірте ліміти хостингу на розмір HTTP-запиту.
+
+Telegram webhook не працює:
+
+- перевірте `APP_URL`;
+- перевірте HTTPS;
+- перевірте `TELEGRAM_WEBHOOK_SECRET`;
+- виконайте `getWebhookInfo`;
+- переконайтеся, що cPanel не блокує outbound-запити до `api.telegram.org`.
+
+Помилка `Unsupported operand types: string + int` під час `php artisan migrate --force`:
+
+- у проєкті додано захист, який приводить `batch` міграцій до числа перед обчисленням наступного номера;
+- якщо помилка все одно з'являється, найчастіше причина в тому, що таблиця `migrations` була створена неправильно або в колонці `batch` є нечислове значення;
+- перевірте структуру таблиці в phpMyAdmin:
+
+```sql
+SHOW CREATE TABLE migrations;
+SELECT id, migration, batch FROM migrations ORDER BY id;
+```
+
+- у коректній таблиці `batch` має бути числовою колонкою, наприклад `int`;
+- якщо це нове встановлення без важливих даних, найпростіше видалити всі таблиці проєкту і повторно виконати:
+
+```bash
+php artisan migrate --force
+```
+
+- якщо дані вже є, спочатку зробіть backup бази, після чого виправте колонку:
+
+```sql
+UPDATE migrations
+SET batch = 1
+WHERE batch IS NULL OR batch = '' OR batch REGEXP '[^0-9]';
+
+ALTER TABLE migrations
+MODIFY batch INT NOT NULL;
+```
+
+## Налаштування файлів і сховища
 
 Файли можуть зберігатися приватно в `storage/app/uploads` або в Telegram-групі, яку користувач підключив у розділі `Telegram-сховище`. Метадані зберігаються в таблиці `managed_files`. Кожен запис має `user_id`, тому користувач бачить і керує тільки власними файлами.
 
@@ -98,13 +368,7 @@ TELEGRAM_WEBHOOK_SECRET=fileproxy-local-secret
 PHONE_AUTH_SHOW_CODE_LOCALLY=false
 ```
 
-Для локального Docker-запуску відкрийте окремий термінал і запустіть polling:
-
-```bash
-docker compose exec app php artisan telegram:poll
-```
-
-Для публічного сервера замість polling можна підключити Telegram webhook:
+На cPanel використовуйте Telegram webhook:
 
 ```text
 https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook?url=https://your-domain.com/api/telegram/webhook/<TELEGRAM_WEBHOOK_SECRET>
@@ -125,9 +389,10 @@ PHONE_AUTH_SHOW_CODE_LOCALLY=true
 Після входу відкрийте `Telegram-сховище` у верхньому меню файлового кабінету.
 
 1. Додайте один або кілька bot token.
-2. Додайте Telegram-групи: виберіть бота, задайте назву і `chat_id` групи.
-3. Додайте бота в цю групу, щоб він міг відправляти файли.
-4. У формі завантаження файлів виберіть потрібну Telegram-групу в полі `Сховище`.
+2. Додайте бота в Telegram-групу, яка буде сховищем файлів.
+3. Напишіть у групі команду `/storage`.
+4. Група автоматично з'явиться у списку сховищ користувача.
+5. У формі завантаження файлів виберіть потрібну Telegram-групу в полі `Сховище`.
 
 Якщо Telegram-групу не вибрано, файл зберігається локально в Laravel storage тільки для адміністратора.
 
@@ -140,7 +405,7 @@ PHONE_AUTH_SHOW_CODE_LOCALLY=true
 Сторінка з інструкцією підключення:
 
 ```text
-http://localhost:8080/telegram/setup
+https://your-domain.com/telegram/setup
 ```
 
 ## Адмінка
@@ -150,7 +415,7 @@ http://localhost:8080/telegram/setup
 Адмінка доступна за адресою:
 
 ```text
-http://localhost:8080/admin
+https://your-domain.com/admin
 ```
 
 Адміністратор може:
@@ -165,8 +430,8 @@ http://localhost:8080/admin
 Призначити або зняти адміністратора можна командою:
 
 ```bash
-docker compose exec app php artisan user:set-admin +380501234567
-docker compose exec app php artisan user:set-admin +380501234567 --remove
+php artisan user:set-admin +380501234567
+php artisan user:set-admin +380501234567 --remove
 ```
 
 Команда приймає `id`, номер телефону або email користувача.
