@@ -104,14 +104,18 @@ class PhoneAuthService
             return null;
         }
 
-        $code = (string) random_int(100000, 999999);
+        return $this->generateCodeForChallenge($challenge);
+    }
 
-        $challenge->forceFill([
-            'code_hash' => Hash::make($code),
-            'attempts' => 0,
-        ])->save();
+    public function issueCodeForPhone(string $phone): ?string
+    {
+        $phone = $this->normalizePhone($phone);
 
-        return $code;
+        if (! $this->isValidPhone($phone)) {
+            return null;
+        }
+
+        return $this->generateCodeForChallenge($this->createChallenge($phone));
     }
 
     public function generateCodeForPhone(string $phone, bool $createIfMissing = true): ?string
@@ -207,6 +211,18 @@ class PhoneAuthService
         ])->save();
 
         return true;
+    }
+
+    private function generateCodeForChallenge(PhoneAuthChallenge $challenge): string
+    {
+        $code = (string) random_int(100000, 999999);
+
+        $challenge->forceFill([
+            'code_hash' => Hash::make($code),
+            'attempts' => 0,
+        ])->save();
+
+        return $code;
     }
 
     private function consumeOtherChallengesForPhone(string $phone, int $exceptId): void

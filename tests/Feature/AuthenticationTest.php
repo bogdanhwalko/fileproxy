@@ -251,6 +251,36 @@ class AuthenticationTest extends TestCase
         $this->assertDatabaseHas('users', ['phone' => $phone]);
     }
 
+    public function test_telegram_contact_accepts_local_ukrainian_phone_format(): void
+    {
+        config([
+            'services.telegram.bot_token' => '123456:ABCDEF',
+            'services.telegram.webhook_secret' => 'auth-secret',
+        ]);
+
+        Http::fake([
+            'https://api.telegram.org/bot123456:ABCDEF/sendMessage' => Http::response(['ok' => true]),
+        ]);
+
+        $this->postJson(route('telegram.webhook', ['secret' => 'auth-secret']), [
+            'message' => [
+                'from' => ['id' => 42],
+                'chat' => ['id' => 100500],
+                'contact' => [
+                    'phone_number' => '097 911 23 88',
+                    'user_id' => 42,
+                ],
+            ],
+        ])->assertOk();
+
+        Http::assertSent(fn ($request) => $request['chat_id'] === 100500
+            && str_contains((string) $request['text'], 'Ваш код FileProxy:'));
+
+        $this->assertDatabaseHas('phone_auth_challenges', [
+            'phone' => '+380979112388',
+        ]);
+    }
+
     private function uniquePhone(): string
     {
         return '+38050'.random_int(1000000, 9999999);

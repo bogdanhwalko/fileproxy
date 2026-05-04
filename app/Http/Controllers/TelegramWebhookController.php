@@ -94,10 +94,10 @@ class TelegramWebhookController extends Controller
             return;
         }
 
-        $code = $phoneAuth->generateCodeForPhone($phone);
+        $code = $phoneAuth->issueCodeForPhone($phone);
 
         if (! $code) {
-            $telegram->sendMessage($chatId, 'Код не створено. Спробуйте ще раз або поверніться у форму FileProxy.');
+            $telegram->sendMessage($chatId, "Код не створено для номера {$phone}. Спробуйте ще раз або поверніться у форму FileProxy.");
 
             return;
         }
