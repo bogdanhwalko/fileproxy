@@ -11,16 +11,22 @@ class TelegramBotService
         return trim((string) config('services.telegram.bot_token')) !== '';
     }
 
-    public function sendMessage(int|string $chatId, string $text): bool
+    public function sendMessage(int|string $chatId, string $text, ?array $replyMarkup = null): bool
     {
         if (! $this->configured()) {
             return false;
         }
 
-        $response = Http::asJson()->post($this->apiUrl('sendMessage'), [
+        $payload = [
             'chat_id' => $chatId,
             'text' => $text,
-        ]);
+        ];
+
+        if ($replyMarkup !== null) {
+            $payload['reply_markup'] = $replyMarkup;
+        }
+
+        $response = Http::asJson()->post($this->apiUrl('sendMessage'), $payload);
 
         return $response->successful();
     }

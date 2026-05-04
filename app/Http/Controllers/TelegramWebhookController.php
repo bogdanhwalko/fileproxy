@@ -33,14 +33,26 @@ class TelegramWebhookController extends Controller
         $chatId = data_get($message, 'chat.id');
         $text = trim((string) data_get($message, 'text', ''));
 
-        if (! $chatId || ! preg_match('/^\/start(?:@[A-Za-z0-9_]+)?(?:\s+(.*))?$/u', $text, $matches)) {
+        if (! $chatId) {
+            return;
+        }
+
+        $contact = data_get($message, 'contact');
+
+        if (is_array($contact)) {
+            $this->handleContact($message, $contact, $phoneAuth, $telegram);
+
+            return;
+        }
+
+        if (! preg_match('/^\/start(?:@[A-Za-z0-9_]+)?(?:\s+(.*))?$/u', $text, $matches)) {
             return;
         }
 
         $payload = trim((string) ($matches[1] ?? ''));
 
         if ($payload === '') {
-            $telegram->sendMessage($chatId, 'Надішліть команду у форматі /start phone_380XXXXXXXXX або відкрийте бота з посилання, яке FileProxy покаже після введення телефону.');
+            $this->requestContact($telegram, $chatId);
 
             return;
         }
@@ -48,11 +60,77 @@ class TelegramWebhookController extends Controller
         $code = $phoneAuth->generateCodeForPayload($payload);
 
         if (! $code) {
-            $telegram->sendMessage($chatId, 'Код не створено. Перевірте номер телефону або спочатку натисніть "Отримати код" у формі FileProxy.');
+            $this->requestContact($telegram, $chatId);
 
             return;
         }
 
-        $telegram->sendMessage($chatId, "Ваш код FileProxy: {$code}\nКод діє 10 хвилин.");
+        $this->sendCode($telegram, $chatId, $code);
+    }
+
+    private function handleContact(
+        array $message,
+        array $contact,
+        PhoneAuthService $phoneAuth,
+        TelegramBotService $telegram
+    ): void {
+        $chatId = data_get($message, 'chat.id');
+        $senderId = data_get($message, 'from.id');
+        $contactUserId = data_get($contact, 'user_id');
+
+        if ($senderId && $contactUserId && (string) $senderId !== (string) $contactUserId) {
+            $telegram->sendMessage($chatId, 'Поділіться саме своїм контактом через кнопку нижче.');
+            $this->requestContact($telegram, $chatId);
+
+            return;
+        }
+
+        $phone = $phoneAuth->normalizePhone((string) data_get($contact, 'phone_number', ''));
+
+        if (! $phoneAuth->isValidPhone($phone)) {
+            $telegram->sendMessage($chatId, 'Потрібен український номер у форматі +380XXXXXXXXX.');
+            $this->requestContact($telegram, $chatId);
+
+            return;
+        }
+
+        $code = $phoneAuth->generateCodeForPhone($phone);
+
+        if (! $code) {
+            $telegram->sendMessage($chatId, 'Код не створено. Спробуйте ще раз або поверніться у форму FileProxy.');
+
+            return;
+        }
+
+        $this->sendCode($telegram, $chatId, $code);
+    }
+
+    private function requestContact(TelegramBotService $telegram, int|string $chatId): void
+    {
+        $telegram->sendMessage(
+            $chatId,
+            'Натисніть кнопку нижче, щоб поділитися своїм номером телефону. Після цього я надішлю код FileProxy.',
+            [
+                'keyboard' => [
+                    [
+                        [
+                            'text' => 'Поділитися контактом',
+                            'request_contact' => true,
+                        ],
+                    ],
+                ],
+                'resize_keyboard' => true,
+                'one_time_keyboard' => true,
+            ]
+        );
+    }
+
+    private function sendCode(TelegramBotService $telegram, int|string $chatId, string $code): void
+    {
+        $telegram->sendMessage(
+            $chatId,
+            "Ваш код FileProxy: {$code}\nКод діє 10 хвилин.",
+            ['remove_keyboard' => true]
+        );
     }
 }

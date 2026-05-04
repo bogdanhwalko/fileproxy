@@ -19,6 +19,10 @@ class PhoneAuthService
             $digits = substr($digits, 2);
         }
 
+        if (strlen($digits) === 10 && str_starts_with($digits, '0')) {
+            $digits = '38'.$digits;
+        }
+
         return '+'.$digits;
     }
 
@@ -45,7 +49,7 @@ class PhoneAuthService
 
     public function telegramPayload(PhoneAuthChallenge $challenge): string
     {
-        return self::PHONE_START_PREFIX.ltrim($challenge->phone, '+');
+        return 'auth';
     }
 
     public function telegramLink(PhoneAuthChallenge $challenge): ?string
@@ -56,7 +60,7 @@ class PhoneAuthService
             return null;
         }
 
-        return 'https://t.me/'.ltrim($username, '@').'?start='.$this->telegramPayload($challenge);
+        return 'https://t.me/'.ltrim($username, '@');
     }
 
     public function localCodeForChallenge(PhoneAuthChallenge $challenge): ?string

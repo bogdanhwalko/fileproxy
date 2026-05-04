@@ -47,7 +47,7 @@ class AuthenticationTest extends TestCase
         ])
             ->assertRedirect()
             ->assertSessionHas('telegram_auth', function (array $auth) use ($phone): bool {
-                return ($auth['command'] ?? null) === '/start phone_'.ltrim($phone, '+')
+                return ($auth['command'] ?? null) === '/start'
                     && ! str_contains((string) ($auth['command'] ?? ''), (string) ($auth['token'] ?? ''));
             });
     }
@@ -143,7 +143,30 @@ class AuthenticationTest extends TestCase
         $this->assertFalse(Auth::check());
     }
 
-    public function test_telegram_start_with_phone_generates_code_for_active_challenge(): void
+    public function test_telegram_start_requests_contact(): void
+    {
+        config([
+            'services.telegram.bot_token' => '123456:ABCDEF',
+            'services.telegram.webhook_secret' => 'auth-secret',
+        ]);
+
+        Http::fake([
+            'https://api.telegram.org/bot123456:ABCDEF/sendMessage' => Http::response(['ok' => true]),
+        ]);
+
+        $this->postJson(route('telegram.webhook', ['secret' => 'auth-secret']), [
+            'message' => [
+                'chat' => ['id' => 100500],
+                'text' => '/start',
+            ],
+        ])->assertOk();
+
+        Http::assertSent(fn ($request) => $request->url() === 'https://api.telegram.org/bot123456:ABCDEF/sendMessage'
+            && $request['chat_id'] === 100500
+            && $request['reply_markup']['keyboard'][0][0]['request_contact'] === true);
+    }
+
+    public function test_telegram_contact_generates_code_for_active_challenge(): void
     {
         config([
             'services.telegram.bot_token' => '123456:ABCDEF',
@@ -157,32 +180,34 @@ class AuthenticationTest extends TestCase
         $phoneAuth = app(PhoneAuthService::class);
         $phone = $this->uniquePhone();
         $challenge = $phoneAuth->createChallenge($phone);
+        $sentCode = null;
 
         $this->postJson(route('telegram.webhook', ['secret' => 'auth-secret']), [
             'message' => [
+                'from' => ['id' => 42],
                 'chat' => ['id' => 100500],
-                'text' => '/start phone_'.ltrim($phone, '+'),
+                'contact' => [
+                    'phone_number' => ltrim($phone, '+'),
+                    'user_id' => 42,
+                ],
             ],
         ])->assertOk();
 
-        $sentCode = null;
-
         Http::assertSent(function ($request) use (&$sentCode) {
-            if ($request->url() !== 'https://api.telegram.org/bot123456:ABCDEF/sendMessage') {
-                return false;
-            }
-
             preg_match('/Ваш код FileProxy: ([0-9]{6})/', (string) $request['text'], $matches);
             $sentCode = $matches[1] ?? null;
 
-            return $request['chat_id'] === 100500 && $sentCode !== null;
+            return $request->url() === 'https://api.telegram.org/bot123456:ABCDEF/sendMessage'
+                && $request['chat_id'] === 100500
+                && $request['reply_markup']['remove_keyboard'] === true
+                && $sentCode !== null;
         });
 
         $this->assertNotNull($sentCode);
         $this->assertTrue($phoneAuth->verify($challenge->token, $phone, $sentCode));
     }
 
-    public function test_telegram_start_with_phone_can_create_missing_challenge(): void
+    public function test_telegram_contact_can_create_missing_challenge(): void
     {
         config([
             'services.telegram.bot_token' => '123456:ABCDEF',
@@ -198,8 +223,12 @@ class AuthenticationTest extends TestCase
 
         $this->postJson(route('telegram.webhook', ['secret' => 'auth-secret']), [
             'message' => [
+                'from' => ['id' => 42],
                 'chat' => ['id' => 100500],
-                'text' => '/start phone_'.ltrim($phone, '+'),
+                'contact' => [
+                    'phone_number' => ltrim($phone, '+'),
+                    'user_id' => 42,
+                ],
             ],
         ])->assertOk();
 
@@ -207,7 +236,9 @@ class AuthenticationTest extends TestCase
             preg_match('/Ваш код FileProxy: ([0-9]{6})/', (string) $request['text'], $matches);
             $sentCode = $matches[1] ?? null;
 
-            return $request['chat_id'] === 100500 && $sentCode !== null;
+            return $request['chat_id'] === 100500
+                && $request['reply_markup']['remove_keyboard'] === true
+                && $sentCode !== null;
         });
 
         $this->post(route('register.store'), [

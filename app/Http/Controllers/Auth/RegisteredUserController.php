@@ -74,7 +74,7 @@ class RegisteredUserController extends Controller
             ->with('telegram_auth', [
                 'action' => $action,
                 'bot_link' => $phoneAuth->telegramLink($challenge),
-                'command' => '/start '.$phoneAuth->telegramPayload($challenge),
+                'command' => '/start',
                 'local_code' => $localCode,
                 'token' => $challenge->token,
             ])

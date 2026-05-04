@@ -46,7 +46,7 @@
                     <p>Локальний режим увімкнено. Використайте цей 6-значний код для входу.</p>
                     <div class="local-code">{{ $telegramAuth['local_code'] }}</div>
                 @else
-                    <p>Перейдіть у Telegram-бота або надішліть йому команду нижче. Бот поверне 6-значний код.</p>
+                    <p>Перейдіть у Telegram-бота, надішліть /start і поділіться контактом через кнопку бота. Бот поверне 6-значний код.</p>
 
                     @if ($telegramAuth['bot_link'])
                         <a class="button accent" href="{{ $telegramAuth['bot_link'] }}" target="_blank" rel="noreferrer">Відкрити бота</a>
