@@ -312,11 +312,20 @@
         .landing-panel {
             display: grid;
             gap: 22px;
-            padding: 26px;
+            padding: 28px;
             border: 1px solid var(--line);
             border-radius: 8px;
-            background: rgb(255 255 255 / 86%);
+            background:
+                linear-gradient(135deg, rgb(255 255 255 / 96%) 0%, rgb(248 250 247 / 90%) 54%, rgb(233 238 252 / 72%) 100%),
+                #fff;
             box-shadow: var(--shadow);
+        }
+
+        .landing-hero-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.02fr) minmax(390px, 0.98fr);
+            gap: 28px;
+            align-items: center;
         }
 
         .landing-hero-copy {
@@ -341,7 +350,7 @@
             margin: 18px 0 0;
             width: min(940px, 100%);
             color: var(--ink);
-            font-size: 58px;
+            font-size: 60px;
             line-height: 1.02;
         }
 
@@ -355,6 +364,27 @@
 
         .landing-actions {
             margin-top: 24px;
+        }
+
+        .landing-points {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 18px;
+        }
+
+        .landing-points span {
+            display: inline-flex;
+            min-height: 32px;
+            align-items: center;
+            padding: 7px 10px;
+            border: 1px solid rgb(216 224 215 / 90%);
+            border-radius: 999px;
+            background: rgb(255 255 255 / 72%);
+            color: var(--text);
+            font-size: 13px;
+            font-weight: 800;
+            box-shadow: var(--shadow-soft);
         }
 
         .landing-metrics {
@@ -399,6 +429,7 @@
             border: 1px solid var(--line);
             border-radius: 8px;
             background: var(--surface);
+            box-shadow: 0 22px 58px rgb(17 24 39 / 13%);
         }
 
         .snapshot-toolbar {
@@ -408,7 +439,8 @@
             gap: 12px;
             padding: 13px 14px;
             border-bottom: 1px solid var(--line);
-            background: var(--surface-subtle);
+            background: #111827;
+            color: #fff;
         }
 
         .snapshot-toolbar div {
@@ -426,7 +458,7 @@
         }
 
         .snapshot-toolbar span {
-            color: var(--muted);
+            color: rgb(255 255 255 / 68%);
             font-size: 13px;
         }
 
@@ -566,6 +598,10 @@
         }
 
         .snapshot-files small {
+            justify-self: end;
+            padding: 5px 8px;
+            border-radius: 999px;
+            background: var(--surface-muted);
             color: var(--muted);
             font-size: 12px;
             white-space: nowrap;
@@ -595,16 +631,36 @@
             gap: 12px;
         }
 
+        .landing-benefits article {
+            display: grid;
+            align-content: start;
+            gap: 8px;
+        }
+
+        .landing-benefits article > span {
+            display: inline-grid;
+            width: 34px;
+            height: 28px;
+            place-items: center;
+            border-radius: 999px;
+            background: var(--accent-soft);
+            color: var(--accent);
+            font-size: 12px;
+            font-weight: 900;
+        }
+
         .landing-benefits strong,
-        .landing-flow strong {
+        .landing-flow strong,
+        .landing-audience strong {
             display: block;
             color: var(--ink);
             font-size: 17px;
         }
 
         .landing-benefits p,
-        .landing-flow p {
-            margin: 9px 0 0;
+        .landing-flow p,
+        .landing-audience p {
+            margin: 0;
             color: var(--muted);
             font-size: 14px;
             line-height: 1.5;
@@ -628,6 +684,29 @@
             color: #fff;
             font-size: 13px;
             font-weight: 800;
+        }
+
+        .landing-use-cases {
+            padding-top: 26px;
+        }
+
+        .landing-audience {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .landing-audience article {
+            display: grid;
+            gap: 9px;
+            min-width: 0;
+            padding: 18px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background:
+                linear-gradient(180deg, #fff 0%, var(--surface-subtle) 100%),
+                var(--surface);
+            box-shadow: var(--shadow-soft);
         }
 
         .landing-final {
@@ -2537,13 +2616,15 @@
             .hero,
             .workspace,
             .settings-grid,
-            .settings-compact-grid {
+            .settings-compact-grid,
+            .landing-hero-grid {
                 grid-template-columns: 1fr;
             }
 
             .landing-metrics,
             .landing-benefits,
-            .landing-flow {
+            .landing-flow,
+            .landing-audience {
                 grid-template-columns: 1fr;
             }
 
@@ -2675,6 +2756,7 @@
             .landing-metrics,
             .landing-benefits,
             .landing-flow,
+            .landing-audience,
             .feature-strip,
             .folder-form,
             .file-card-meta {
@@ -2683,6 +2765,15 @@
 
             .button {
                 width: 100%;
+            }
+
+            .landing-points span {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .snapshot-files small {
+                justify-self: start;
             }
 
             .button.link {
