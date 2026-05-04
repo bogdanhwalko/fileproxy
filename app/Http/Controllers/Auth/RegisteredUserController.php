@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -44,13 +45,18 @@ class RegisteredUserController extends Controller
             ]);
         }
 
-        $user = User::create([
+        $attributes = [
             'name' => $validated['nickname'],
             'phone' => $phone,
             'email' => $this->technicalEmail($phone),
             'password' => Hash::make(Str::random(48)),
-            'is_admin' => ! User::where('is_admin', true)->exists(),
-        ]);
+        ];
+
+        if (Schema::hasColumn('users', 'is_admin')) {
+            $attributes['is_admin'] = ! User::where('is_admin', true)->exists();
+        }
+
+        $user = User::create($attributes);
 
         event(new Registered($user));
 

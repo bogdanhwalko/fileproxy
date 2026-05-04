@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\PhoneAuthChallenge;
+use App\Models\TelegramAuthContact;
 use App\Models\User;
 use App\Services\PhoneAuthService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -205,6 +207,10 @@ class AuthenticationTest extends TestCase
 
         $this->assertNotNull($sentCode);
         $this->assertTrue($phoneAuth->verify($challenge->token, $phone, $sentCode));
+        $this->assertDatabaseHas('telegram_auth_contacts', [
+            'telegram_user_id' => '42',
+            'phone' => $phone,
+        ]);
     }
 
     public function test_telegram_contact_can_create_missing_challenge(): void
@@ -249,6 +255,51 @@ class AuthenticationTest extends TestCase
 
         $this->assertAuthenticated();
         $this->assertDatabaseHas('users', ['phone' => $phone]);
+    }
+
+    public function test_telegram_start_updates_code_for_remembered_contact(): void
+    {
+        config([
+            'services.telegram.bot_token' => '123456:ABCDEF',
+            'services.telegram.webhook_secret' => 'auth-secret',
+        ]);
+
+        Http::fake([
+            'https://api.telegram.org/bot123456:ABCDEF/sendMessage' => Http::response(['ok' => true]),
+        ]);
+
+        $phone = $this->uniquePhone();
+        TelegramAuthContact::create([
+            'telegram_user_id' => '42',
+            'phone' => $phone,
+        ]);
+
+        $this->postJson(route('telegram.webhook', ['secret' => 'auth-secret']), [
+            'message' => [
+                'from' => ['id' => 42],
+                'chat' => ['id' => 100500],
+                'text' => '/start',
+            ],
+        ])->assertOk();
+
+        $firstChallenge = PhoneAuthChallenge::where('phone', $phone)->latest('id')->firstOrFail();
+
+        $this->postJson(route('telegram.webhook', ['secret' => 'auth-secret']), [
+            'message' => [
+                'from' => ['id' => 42],
+                'chat' => ['id' => 100500],
+                'text' => '/start',
+            ],
+        ])->assertOk();
+
+        $secondChallenge = PhoneAuthChallenge::where('phone', $phone)->latest('id')->firstOrFail();
+
+        $this->assertNotSame($firstChallenge->token, $secondChallenge->token);
+
+        Http::assertSentCount(2);
+        Http::assertSent(fn ($request) => $request['chat_id'] === 100500
+            && str_contains((string) $request['text'], 'Ваш код FileProxy:')
+            && ($request['reply_markup']['remove_keyboard'] ?? false) === true);
     }
 
     public function test_telegram_contact_accepts_local_ukrainian_phone_format(): void

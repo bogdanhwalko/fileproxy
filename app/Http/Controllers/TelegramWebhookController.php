@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\TelegramAuthContact;
 use App\Services\PhoneAuthService;
 use App\Services\TelegramBotService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class TelegramWebhookController extends Controller
 {
@@ -52,6 +54,17 @@ class TelegramWebhookController extends Controller
         $payload = trim((string) ($matches[1] ?? ''));
 
         if ($payload === '') {
+            $telegramUserId = data_get($message, 'from.id');
+            $knownContact = $telegramUserId && Schema::hasTable('telegram_auth_contacts')
+                ? TelegramAuthContact::where('telegram_user_id', (string) $telegramUserId)->first()
+                : null;
+
+            if ($knownContact) {
+                $this->issueCodeForPhone($knownContact->phone, $phoneAuth, $telegram, $chatId);
+
+                return;
+            }
+
             $this->requestContact($telegram, $chatId);
 
             return;
@@ -94,15 +107,18 @@ class TelegramWebhookController extends Controller
             return;
         }
 
-        $code = $phoneAuth->issueCodeForPhone($phone);
-
-        if (! $code) {
-            $telegram->sendMessage($chatId, "Код не створено для номера {$phone}. Спробуйте ще раз або поверніться у форму FileProxy.");
-
-            return;
+        if ($senderId && Schema::hasTable('telegram_auth_contacts')) {
+            TelegramAuthContact::updateOrCreate(
+                ['telegram_user_id' => (string) $senderId],
+                [
+                    'phone' => $phone,
+                    'first_name' => data_get($message, 'from.first_name') ?: data_get($contact, 'first_name'),
+                    'username' => data_get($message, 'from.username'),
+                ]
+            );
         }
 
-        $this->sendCode($telegram, $chatId, $code);
+        $this->issueCodeForPhone($phone, $phoneAuth, $telegram, $chatId);
     }
 
     private function requestContact(TelegramBotService $telegram, int|string $chatId): void
@@ -132,5 +148,22 @@ class TelegramWebhookController extends Controller
             "Ваш код FileProxy: {$code}\nКод діє 10 хвилин.",
             ['remove_keyboard' => true]
         );
+    }
+
+    private function issueCodeForPhone(
+        string $phone,
+        PhoneAuthService $phoneAuth,
+        TelegramBotService $telegram,
+        int|string $chatId
+    ): void {
+        $code = $phoneAuth->issueCodeForPhone($phone);
+
+        if (! $code) {
+            $telegram->sendMessage($chatId, "Код не створено для номера {$phone}. Спробуйте ще раз або поверніться у форму FileProxy.");
+
+            return;
+        }
+
+        $this->sendCode($telegram, $chatId, $code);
     }
 }
