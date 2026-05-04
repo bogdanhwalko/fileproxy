@@ -34,11 +34,11 @@ class RegisteredUserController extends Controller
         $phone = $phoneAuth->normalizePhone($validated['phone']);
         $this->validatePhoneForRegistration($phone);
 
-        if (empty($validated['telegram_code']) || empty($validated['challenge_token'])) {
+        if (empty($validated['telegram_code'])) {
             return $this->redirectWithTelegramChallenge($request, $phoneAuth, $phone, 'register');
         }
 
-        if (! $phoneAuth->verify($validated['challenge_token'], $phone, $validated['telegram_code'])) {
+        if (! $phoneAuth->verify((string) ($validated['challenge_token'] ?? ''), $phone, $validated['telegram_code'])) {
             throw ValidationException::withMessages([
                 'telegram_code' => 'Невірний або прострочений код Telegram.',
             ]);

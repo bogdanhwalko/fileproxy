@@ -110,7 +110,7 @@ class PhoneAuthService
         return $code;
     }
 
-    public function generateCodeForPhone(string $phone): ?string
+    public function generateCodeForPhone(string $phone, bool $createIfMissing = true): ?string
     {
         $phone = $this->normalizePhone($phone);
 
@@ -125,7 +125,11 @@ class PhoneAuthService
             ->first();
 
         if (! $challenge) {
-            return null;
+            if (! $createIfMissing) {
+                return null;
+            }
+
+            $challenge = $this->createChallenge($phone);
         }
 
         return $this->generateCodeForToken($challenge->token);
@@ -146,12 +150,44 @@ class PhoneAuthService
 
     public function verify(string $token, string $phone, string $code): bool
     {
-        $challenge = PhoneAuthChallenge::where('token', $token)
+        $phone = $this->normalizePhone($phone);
+        $token = trim($token);
+
+        $challenge = $token !== ''
+            ? PhoneAuthChallenge::where('token', $token)
             ->where('phone', $phone)
             ->whereNull('consumed_at')
             ->where('expires_at', '>=', now())
+            ->first()
+            : null;
+
+        if ($challenge && $this->verifyChallenge($challenge, $code)) {
+            $this->consumeOtherChallengesForPhone($phone, $challenge->id);
+
+            return true;
+        }
+
+        $fallbackChallenge = PhoneAuthChallenge::where('phone', $phone)
+            ->whereNull('consumed_at')
+            ->where('expires_at', '>=', now())
+            ->latest('id')
             ->first();
 
+        if (! $fallbackChallenge || ($challenge && (int) $fallbackChallenge->id === (int) $challenge->id)) {
+            return false;
+        }
+
+        if (! $this->verifyChallenge($fallbackChallenge, $code)) {
+            return false;
+        }
+
+        $this->consumeOtherChallengesForPhone($phone, $fallbackChallenge->id);
+
+        return true;
+    }
+
+    private function verifyChallenge(PhoneAuthChallenge $challenge, string $code): bool
+    {
         if (! $challenge || ! $challenge->code_hash || $challenge->attempts >= 5) {
             return false;
         }
@@ -167,5 +203,13 @@ class PhoneAuthService
         ])->save();
 
         return true;
+    }
+
+    private function consumeOtherChallengesForPhone(string $phone, int $exceptId): void
+    {
+        PhoneAuthChallenge::where('phone', $phone)
+            ->whereNull('consumed_at')
+            ->where('id', '!=', $exceptId)
+            ->update(['consumed_at' => now()]);
     }
 }

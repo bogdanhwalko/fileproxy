@@ -182,6 +182,44 @@ class AuthenticationTest extends TestCase
         $this->assertTrue($phoneAuth->verify($challenge->token, $phone, $sentCode));
     }
 
+    public function test_telegram_start_with_phone_can_create_missing_challenge(): void
+    {
+        config([
+            'services.telegram.bot_token' => '123456:ABCDEF',
+            'services.telegram.webhook_secret' => 'auth-secret',
+        ]);
+
+        Http::fake([
+            'https://api.telegram.org/bot123456:ABCDEF/sendMessage' => Http::response(['ok' => true]),
+        ]);
+
+        $phone = $this->uniquePhone();
+        $sentCode = null;
+
+        $this->postJson(route('telegram.webhook', ['secret' => 'auth-secret']), [
+            'message' => [
+                'chat' => ['id' => 100500],
+                'text' => '/start phone_'.ltrim($phone, '+'),
+            ],
+        ])->assertOk();
+
+        Http::assertSent(function ($request) use (&$sentCode) {
+            preg_match('/Ваш код FileProxy: ([0-9]{6})/', (string) $request['text'], $matches);
+            $sentCode = $matches[1] ?? null;
+
+            return $request['chat_id'] === 100500 && $sentCode !== null;
+        });
+
+        $this->post(route('register.store'), [
+            'nickname' => 'Demo User',
+            'phone' => $phone,
+            'telegram_code' => $sentCode,
+        ])->assertRedirect(route('files.index'));
+
+        $this->assertAuthenticated();
+        $this->assertDatabaseHas('users', ['phone' => $phone]);
+    }
+
     private function uniquePhone(): string
     {
         return '+38050'.random_int(1000000, 9999999);
