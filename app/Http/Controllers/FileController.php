@@ -9,6 +9,7 @@ use App\Services\ManagedFileStorageService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Throwable;
@@ -21,6 +22,14 @@ class FileController extends Controller
 
     public function index(Request $request): View
     {
+        $schemaProblems = $this->schemaProblems();
+
+        if ($schemaProblems !== []) {
+            return view('files.schema-warning', [
+                'problems' => $schemaProblems,
+            ]);
+        }
+
         $search = trim((string) $request->query('search', ''));
         $type = (string) $request->query('type', 'all');
         $display = in_array($request->query('view'), ['table', 'grid'], true)
@@ -294,5 +303,59 @@ class FileController extends Controller
             ->where('storage_driver', 'telegram')
             ->whereIn('telegram_storage_group_id', $groups->pluck('id'))
             ->count();
+    }
+
+    private function schemaProblems(): array
+    {
+        $requirements = [
+            'managed_files' => [
+                'user_id',
+                'folder_id',
+                'storage_driver',
+                'telegram_storage_group_id',
+                'telegram_bot_token_id',
+                'telegram_chat_id',
+                'telegram_message_id',
+                'telegram_file_id',
+                'telegram_file_unique_id',
+                'share_token',
+                'share_max_views',
+                'share_views_count',
+                'share_expires_at',
+            ],
+            'file_folders' => [
+                'user_id',
+                'share_token',
+            ],
+            'telegram_bot_tokens' => [
+                'user_id',
+                'token',
+                'webhook_secret',
+            ],
+            'telegram_storage_groups' => [
+                'user_id',
+                'telegram_bot_token_id',
+                'chat_id',
+                'is_global_default',
+            ],
+        ];
+
+        $problems = [];
+
+        foreach ($requirements as $table => $columns) {
+            if (! Schema::hasTable($table)) {
+                $problems[] = "Відсутня таблиця {$table}.";
+
+                continue;
+            }
+
+            foreach ($columns as $column) {
+                if (! Schema::hasColumn($table, $column)) {
+                    $problems[] = "У таблиці {$table} відсутня колонка {$column}.";
+                }
+            }
+        }
+
+        return $problems;
     }
 }
