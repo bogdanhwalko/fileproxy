@@ -26,6 +26,15 @@
         </div>
     </nav>
 
+    <div class="mobile-cta-bar" aria-label="Швидка дія на мобільному">
+        @auth
+            <a class="button" href="{{ route('files.index') }}">Відкрити кабінет</a>
+        @else
+            <a class="button" href="{{ route('register') }}">Почати безкоштовно</a>
+            <a class="button secondary" href="{{ route('login') }}">Увійти</a>
+        @endauth
+    </div>
+
     <section class="landing-panel">
         <div class="landing-hero-grid">
             <div class="landing-hero-copy">

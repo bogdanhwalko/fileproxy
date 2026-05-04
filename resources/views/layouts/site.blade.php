@@ -309,6 +309,10 @@
             padding-bottom: 18px;
         }
 
+        .mobile-cta-bar {
+            display: none;
+        }
+
         .landing-panel {
             display: grid;
             gap: 22px;
@@ -2672,13 +2676,64 @@
         @media (max-width: 620px) {
             .page {
                 width: min(100% - 20px, 1180px);
-                padding-top: 16px;
+                padding-top: 12px;
+                padding-bottom: 44px;
             }
 
             .site-nav,
             .topbar {
                 align-items: flex-start;
                 flex-direction: column;
+            }
+
+            .landing-nav {
+                gap: 12px;
+                padding-bottom: 12px;
+            }
+
+            .landing-nav .brand {
+                width: 100%;
+            }
+
+            .landing-nav .brand-mark {
+                width: 40px;
+                height: 40px;
+            }
+
+            .landing-nav .brand strong {
+                font-size: 21px;
+            }
+
+            .landing-nav .brand p {
+                font-size: 12px;
+            }
+
+            .mobile-cta-bar {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                margin: 0 0 12px;
+                padding: 0;
+            }
+
+            .mobile-cta-bar .button {
+                width: auto;
+                min-height: 40px;
+                justify-content: center;
+                padding: 8px 13px;
+                white-space: nowrap;
+            }
+
+            .mobile-cta-bar .button.secondary {
+                width: auto;
+            }
+
+            .mobile-cta-bar .button:first-child:last-child {
+                width: auto;
+            }
+
+            .landing-nav .nav-actions {
+                display: none;
             }
 
             .topbar {
@@ -2703,39 +2758,142 @@
             }
 
             .landing-panel {
+                gap: 14px;
                 padding: 16px;
+                border-radius: 8px;
+                background: #fff;
             }
 
             .landing-hero-copy h1 {
-                font-size: 38px;
+                margin-top: 12px;
+                font-size: 31px;
+                line-height: 1.1;
             }
 
             .landing-hero-copy p {
-                font-size: 16px;
+                margin-top: 12px;
+                font-size: 15px;
+                line-height: 1.5;
+            }
+
+            .landing-label {
+                min-height: 28px;
+                padding: 5px 9px;
+                font-size: 11px;
+                line-height: 1.25;
+            }
+
+            .landing-actions {
+                display: none;
+            }
+
+            .landing-points {
+                gap: 6px;
+                margin-top: 12px;
+            }
+
+            .landing-points span {
+                min-height: 30px;
+                padding: 6px 9px;
+                font-size: 12px;
             }
 
             .landing-section-head h2,
             .landing-final h2 {
-                font-size: 25px;
+                font-size: 24px;
+                line-height: 1.18;
+            }
+
+            .landing-section {
+                gap: 12px;
+                padding-top: 22px;
+            }
+
+            .landing-benefits article,
+            .landing-audience article,
+            .landing-flow div {
+                padding: 14px;
+            }
+
+            .landing-benefits strong,
+            .landing-flow strong,
+            .landing-audience strong {
+                font-size: 16px;
             }
 
             .landing-final {
                 align-items: stretch;
                 flex-direction: column;
+                margin-top: 22px;
+                padding: 16px;
             }
 
-            .snapshot-toolbar,
-            .snapshot-files div {
-                align-items: flex-start;
-                grid-template-columns: 40px minmax(0, 1fr);
+            .landing-snapshot {
+                border-color: #cfd9d2;
+                box-shadow: none;
             }
 
             .snapshot-toolbar {
-                flex-direction: column;
+                align-items: center;
+                flex-direction: row;
+                gap: 8px;
+                padding: 11px 12px;
+            }
+
+            .snapshot-body {
+                min-height: auto;
+            }
+
+            .snapshot-folders {
+                display: flex;
+                overflow-x: auto;
+                gap: 8px;
+                padding: 10px;
+                scrollbar-width: none;
+            }
+
+            .snapshot-folders::-webkit-scrollbar {
+                display: none;
+            }
+
+            .snapshot-folders strong {
+                display: none;
+            }
+
+            .snapshot-folders span {
+                flex: 0 0 auto;
+                min-height: 32px;
+                padding: 7px 10px;
+                border: 1px solid var(--line);
+                background: #fff;
+                white-space: nowrap;
+            }
+
+            .snapshot-main {
+                gap: 8px;
+                padding: 10px;
+            }
+
+            .snapshot-upload {
+                display: none;
+            }
+
+            .snapshot-files div {
+                align-items: flex-start;
+                grid-template-columns: 40px minmax(0, 1fr);
+                gap: 8px;
+                min-height: auto;
+                padding: 9px;
+            }
+
+            .snapshot-files strong {
+                white-space: normal;
+                line-height: 1.25;
             }
 
             .snapshot-files small {
                 grid-column: 2;
+                white-space: normal;
             }
 
             .upload-panel-head {
@@ -2763,13 +2921,45 @@
                 grid-template-columns: 1fr;
             }
 
+            .landing-metrics {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 8px;
+            }
+
+            .landing-metrics div {
+                padding: 12px;
+            }
+
+            .landing-metrics strong,
+            .landing-metrics span {
+                white-space: normal;
+            }
+
+            .landing-metrics strong {
+                font-size: 20px;
+            }
+
+            .landing-metrics span {
+                margin-top: 6px;
+                font-size: 12px;
+                line-height: 1.25;
+            }
+
             .button {
+                width: auto;
+            }
+
+            .auth-panel .button,
+            .upload-actions .button,
+            .landing-final .button,
+            .pagination .button {
                 width: 100%;
             }
 
             .landing-points span {
-                width: 100%;
-                justify-content: center;
+                width: auto;
+                max-width: 100%;
+                justify-content: flex-start;
             }
 
             .snapshot-files small {
@@ -2816,6 +3006,169 @@
 
             .file-card-actions {
                 justify-content: flex-start;
+            }
+
+            .table-wrap {
+                overflow: visible;
+            }
+
+            .compact-file-table {
+                width: 100%;
+                min-width: 0;
+                border-collapse: separate;
+                border-spacing: 0;
+            }
+
+            .compact-file-table thead {
+                display: none;
+            }
+
+            .compact-file-table tbody {
+                display: grid;
+                gap: 8px;
+                padding: 10px;
+            }
+
+            .compact-file-table tbody tr {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) auto;
+                gap: 7px 10px;
+                padding: 10px;
+                border: 1px solid var(--line);
+                border-radius: 8px;
+                background: #fff;
+                box-shadow: var(--shadow-soft);
+            }
+
+            .compact-file-table th,
+            .compact-file-table td {
+                display: block;
+                padding: 0;
+                border: 0;
+                font-size: 12px;
+            }
+
+            .compact-file-table td:first-child {
+                grid-column: 1;
+                grid-row: 1;
+                min-width: 0;
+            }
+
+            .compact-file-table td:nth-child(2),
+            .compact-file-table td:nth-child(3),
+            .compact-file-table td:nth-child(4),
+            .compact-file-table td:nth-child(5) {
+                grid-column: 1 / -1;
+                color: var(--muted);
+                font-size: 12px;
+                line-height: 1.3;
+            }
+
+            .compact-file-table td:nth-child(2)::before {
+                content: "Папка: ";
+                color: var(--text);
+                font-weight: 800;
+            }
+
+            .compact-file-table td:nth-child(3)::before {
+                content: "Сховище: ";
+                color: var(--text);
+                font-weight: 800;
+            }
+
+            .compact-file-table td:nth-child(4)::before {
+                content: "Розмір: ";
+                color: var(--text);
+                font-weight: 800;
+            }
+
+            .compact-file-table td:nth-child(5)::before {
+                content: "Дата: ";
+                color: var(--text);
+                font-weight: 800;
+            }
+
+            .compact-file-table td:last-child {
+                grid-column: 2;
+                grid-row: 1;
+                align-self: start;
+            }
+
+            .file-table-name {
+                gap: 7px;
+                align-items: flex-start;
+            }
+
+            .file-table-title strong,
+            .file-table-title span {
+                max-width: none;
+                white-space: normal;
+                line-height: 1.28;
+            }
+
+            .file-table-title strong {
+                font-size: 13px;
+            }
+
+            .file-row-actions {
+                justify-content: flex-end;
+                min-width: 0;
+            }
+
+            .file-row-actions .file-action-menu,
+            .file-tile-actions .file-action-menu {
+                width: 72px;
+            }
+
+            .file-row-actions .button,
+            .file-tile-actions .button,
+            .share-inline-actions .button,
+            .share-inline-button {
+                width: auto;
+            }
+
+            .file-grid {
+                grid-template-columns: 1fr;
+                gap: 8px;
+                padding: 10px;
+            }
+
+            .file-tile {
+                gap: 8px;
+                padding: 10px;
+                box-shadow: var(--shadow-soft);
+            }
+
+            .file-tile-preview {
+                aspect-ratio: 16 / 9;
+            }
+
+            .file-tile-head {
+                gap: 8px;
+            }
+
+            .file-tile-title strong,
+            .file-tile-title span {
+                white-space: normal;
+                line-height: 1.28;
+            }
+
+            .file-tile-meta {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+
+            .file-tile-meta span {
+                padding: 4px 7px;
+                border-radius: 999px;
+                background: var(--surface-muted);
+                color: var(--muted);
+                font-size: 11px;
+            }
+
+            .file-tile-actions {
+                justify-content: flex-end;
             }
         }
     </style>
