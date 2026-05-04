@@ -204,7 +204,7 @@ class PhoneAuthService
             return false;
         }
 
-        if (! Hash::check($code, $challenge->code_hash)) {
+        if (! password_verify($code, (string) $challenge->code_hash)) {
             $challenge->increment('attempts');
 
             return false;

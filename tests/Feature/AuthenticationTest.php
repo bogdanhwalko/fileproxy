@@ -76,6 +76,25 @@ class AuthenticationTest extends TestCase
         ]);
     }
 
+    public function test_invalid_legacy_code_hash_does_not_crash_registration(): void
+    {
+        $phoneAuth = app(PhoneAuthService::class);
+        $phone = $this->uniquePhone();
+        $challenge = $phoneAuth->createChallenge($phone);
+        $challenge->forceFill(['code_hash' => '123456'])->save();
+
+        $this->post(route('register.store'), [
+            'nickname' => 'Demo User',
+            'phone' => $phone,
+            'challenge_token' => $challenge->token,
+            'telegram_code' => '123456',
+        ])
+            ->assertRedirect()
+            ->assertSessionHasErrors('telegram_code');
+
+        $this->assertGuest();
+    }
+
     public function test_register_can_show_local_code_when_enabled(): void
     {
         config(['services.telegram.show_code_locally' => true]);
