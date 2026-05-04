@@ -8,7 +8,8 @@ use Illuminate\Support\Str;
 
 class PhoneAuthService
 {
-    private const START_PREFIX = 'fileproxy_';
+    private const PHONE_START_PREFIX = 'phone_';
+    private const TOKEN_START_PREFIX = 'fileproxy_';
 
     public function normalizePhone(string $phone): string
     {
@@ -44,7 +45,7 @@ class PhoneAuthService
 
     public function telegramPayload(PhoneAuthChallenge $challenge): string
     {
-        return self::START_PREFIX.$challenge->token;
+        return self::PHONE_START_PREFIX.ltrim($challenge->phone, '+');
     }
 
     public function telegramLink(PhoneAuthChallenge $challenge): ?string
@@ -75,11 +76,17 @@ class PhoneAuthService
 
     public function generateCodeForPayload(string $payload): ?string
     {
-        if (! str_starts_with($payload, self::START_PREFIX)) {
+        if (str_starts_with($payload, self::TOKEN_START_PREFIX)) {
+            return $this->generateCodeForToken(substr($payload, strlen(self::TOKEN_START_PREFIX)));
+        }
+
+        $phone = $this->phoneFromPayload($payload);
+
+        if (! $phone) {
             return null;
         }
 
-        return $this->generateCodeForToken(substr($payload, strlen(self::START_PREFIX)));
+        return $this->generateCodeForPhone($phone);
     }
 
     public function generateCodeForToken(string $token): ?string
@@ -101,6 +108,40 @@ class PhoneAuthService
         ])->save();
 
         return $code;
+    }
+
+    public function generateCodeForPhone(string $phone): ?string
+    {
+        $phone = $this->normalizePhone($phone);
+
+        if (! $this->isValidPhone($phone)) {
+            return null;
+        }
+
+        $challenge = PhoneAuthChallenge::where('phone', $phone)
+            ->whereNull('consumed_at')
+            ->where('expires_at', '>=', now())
+            ->latest('id')
+            ->first();
+
+        if (! $challenge) {
+            return null;
+        }
+
+        return $this->generateCodeForToken($challenge->token);
+    }
+
+    public function phoneFromPayload(string $payload): ?string
+    {
+        $payload = trim($payload);
+
+        if (str_starts_with($payload, self::PHONE_START_PREFIX)) {
+            $payload = substr($payload, strlen(self::PHONE_START_PREFIX));
+        }
+
+        $phone = $this->normalizePhone($payload);
+
+        return $this->isValidPhone($phone) ? $phone : null;
     }
 
     public function verify(string $token, string $phone, string $code): bool

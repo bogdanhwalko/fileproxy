@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Services\PhoneAuthService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class AuthenticationTest extends TestCase
@@ -38,12 +39,17 @@ class AuthenticationTest extends TestCase
 
     public function test_register_starts_telegram_code_challenge(): void
     {
+        $phone = $this->uniquePhone();
+
         $this->post(route('register.store'), [
             'nickname' => 'Demo User',
-            'phone' => $this->uniquePhone(),
+            'phone' => $phone,
         ])
             ->assertRedirect()
-            ->assertSessionHas('telegram_auth');
+            ->assertSessionHas('telegram_auth', function (array $auth) use ($phone): bool {
+                return ($auth['command'] ?? null) === '/start phone_'.ltrim($phone, '+')
+                    && ! str_contains((string) ($auth['command'] ?? ''), (string) ($auth['token'] ?? ''));
+            });
     }
 
     public function test_user_can_register_with_telegram_code(): void
@@ -135,6 +141,45 @@ class AuthenticationTest extends TestCase
             ->assertRedirect(route('home'));
 
         $this->assertFalse(Auth::check());
+    }
+
+    public function test_telegram_start_with_phone_generates_code_for_active_challenge(): void
+    {
+        config([
+            'services.telegram.bot_token' => '123456:ABCDEF',
+            'services.telegram.webhook_secret' => 'auth-secret',
+        ]);
+
+        Http::fake([
+            'https://api.telegram.org/bot123456:ABCDEF/sendMessage' => Http::response(['ok' => true]),
+        ]);
+
+        $phoneAuth = app(PhoneAuthService::class);
+        $phone = $this->uniquePhone();
+        $challenge = $phoneAuth->createChallenge($phone);
+
+        $this->postJson(route('telegram.webhook', ['secret' => 'auth-secret']), [
+            'message' => [
+                'chat' => ['id' => 100500],
+                'text' => '/start phone_'.ltrim($phone, '+'),
+            ],
+        ])->assertOk();
+
+        $sentCode = null;
+
+        Http::assertSent(function ($request) use (&$sentCode) {
+            if ($request->url() !== 'https://api.telegram.org/bot123456:ABCDEF/sendMessage') {
+                return false;
+            }
+
+            preg_match('/Ваш код FileProxy: ([0-9]{6})/', (string) $request['text'], $matches);
+            $sentCode = $matches[1] ?? null;
+
+            return $request['chat_id'] === 100500 && $sentCode !== null;
+        });
+
+        $this->assertNotNull($sentCode);
+        $this->assertTrue($phoneAuth->verify($challenge->token, $phone, $sentCode));
     }
 
     private function uniquePhone(): string

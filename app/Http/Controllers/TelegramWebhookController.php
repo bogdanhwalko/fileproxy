@@ -33,14 +33,14 @@ class TelegramWebhookController extends Controller
         $chatId = data_get($message, 'chat.id');
         $text = trim((string) data_get($message, 'text', ''));
 
-        if (! $chatId || ! str_starts_with($text, '/start')) {
+        if (! $chatId || ! preg_match('/^\/start(?:@[A-Za-z0-9_]+)?(?:\s+(.*))?$/u', $text, $matches)) {
             return;
         }
 
-        $payload = trim((string) str($text)->after('/start'));
+        $payload = trim((string) ($matches[1] ?? ''));
 
         if ($payload === '') {
-            $telegram->sendMessage($chatId, 'Відкрийте FileProxy і перейдіть у бота з посилання, яке сайт покаже після введення телефону.');
+            $telegram->sendMessage($chatId, 'Надішліть команду у форматі /start phone_380XXXXXXXXX або відкрийте бота з посилання, яке FileProxy покаже після введення телефону.');
 
             return;
         }
@@ -48,7 +48,7 @@ class TelegramWebhookController extends Controller
         $code = $phoneAuth->generateCodeForPayload($payload);
 
         if (! $code) {
-            $telegram->sendMessage($chatId, 'Код не створено. Спробуйте ще раз із форми FileProxy.');
+            $telegram->sendMessage($chatId, 'Код не створено. Перевірте номер телефону або спочатку натисніть "Отримати код" у формі FileProxy.');
 
             return;
         }
