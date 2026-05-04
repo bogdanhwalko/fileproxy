@@ -171,13 +171,33 @@ which php
 
 ### 8. Telegram авторизація
 
-Для cPanel краще використовувати webhook, а не polling. Після налаштування `.env` відкрийте в браузері:
+Для cPanel краще використовувати webhook, а не polling. Після налаштування `.env` виконайте:
+
+```bash
+php artisan optimize:clear
+composer dump-autoload -o
+php artisan telegram:webhook set
+```
+
+Команда автоматично візьме `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET` і `APP_URL`, після чого встановить webhook на адресу:
 
 ```text
 https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook?url=https://your-domain.com/api/telegram/webhook/<TELEGRAM_WEBHOOK_SECRET>
 ```
 
 Перевірити webhook:
+
+```bash
+php artisan telegram:webhook info
+```
+
+Видалити webhook, якщо потрібно повернутися до polling або перевстановити його:
+
+```bash
+php artisan telegram:webhook delete
+```
+
+Також можна перевірити напряму в браузері:
 
 ```text
 https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/getWebhookInfo
@@ -383,8 +403,11 @@ PHONE_AUTH_SHOW_CODE_LOCALLY=false
 
 На cPanel використовуйте Telegram webhook:
 
-```text
-https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook?url=https://your-domain.com/api/telegram/webhook/<TELEGRAM_WEBHOOK_SECRET>
+```bash
+php artisan optimize:clear
+composer dump-autoload -o
+php artisan telegram:webhook set
+php artisan telegram:webhook info
 ```
 
 Якщо `TELEGRAM_BOT_USERNAME` не заданий, форма покаже команду `/start ...`, яку потрібно вручну надіслати боту.
