@@ -165,56 +165,42 @@ class PhoneAuthService
         $phone = $this->normalizePhone($phone);
         $token = trim($token);
 
-        $latestChallenge = PhoneAuthChallenge::where('phone', $phone)
+        $activeChallenges = PhoneAuthChallenge::where('phone', $phone)
             ->whereNull('consumed_at')
             ->where('expires_at', '>=', now())
             ->latest('id')
-            ->first();
+            ->get();
 
-        if ($latestChallenge && $this->verifyChallenge($latestChallenge, $code)) {
-            $this->consumeOtherChallengesForPhone($phone, $latestChallenge->id);
+        foreach ($activeChallenges as $challenge) {
+            if ($this->challengeCodeMatches($challenge, $code)) {
+                $challenge->forceFill([
+                    'consumed_at' => now(),
+                ])->save();
 
-            return true;
+                $this->consumeOtherChallengesForPhone($phone, $challenge->id);
+
+                return true;
+            }
         }
 
-        $challenge = $token !== ''
-            ? PhoneAuthChallenge::where('token', $token)
-                ->where('phone', $phone)
-                ->whereNull('consumed_at')
-                ->where('expires_at', '>=', now())
-                ->first()
-            : null;
+        $failedChallenge = $token !== ''
+            ? $activeChallenges->firstWhere('token', $token)
+            : $activeChallenges->first();
 
-        if (! $challenge || ($latestChallenge && (int) $challenge->id === (int) $latestChallenge->id)) {
-            return false;
+        if ($failedChallenge) {
+            $failedChallenge->increment('attempts');
         }
 
-        if (! $this->verifyChallenge($challenge, $code)) {
-            return false;
-        }
-
-        $this->consumeOtherChallengesForPhone($phone, $challenge->id);
-
-        return true;
+        return false;
     }
 
-    private function verifyChallenge(PhoneAuthChallenge $challenge, string $code): bool
+    private function challengeCodeMatches(PhoneAuthChallenge $challenge, string $code): bool
     {
         if (! $challenge || ! $challenge->code_hash || $challenge->attempts >= 5) {
             return false;
         }
 
-        if (! password_verify($code, (string) $challenge->code_hash)) {
-            $challenge->increment('attempts');
-
-            return false;
-        }
-
-        $challenge->forceFill([
-            'consumed_at' => now(),
-        ])->save();
-
-        return true;
+        return password_verify($code, (string) $challenge->code_hash);
     }
 
     private function generateCodeForChallenge(PhoneAuthChallenge $challenge): string

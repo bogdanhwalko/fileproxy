@@ -113,6 +113,24 @@ class AuthenticationTest extends TestCase
         $this->assertTrue($phoneAuth->verify($staleChallenge->token, $phone, $latestCode));
     }
 
+    public function test_any_active_telegram_code_for_phone_is_accepted(): void
+    {
+        $phoneAuth = app(PhoneAuthService::class);
+        $phone = $this->uniquePhone();
+        $firstChallenge = $phoneAuth->createChallenge($phone);
+        $firstCode = $phoneAuth->generateCodeForToken($firstChallenge->token);
+
+        $latestChallenge = PhoneAuthChallenge::create([
+            'phone' => $phone,
+            'token' => 'latest-token-'.random_int(100000, 999999),
+            'attempts' => 0,
+            'expires_at' => now()->addMinutes(10),
+        ]);
+        $phoneAuth->generateCodeForToken($latestChallenge->token);
+
+        $this->assertTrue($phoneAuth->verify($latestChallenge->token, $phone, $firstCode));
+    }
+
     public function test_register_can_show_local_code_when_enabled(): void
     {
         config(['services.telegram.show_code_locally' => true]);
