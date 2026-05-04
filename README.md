@@ -97,12 +97,16 @@ APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://your-domain.com
 
-DB_CONNECTION=mysql
+DB_CONNECTION=mariadb
 DB_HOST=localhost
 DB_PORT=3306
 DB_DATABASE=cpaneluser_fileproxy
 DB_USERNAME=cpaneluser_fileproxy_user
 DB_PASSWORD=strong-password
+DB_CHARSET=utf8mb4
+DB_COLLATION=utf8mb4_unicode_ci
+DB_EMULATE_PREPARES=true
+DB_ENGINE=InnoDB
 
 TELEGRAM_BOT_TOKEN=123456:ABCDEF
 TELEGRAM_BOT_USERNAME=your_bot_username
@@ -111,6 +115,8 @@ PHONE_AUTH_SHOW_CODE_LOCALLY=false
 ```
 
 `APP_URL` має бути реальною публічною HTTPS-адресою. Це важливо для Telegram webhook, відкриття публічних посилань і коректної генерації URL.
+
+Для cPanel з MariaDB використовуйте `DB_CONNECTION=mariadb`. У цьому проєкті ця connection працює через Laravel `mysql` driver, але примусово вмикає `utf8mb4` і `PDO::ATTR_EMULATE_PREPARES`, що допомагає уникнути кракозябрів і некоректного читання значень з БД на деяких хостингах.
 
 ### 4. Перший запуск
 

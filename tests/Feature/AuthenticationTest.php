@@ -131,6 +131,19 @@ class AuthenticationTest extends TestCase
         $this->assertTrue($phoneAuth->verify($latestChallenge->token, $phone, $firstCode));
     }
 
+    public function test_phone_auth_check_command_reports_matching_active_code(): void
+    {
+        $phoneAuth = app(PhoneAuthService::class);
+        $phone = $this->uniquePhone();
+        $challenge = $phoneAuth->createChallenge($phone);
+        $code = $phoneAuth->generateCodeForToken($challenge->token);
+
+        $this->artisan('phone-auth:check', [
+            'phone' => $phone,
+            'code' => $code,
+        ])->assertExitCode(0);
+    }
+
     public function test_register_can_show_local_code_when_enabled(): void
     {
         config(['services.telegram.show_code_locally' => true]);
