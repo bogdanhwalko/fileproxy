@@ -288,6 +288,19 @@ mysql -u cpaneluser_fileproxy_user -p cpaneluser_fileproxy < backup.sql
 - PHP: `upload_max_filesize=55M`, `post_max_size=60M`;
 - перевірте ліміти хостингу на розмір HTTP-запиту.
 
+Помилка `Specified key was too long; max key length is 1000 bytes` під час міграцій:
+
+- це обмеження старих MySQL/MariaDB/InnoDB на деяких cPanel-хостингах;
+- у проєкті встановлено `Schema::defaultStringLength(191)`, щоб індекси з `utf8mb4` не перевищували ліміт;
+- після оновлення файлів виконайте:
+
+```bash
+php artisan optimize:clear
+php artisan migrate --force
+```
+
+- якщо команда впала посеред міграцій і таблиця була створена частково, видаліть порожню проблемну таблицю в phpMyAdmin і повторіть міграцію.
+
 Telegram webhook не працює:
 
 - перевірте `APP_URL`;
