@@ -2,6 +2,20 @@
 
 use Illuminate\Support\Str;
 
+$mysqlOptions = static function (bool $emulatePreparesDefault): array {
+    $options = [];
+
+    if (defined('PDO::MYSQL_ATTR_SSL_CA') && env('MYSQL_ATTR_SSL_CA') !== null) {
+        $options[PDO::MYSQL_ATTR_SSL_CA] = env('MYSQL_ATTR_SSL_CA');
+    }
+
+    if (env('DB_EMULATE_PREPARES', $emulatePreparesDefault)) {
+        $options[PDO::ATTR_EMULATE_PREPARES] = true;
+    }
+
+    return $options;
+};
+
 return [
 
     /*
@@ -58,11 +72,7 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => env('DB_ENGINE', 'InnoDB'),
-            'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
-            ], fn ($value) => $value !== null) + (env('DB_EMULATE_PREPARES', false) ? [
-                PDO::ATTR_EMULATE_PREPARES => true,
-            ] : []) : [],
+            'options' => $mysqlOptions(false),
         ],
 
 
@@ -81,11 +91,7 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => env('DB_ENGINE', 'InnoDB'),
-            'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
-            ], fn ($value) => $value !== null) + (env('DB_EMULATE_PREPARES', true) ? [
-                PDO::ATTR_EMULATE_PREPARES => true,
-            ] : []) : [],
+            'options' => $mysqlOptions(true),
         ],
 
 
