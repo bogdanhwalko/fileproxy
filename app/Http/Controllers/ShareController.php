@@ -85,24 +85,71 @@ class ShareController extends Controller
         return back()->with('status', 'Публічний доступ до файла вимкнено.');
     }
 
-    public function shareFolder(FileFolder $folder): RedirectResponse
+    public function shareFolder(Request $request, FileFolder $folder): RedirectResponse|JsonResponse
     {
         $this->authorizeFolderOwner($folder);
 
         if (! $folder->share_token) {
             $folder->forceFill([
                 'share_token' => $this->uniqueToken(FileFolder::class),
+                'share_views_count' => 0,
             ])->save();
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Публічне посилання для папки створено.',
+                'share' => $this->folderSharePayload($folder->refresh()),
+            ]);
         }
 
         return back()->with('status', 'Публічне посилання для папки створено.');
     }
 
-    public function unshareFolder(FileFolder $folder): RedirectResponse
+    public function updateFolderShareSettings(Request $request, FileFolder $folder): JsonResponse
+    {
+        $this->authorizeFolderOwner($folder);
+        abort_unless($folder->share_token, 422);
+
+        $validated = $request->validate([
+            'share_max_views' => ['nullable', 'integer', 'min:1', 'max:1000000'],
+            'share_expires_at' => ['nullable', 'date', 'after:now'],
+        ], [
+            'share_max_views.min' => 'Ліміт переглядів має бути не менше 1.',
+            'share_max_views.max' => 'Ліміт переглядів занадто великий.',
+            'share_expires_at.after' => 'Дата завершення має бути в майбутньому.',
+        ]);
+
+        $folder->forceFill([
+            'share_max_views' => $validated['share_max_views'] ?? null,
+            'share_expires_at' => ! empty($validated['share_expires_at'])
+                ? Carbon::parse($validated['share_expires_at'])
+                : null,
+        ])->save();
+
+        return response()->json([
+            'message' => 'Налаштування публічного лінка папки збережено.',
+            'share' => $this->folderSharePayload($folder->refresh()),
+        ]);
+    }
+
+    public function unshareFolder(Request $request, FileFolder $folder): RedirectResponse|JsonResponse
     {
         $this->authorizeFolderOwner($folder);
 
-        $folder->forceFill(['share_token' => null])->save();
+        $folder->forceFill([
+            'share_token' => null,
+            'share_max_views' => null,
+            'share_views_count' => 0,
+            'share_expires_at' => null,
+        ])->save();
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Публічний доступ до папки вимкнено.',
+                'share' => $this->folderSharePayload($folder->refresh()),
+            ]);
+        }
 
         return back()->with('status', 'Публічний доступ до папки вимкнено.');
     }
@@ -152,6 +199,8 @@ class ShareController extends Controller
     public function showFolder(string $token): View
     {
         $folder = $this->sharedFolder($token);
+        $this->consumeFolderShareView($folder);
+
         $files = $folder->files()
             ->with(['folder', 'telegramStorageGroup.botToken'])
             ->latest()
@@ -167,6 +216,7 @@ class ShareController extends Controller
     public function downloadFolder(string $token, ManagedFileStorageService $fileStorage)
     {
         $folder = $this->sharedFolder($token);
+        $this->consumeFolderShareView($folder);
 
         abort_unless(class_exists(ZipArchive::class), 503);
 
@@ -229,6 +279,10 @@ class ShareController extends Controller
         abort_unless($fileStorage->exists($file), 404);
         abort_unless($file->is_previewable, 404);
 
+        if (! $file->is_image) {
+            $this->consumeFolderShareView($folder);
+        }
+
         return $this->fileView($file, $fileStorage, [
             'backLabel' => 'До папки',
             'backUrl' => route('share.folders.show', $folder->share_token),
@@ -246,6 +300,8 @@ class ShareController extends Controller
         abort_unless($file->is_image, 404);
         abort_unless($fileStorage->exists($file), 404);
 
+        $this->consumeFolderShareView($folder);
+
         return $fileStorage->inlineResponse($file);
     }
 
@@ -255,6 +311,8 @@ class ShareController extends Controller
         $this->ensureFileBelongsToFolder($folder, $file);
 
         abort_unless($fileStorage->exists($file), 404);
+
+        $this->consumeFolderShareView($folder);
 
         return $fileStorage->downloadResponse($file);
     }
@@ -309,8 +367,17 @@ class ShareController extends Controller
             ->firstOrFail();
 
         abort_if($folder->user?->is_blocked, 404);
+        abort_if($folder->share_is_expired || $folder->share_limit_reached, 404);
 
         return $folder;
+    }
+
+    private function consumeFolderShareView(FileFolder $folder): void
+    {
+        abort_if($folder->share_is_expired || $folder->share_limit_reached, 404);
+
+        $folder->increment('share_views_count');
+        $folder->refresh();
     }
 
     private function ensureFileBelongsToFolder(FileFolder $folder, ManagedFile $file): void
@@ -359,6 +426,31 @@ class ShareController extends Controller
             'share_max_views' => $file->share_max_views,
             'share_views_count' => $file->share_views_count,
             'share_remaining_views' => $file->share_remaining_views,
+            'share_expires_at' => $expiresAt?->format('Y-m-d H:i:s'),
+            'share_expires_at_input' => $expiresAt?->format('Y-m-d\TH:i'),
+            'usage_label' => 'Переглядів: '.$viewsLabel.' · Доступний до: '.$expiresLabel,
+        ];
+    }
+
+    private function folderSharePayload(FileFolder $folder): array
+    {
+        $isEnabled = (bool) $folder->share_token;
+        $expiresAt = $folder->share_expires_at;
+        $viewsLabel = $folder->share_max_views
+            ? $folder->share_views_count.' / '.$folder->share_max_views
+            : $folder->share_views_count.' / без ліміту';
+        $expiresLabel = $expiresAt
+            ? $expiresAt->format('d.m.Y H:i')
+            : 'без дати';
+
+        return [
+            'token' => $folder->share_token,
+            'url' => $isEnabled ? route('share.folders.show', $folder->share_token) : null,
+            'is_enabled' => $isEnabled,
+            'status_label' => $isEnabled ? 'Активний' : 'Вимкнено',
+            'share_max_views' => $folder->share_max_views,
+            'share_views_count' => $folder->share_views_count,
+            'share_remaining_views' => $folder->share_remaining_views,
             'share_expires_at' => $expiresAt?->format('Y-m-d H:i:s'),
             'share_expires_at_input' => $expiresAt?->format('Y-m-d\TH:i'),
             'usage_label' => 'Переглядів: '.$viewsLabel.' · Доступний до: '.$expiresLabel,

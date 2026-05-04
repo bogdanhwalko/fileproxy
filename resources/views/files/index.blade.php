@@ -197,24 +197,7 @@
                                 <span class="folder-count">{{ $folder->files_count }}</span>
                             </a>
                             <div class="folder-actions">
-                                @if ($folder->share_token)
-                                    <a class="button secondary folder-action-button" href="{{ route('share.folders.show', $folder->share_token) }}" target="_blank" rel="noopener" title="Відкрити публічне посилання">Лінк</a>
-                                    <form action="{{ route('folders.share.destroy', $folder) }}" method="post" data-ajax-form>
-                                        @csrf
-                                        @method('delete')
-                                        <button class="button danger folder-action-button" type="submit" title="Вимкнути публічний доступ">Закрити</button>
-                                    </form>
-                                @else
-                                    <form action="{{ route('folders.share', $folder) }}" method="post" data-ajax-form>
-                                        @csrf
-                                        <button class="button secondary folder-action-button" type="submit" title="Створити публічне посилання">Доступ</button>
-                                    </form>
-                                @endif
-                                <form action="{{ route('folders.destroy', $folder) }}" method="post" data-ajax-form>
-                                    @csrf
-                                    @method('delete')
-                                    <button class="button danger folder-delete" type="submit" title="Видалити папку">x</button>
-                                </form>
+                                @include('files.partials.folder-actions', ['folder' => $folder])
                             </div>
                         </div>
                     @endforeach

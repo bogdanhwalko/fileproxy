@@ -445,6 +445,60 @@ class FileManagementTest extends TestCase
         Http::assertSent(fn ($request) => $request->url() === 'https://api.telegram.org/bot123456:ABCDEF/sendDocument');
     }
 
+    public function test_telegram_upload_retries_after_rate_limit_response(): void
+    {
+        Storage::fake('local');
+        Http::fake([
+            'https://api.telegram.org/bot123456:ABCDEF/sendDocument' => Http::sequence()
+                ->push([
+                    'ok' => false,
+                    'parameters' => ['retry_after' => 0],
+                ], 429)
+                ->push([
+                    'ok' => true,
+                    'result' => [
+                        'message_id' => 778,
+                        'chat' => ['id' => -1001234567890],
+                        'document' => [
+                            'file_id' => 'telegram-file-id',
+                            'file_unique_id' => 'telegram-unique-id',
+                            'file_name' => 'contract.pdf',
+                            'mime_type' => 'application/pdf',
+                            'file_size' => 131072,
+                        ],
+                    ],
+                ]),
+        ]);
+
+        $user = User::factory()->create();
+        $bot = TelegramBotToken::create([
+            'user_id' => $user->id,
+            'name' => 'Storage Bot',
+            'token' => '123456:ABCDEF',
+        ]);
+        $group = TelegramStorageGroup::create([
+            'user_id' => $user->id,
+            'telegram_bot_token_id' => $bot->id,
+            'title' => 'Archive',
+            'chat_id' => '-1001234567890',
+        ]);
+
+        $this->actingAs($user)->post(route('files.store'), [
+            'telegram_storage_group_id' => $group->id,
+            'files' => [
+                UploadedFile::fake()->create('contract.pdf', 128, 'application/pdf'),
+            ],
+        ])->assertRedirect(route('files.index'));
+
+        $this->assertDatabaseHas('managed_files', [
+            'user_id' => $user->id,
+            'storage_driver' => 'telegram',
+            'telegram_message_id' => 778,
+        ]);
+
+        Http::assertSentCount(2);
+    }
+
     public function test_telegram_text_file_is_downloaded_temporarily_for_preview(): void
     {
         Storage::fake('local');

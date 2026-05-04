@@ -326,6 +326,9 @@ class FileController extends Controller
             'file_folders' => [
                 'user_id',
                 'share_token',
+                'share_max_views',
+                'share_views_count',
+                'share_expires_at',
             ],
             'telegram_bot_tokens' => [
                 'user_id',

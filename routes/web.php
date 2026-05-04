@@ -45,7 +45,9 @@ Route::middleware(['auth', 'not.blocked'])->group(function () {
     Route::delete('/files/{file}', [FileController::class, 'destroy'])->name('files.destroy');
 
     Route::post('/folders', [FolderController::class, 'store'])->name('folders.store');
+    Route::patch('/folders/{folder}', [FolderController::class, 'update'])->name('folders.update');
     Route::post('/folders/{folder}/share', [ShareController::class, 'shareFolder'])->name('folders.share');
+    Route::patch('/folders/{folder}/share', [ShareController::class, 'updateFolderShareSettings'])->name('folders.share.update');
     Route::delete('/folders/{folder}/share', [ShareController::class, 'unshareFolder'])->name('folders.share.destroy');
     Route::delete('/folders/{folder}', [FolderController::class, 'destroy'])->name('folders.destroy');
 

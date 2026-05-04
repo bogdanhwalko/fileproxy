@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\ManagedFile;
 use App\Models\TelegramBotToken;
 use App\Models\TelegramStorageGroup;
+use Illuminate\Http\Client\Response;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -14,6 +15,10 @@ use RuntimeException;
 
 class TelegramFileStorageService
 {
+    private const TELEGRAM_API_ATTEMPTS = 3;
+
+    private const TELEGRAM_MAX_RETRY_SECONDS = 10;
+
     public function sendDocument(UploadedFile $file, TelegramStorageGroup $group): array
     {
         $bot = $group->botToken;
@@ -22,22 +27,7 @@ class TelegramFileStorageService
             throw new RuntimeException('Для Telegram-групи не знайдено бота.');
         }
 
-        $stream = fopen($file->getRealPath(), 'r');
-
-        if ($stream === false) {
-            throw new RuntimeException('Не вдалося прочитати файл перед відправкою в Telegram.');
-        }
-
-        try {
-            $response = Http::timeout(120)
-                ->attach('document', $stream, $file->getClientOriginalName())
-                ->post($this->apiUrl($bot->token, 'sendDocument'), [
-                    'chat_id' => $group->chat_id,
-                    'caption' => $file->getClientOriginalName(),
-                ]);
-        } finally {
-            fclose($stream);
-        }
+        $response = $this->sendDocumentRequest($file, $group, $bot);
 
         if (! $response->successful() || ! $response->json('ok')) {
             throw new RuntimeException('Telegram не прийняв файл. Перевірте токен бота, group chat_id і права бота в групі.');
@@ -71,7 +61,7 @@ class TelegramFileStorageService
         }
 
         $filePath = $this->getTelegramFilePath($bot, $file->telegram_file_id);
-        $response = Http::timeout(120)->get($this->fileUrl($bot->token, $filePath));
+        $response = $this->telegramGet($this->fileUrl($bot->token, $filePath));
 
         if (! $response->successful()) {
             throw new RuntimeException('Не вдалося тимчасово завантажити файл із Telegram.');
@@ -95,9 +85,7 @@ class TelegramFileStorageService
         }
 
         $filePath = $this->getTelegramFilePath($bot, $file->telegram_file_id);
-        $response = Http::timeout(120)
-            ->withOptions(['stream' => true])
-            ->get($this->fileUrl($bot->token, $filePath));
+        $response = $this->telegramGet($this->fileUrl($bot->token, $filePath), ['stream' => true]);
 
         if (! $response->successful()) {
             throw new RuntimeException('Could not stream file from Telegram.');
@@ -114,7 +102,7 @@ class TelegramFileStorageService
             return false;
         }
 
-        $response = Http::asJson()->post($this->apiUrl($bot->token, 'deleteMessage'), [
+        $response = $this->telegramPostJson($bot, 'deleteMessage', [
             'chat_id' => $file->telegram_chat_id,
             'message_id' => $file->telegram_message_id,
         ]);
@@ -124,7 +112,7 @@ class TelegramFileStorageService
 
     private function getTelegramFilePath(TelegramBotToken $bot, string $fileId): string
     {
-        $response = Http::asJson()->post($this->apiUrl($bot->token, 'getFile'), [
+        $response = $this->telegramPostJson($bot, 'getFile', [
             'file_id' => $fileId,
         ]);
 
@@ -139,6 +127,93 @@ class TelegramFileStorageService
         }
 
         return (string) $filePath;
+    }
+
+    private function sendDocumentRequest(UploadedFile $file, TelegramStorageGroup $group, TelegramBotToken $bot): Response
+    {
+        $response = null;
+
+        for ($attempt = 1; $attempt <= self::TELEGRAM_API_ATTEMPTS; $attempt++) {
+            $stream = fopen($file->getRealPath(), 'r');
+
+            if ($stream === false) {
+                throw new RuntimeException('Не вдалося прочитати файл перед відправкою в Telegram.');
+            }
+
+            try {
+                $response = Http::timeout(120)
+                    ->attach('document', $stream, $file->getClientOriginalName())
+                    ->post($this->apiUrl($bot->token, 'sendDocument'), [
+                        'chat_id' => $group->chat_id,
+                        'caption' => $file->getClientOriginalName(),
+                    ]);
+            } finally {
+                fclose($stream);
+            }
+
+            if (! $this->shouldRetryTelegramRequest($response, $attempt)) {
+                return $response;
+            }
+
+            $this->pauseBeforeTelegramRetry($response);
+        }
+
+        return $response;
+    }
+
+    private function telegramPostJson(TelegramBotToken $bot, string $method, array $payload): Response
+    {
+        return $this->withTelegramRetries(fn (): Response => Http::asJson()
+            ->post($this->apiUrl($bot->token, $method), $payload));
+    }
+
+    private function telegramGet(string $url, array $options = []): Response
+    {
+        return $this->withTelegramRetries(fn (): Response => Http::timeout(120)
+            ->withOptions($options)
+            ->get($url));
+    }
+
+    private function withTelegramRetries(callable $request): Response
+    {
+        $response = null;
+
+        for ($attempt = 1; $attempt <= self::TELEGRAM_API_ATTEMPTS; $attempt++) {
+            $response = $request();
+
+            if (! $this->shouldRetryTelegramRequest($response, $attempt)) {
+                return $response;
+            }
+
+            $this->pauseBeforeTelegramRetry($response);
+        }
+
+        return $response;
+    }
+
+    private function shouldRetryTelegramRequest(Response $response, int $attempt): bool
+    {
+        if ($attempt >= self::TELEGRAM_API_ATTEMPTS) {
+            return false;
+        }
+
+        return $response->status() === 429 || $response->serverError();
+    }
+
+    private function pauseBeforeTelegramRetry(Response $response): void
+    {
+        $seconds = $response->status() === 429
+            ? (int) data_get($response->json(), 'parameters.retry_after', 1)
+            : 0;
+        $seconds = max(0, min(self::TELEGRAM_MAX_RETRY_SECONDS, $seconds));
+
+        if ($seconds > 0) {
+            sleep($seconds);
+
+            return;
+        }
+
+        usleep(250_000);
     }
 
     private function apiUrl(string $token, string $method): string

@@ -115,6 +115,45 @@ class ShareLinksTest extends TestCase
         $this->assertNull($file->share_expires_at);
     }
 
+    public function test_folder_share_link_can_be_created_and_configured_without_page_reload(): void
+    {
+        $user = User::factory()->create();
+        $folder = $user->folders()->create(['name' => 'Documents']);
+
+        $createResponse = $this->actingAs($user)
+            ->postJson(route('folders.share', $folder));
+
+        $createResponse
+            ->assertOk()
+            ->assertJsonPath('share.is_enabled', true)
+            ->assertJsonStructure(['share' => ['token', 'url', 'usage_label']]);
+
+        $folder->refresh();
+
+        $expiresAt = now()->addDay()->format('Y-m-d\TH:i');
+
+        $this->patchJson(route('folders.share.update', $folder), [
+            'share_max_views' => 3,
+            'share_expires_at' => $expiresAt,
+        ])
+            ->assertOk()
+            ->assertJsonPath('share.share_max_views', 3);
+
+        $folder->refresh();
+
+        $this->assertSame(3, $folder->share_max_views);
+        $this->assertNotNull($folder->share_expires_at);
+
+        $this->deleteJson(route('folders.share.destroy', $folder))
+            ->assertOk()
+            ->assertJsonPath('share.is_enabled', false);
+
+        $this->assertNull($folder->refresh()->share_token);
+        $this->assertSame(0, $folder->share_views_count);
+        $this->assertNull($folder->share_max_views);
+        $this->assertNull($folder->share_expires_at);
+    }
+
     public function test_public_file_link_respects_view_limit(): void
     {
         Storage::fake('local');
@@ -169,6 +208,43 @@ class ShareLinksTest extends TestCase
         ]);
 
         $this->get(route('share.files.show', 'expired-token'))
+            ->assertNotFound();
+    }
+
+    public function test_public_folder_link_respects_view_limit(): void
+    {
+        $user = User::factory()->create();
+        $folder = $user->folders()->create([
+            'name' => 'Limited',
+            'share_token' => 'limited-folder-token',
+            'share_max_views' => 2,
+        ]);
+
+        $this->get(route('share.folders.show', 'limited-folder-token'))
+            ->assertOk()
+            ->assertSee('Limited');
+
+        $this->get(route('share.folders.show', 'limited-folder-token'))
+            ->assertOk()
+            ->assertSee('Limited');
+
+        $this->assertSame(2, $folder->refresh()->share_views_count);
+
+        $this->get(route('share.folders.show', 'limited-folder-token'))
+            ->assertNotFound();
+    }
+
+    public function test_public_folder_link_respects_expiration_date(): void
+    {
+        $user = User::factory()->create();
+
+        $user->folders()->create([
+            'name' => 'Expired',
+            'share_token' => 'expired-folder-token',
+            'share_expires_at' => now()->subMinute(),
+        ]);
+
+        $this->get(route('share.folders.show', 'expired-folder-token'))
             ->assertNotFound();
     }
 

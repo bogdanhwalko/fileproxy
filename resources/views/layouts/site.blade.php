@@ -1492,7 +1492,7 @@
             justify-content: flex-end;
         }
 
-        .folder-actions form {
+        .folder-actions > form {
             display: flex;
         }
 
@@ -1515,6 +1515,45 @@
 
         .folder-action-button {
             min-height: 36px;
+            padding: 6px 8px;
+            font-size: 12px;
+        }
+
+        .folder-action-menu {
+            width: 70px;
+        }
+
+        .folder-action-panel {
+            width: min(360px, calc(100vw - 36px));
+        }
+
+        .folder-action-panel form {
+            display: grid;
+        }
+
+        .folder-rename-form {
+            gap: 8px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .folder-rename-form label {
+            display: grid;
+            gap: 4px;
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .folder-rename-form .field {
+            min-height: 34px;
+            padding: 7px 8px;
+            font-size: 12px;
+        }
+
+        .folder-rename-form .button {
+            min-height: 32px;
+            justify-content: center;
             padding: 6px 8px;
             font-size: 12px;
         }
