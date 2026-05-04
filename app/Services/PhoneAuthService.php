@@ -165,35 +165,35 @@ class PhoneAuthService
         $phone = $this->normalizePhone($phone);
         $token = trim($token);
 
-        $challenge = $token !== ''
-            ? PhoneAuthChallenge::where('token', $token)
-            ->where('phone', $phone)
-            ->whereNull('consumed_at')
-            ->where('expires_at', '>=', now())
-            ->first()
-            : null;
-
-        if ($challenge && $this->verifyChallenge($challenge, $code)) {
-            $this->consumeOtherChallengesForPhone($phone, $challenge->id);
-
-            return true;
-        }
-
-        $fallbackChallenge = PhoneAuthChallenge::where('phone', $phone)
+        $latestChallenge = PhoneAuthChallenge::where('phone', $phone)
             ->whereNull('consumed_at')
             ->where('expires_at', '>=', now())
             ->latest('id')
             ->first();
 
-        if (! $fallbackChallenge || ($challenge && (int) $fallbackChallenge->id === (int) $challenge->id)) {
+        if ($latestChallenge && $this->verifyChallenge($latestChallenge, $code)) {
+            $this->consumeOtherChallengesForPhone($phone, $latestChallenge->id);
+
+            return true;
+        }
+
+        $challenge = $token !== ''
+            ? PhoneAuthChallenge::where('token', $token)
+                ->where('phone', $phone)
+                ->whereNull('consumed_at')
+                ->where('expires_at', '>=', now())
+                ->first()
+            : null;
+
+        if (! $challenge || ($latestChallenge && (int) $challenge->id === (int) $latestChallenge->id)) {
             return false;
         }
 
-        if (! $this->verifyChallenge($fallbackChallenge, $code)) {
+        if (! $this->verifyChallenge($challenge, $code)) {
             return false;
         }
 
-        $this->consumeOtherChallengesForPhone($phone, $fallbackChallenge->id);
+        $this->consumeOtherChallengesForPhone($phone, $challenge->id);
 
         return true;
     }

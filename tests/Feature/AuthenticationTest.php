@@ -95,6 +95,24 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_latest_telegram_code_is_accepted_with_stale_form_token(): void
+    {
+        $phoneAuth = app(PhoneAuthService::class);
+        $phone = $this->uniquePhone();
+        $staleChallenge = $phoneAuth->createChallenge($phone);
+        $phoneAuth->generateCodeForToken($staleChallenge->token);
+
+        $latestChallenge = PhoneAuthChallenge::create([
+            'phone' => $phone,
+            'token' => 'latest-token-'.random_int(100000, 999999),
+            'attempts' => 0,
+            'expires_at' => now()->addMinutes(10),
+        ]);
+        $latestCode = $phoneAuth->generateCodeForToken($latestChallenge->token);
+
+        $this->assertTrue($phoneAuth->verify($staleChallenge->token, $phone, $latestCode));
+    }
+
     public function test_register_can_show_local_code_when_enabled(): void
     {
         config(['services.telegram.show_code_locally' => true]);
@@ -215,7 +233,7 @@ class AuthenticationTest extends TestCase
         ])->assertOk();
 
         Http::assertSent(function ($request) use (&$sentCode) {
-            preg_match('/Ваш код FileProxy: ([0-9]{6})/', (string) $request['text'], $matches);
+            preg_match('/Ваш код FileProxy(?: для номера \+380[0-9]{9})?: ([0-9]{6})/', (string) $request['text'], $matches);
             $sentCode = $matches[1] ?? null;
 
             return $request->url() === 'https://api.telegram.org/bot123456:ABCDEF/sendMessage'
@@ -258,7 +276,7 @@ class AuthenticationTest extends TestCase
         ])->assertOk();
 
         Http::assertSent(function ($request) use (&$sentCode) {
-            preg_match('/Ваш код FileProxy: ([0-9]{6})/', (string) $request['text'], $matches);
+            preg_match('/Ваш код FileProxy(?: для номера \+380[0-9]{9})?: ([0-9]{6})/', (string) $request['text'], $matches);
             $sentCode = $matches[1] ?? null;
 
             return $request['chat_id'] === 100500
@@ -317,7 +335,7 @@ class AuthenticationTest extends TestCase
 
         Http::assertSentCount(2);
         Http::assertSent(fn ($request) => $request['chat_id'] === 100500
-            && str_contains((string) $request['text'], 'Ваш код FileProxy:')
+            && str_contains((string) $request['text'], 'Ваш код FileProxy')
             && ($request['reply_markup']['remove_keyboard'] ?? false) === true);
     }
 
@@ -376,7 +394,7 @@ class AuthenticationTest extends TestCase
         ])->assertOk();
 
         Http::assertSent(fn ($request) => $request['chat_id'] === 100500
-            && str_contains((string) $request['text'], 'Ваш код FileProxy:'));
+            && str_contains((string) $request['text'], 'Ваш код FileProxy'));
 
         $this->assertDatabaseHas('phone_auth_challenges', [
             'phone' => '+380979112388',

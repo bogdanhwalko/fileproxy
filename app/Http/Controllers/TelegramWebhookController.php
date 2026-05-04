@@ -88,7 +88,7 @@ class TelegramWebhookController extends Controller
             return;
         }
 
-        $this->sendCode($telegram, $chatId, $code);
+        $this->sendCode($telegram, $chatId, $code, $phoneAuth->phoneFromPayload($payload));
     }
 
     private function handleContact(
@@ -151,11 +151,13 @@ class TelegramWebhookController extends Controller
         );
     }
 
-    private function sendCode(TelegramBotService $telegram, int|string $chatId, string $code): void
+    private function sendCode(TelegramBotService $telegram, int|string $chatId, string $code, ?string $phone = null): void
     {
+        $phoneLine = $phone ? " для номера {$phone}" : '';
+
         $telegram->sendMessage(
             $chatId,
-            "Ваш код FileProxy: {$code}\nКод діє 10 хвилин.",
+            "Ваш код FileProxy{$phoneLine}: {$code}\nКод діє 10 хвилин.",
             ['remove_keyboard' => true]
         );
     }
@@ -183,7 +185,7 @@ class TelegramWebhookController extends Controller
             return;
         }
 
-        $this->sendCode($telegram, $chatId, $code);
+        $this->sendCode($telegram, $chatId, $code, $phone);
     }
 
     private function contactPhoneNumber(array $contact): string
