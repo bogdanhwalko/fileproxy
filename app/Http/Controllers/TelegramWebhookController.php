@@ -60,7 +60,17 @@ class TelegramWebhookController extends Controller
                 : null;
 
             if ($knownContact) {
-                $this->issueCodeForPhone($knownContact->phone, $phoneAuth, $telegram, $chatId);
+                $phone = $phoneAuth->normalizePhone((string) $knownContact->phone);
+
+                if ($phoneAuth->isValidPhone($phone)) {
+                    $this->issueCodeForPhone($phone, $phoneAuth, $telegram, $chatId);
+
+                    return;
+                }
+
+                $knownContact->delete();
+                $telegram->sendMessage($chatId, 'Збережений номер невалідний. Поділіться контактом ще раз.');
+                $this->requestContact($telegram, $chatId);
 
                 return;
             }
@@ -98,7 +108,7 @@ class TelegramWebhookController extends Controller
             return;
         }
 
-        $phone = $phoneAuth->normalizePhone((string) data_get($contact, 'phone_number', ''));
+        $phone = $phoneAuth->normalizePhone($this->contactPhoneNumber($contact));
 
         if (! $phoneAuth->isValidPhone($phone)) {
             $telegram->sendMessage($chatId, 'Потрібен український номер у форматі +380XXXXXXXXX.');
@@ -156,6 +166,15 @@ class TelegramWebhookController extends Controller
         TelegramBotService $telegram,
         int|string $chatId
     ): void {
+        $phone = $phoneAuth->normalizePhone($phone);
+
+        if (! $phoneAuth->isValidPhone($phone)) {
+            $telegram->sendMessage($chatId, 'Не вдалося визначити номер телефону. Поділіться контактом ще раз.');
+            $this->requestContact($telegram, $chatId);
+
+            return;
+        }
+
         $code = $phoneAuth->issueCodeForPhone($phone);
 
         if (! $code) {
@@ -165,5 +184,22 @@ class TelegramWebhookController extends Controller
         }
 
         $this->sendCode($telegram, $chatId, $code);
+    }
+
+    private function contactPhoneNumber(array $contact): string
+    {
+        $phone = trim((string) data_get($contact, 'phone_number', ''));
+
+        if ($phone !== '') {
+            return $phone;
+        }
+
+        $vcard = (string) data_get($contact, 'vcard', '');
+
+        if ($vcard !== '' && preg_match('/TEL[^:]*:([^\r\n]+)/i', $vcard, $matches)) {
+            return trim($matches[1]);
+        }
+
+        return '';
     }
 }

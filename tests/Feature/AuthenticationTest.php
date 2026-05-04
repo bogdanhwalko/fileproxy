@@ -302,6 +302,38 @@ class AuthenticationTest extends TestCase
             && ($request['reply_markup']['remove_keyboard'] ?? false) === true);
     }
 
+    public function test_telegram_start_resets_invalid_remembered_contact(): void
+    {
+        config([
+            'services.telegram.bot_token' => '123456:ABCDEF',
+            'services.telegram.webhook_secret' => 'auth-secret',
+        ]);
+
+        Http::fake([
+            'https://api.telegram.org/bot123456:ABCDEF/sendMessage' => Http::response(['ok' => true]),
+        ]);
+
+        TelegramAuthContact::create([
+            'telegram_user_id' => '42',
+            'phone' => '',
+        ]);
+
+        $this->postJson(route('telegram.webhook', ['secret' => 'auth-secret']), [
+            'message' => [
+                'from' => ['id' => 42],
+                'chat' => ['id' => 100500],
+                'text' => '/start',
+            ],
+        ])->assertOk();
+
+        $this->assertDatabaseMissing('telegram_auth_contacts', [
+            'telegram_user_id' => '42',
+        ]);
+
+        Http::assertSent(fn ($request) => $request['chat_id'] === 100500
+            && str_contains((string) $request['text'], 'Поділіться контактом'));
+    }
+
     public function test_telegram_contact_accepts_local_ukrainian_phone_format(): void
     {
         config([

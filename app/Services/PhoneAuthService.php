@@ -15,6 +15,10 @@ class PhoneAuthService
     {
         $digits = preg_replace('/\D+/', '', $phone) ?? '';
 
+        if ($digits === '') {
+            return '';
+        }
+
         if (str_starts_with($digits, '00')) {
             $digits = substr($digits, 2);
         }

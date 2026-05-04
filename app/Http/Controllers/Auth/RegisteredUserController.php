@@ -6,10 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\PhoneAuthService;
 use Illuminate\Auth\Events\Registered;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -25,6 +27,8 @@ class RegisteredUserController extends Controller
 
     public function store(Request $request, PhoneAuthService $phoneAuth): RedirectResponse
     {
+        $this->ensureRegistrationSchemaIsReady();
+
         $validated = $request->validate([
             'nickname' => ['required', 'string', 'max:255'],
             'phone' => ['required', 'string', 'max:32'],
@@ -56,7 +60,18 @@ class RegisteredUserController extends Controller
             $attributes['is_admin'] = ! User::where('is_admin', true)->exists();
         }
 
-        $user = User::create($attributes);
+        try {
+            $user = User::create($attributes);
+        } catch (QueryException $exception) {
+            Log::error('User registration failed.', [
+                'phone' => $phone,
+                'error' => $exception->getMessage(),
+            ]);
+
+            throw ValidationException::withMessages([
+                'phone' => 'Не вдалося створити користувача. Перевірте, що на сервері виконано php artisan migrate --force.',
+            ]);
+        }
 
         event(new Registered($user));
 
@@ -102,5 +117,24 @@ class RegisteredUserController extends Controller
     private function technicalEmail(string $phone): string
     {
         return preg_replace('/\D+/', '', $phone).'@phone.fileproxy.local';
+    }
+
+    private function ensureRegistrationSchemaIsReady(): void
+    {
+        $requiredColumns = ['name', 'phone', 'email', 'password'];
+
+        if (! Schema::hasTable('users')) {
+            throw ValidationException::withMessages([
+                'phone' => 'База даних не підготовлена: таблиця users відсутня. Виконайте php artisan migrate --force.',
+            ]);
+        }
+
+        foreach ($requiredColumns as $column) {
+            if (! Schema::hasColumn('users', $column)) {
+                throw ValidationException::withMessages([
+                    'phone' => "База даних не підготовлена: у таблиці users відсутня колонка {$column}. Виконайте php artisan migrate --force.",
+                ]);
+            }
+        }
     }
 }
