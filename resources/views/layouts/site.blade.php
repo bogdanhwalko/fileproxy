@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'FileProxy')</title>
+    <!-- <link rel="icon" href="{{ asset('favicon.png') }}" type="image/png"> -->
+     <link rel="icon" href="{{ asset('favicon2.ico') }}" type="image/x-icon">
     <style>
         :root {
             color-scheme: light;

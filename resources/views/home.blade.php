@@ -8,7 +8,7 @@
             <div class="brand-mark">FP</div>
             <div>
                 <strong>FileProxy</strong>
-                <p>Керуйте файлами без зайвих витрат</p>
+                <p>Сховище файлів на основі Telegram</p>
             </div>
         </a>
 
@@ -38,7 +38,6 @@
     <section class="landing-panel">
         <div class="landing-hero-grid">
             <div class="landing-hero-copy">
-                <span class="landing-label">Безкоштовний старт для ваших файлів</span>
                 <h1>Зберігайте, знаходьте і діліться файлами без хаосу в чатах</h1>
                 <p>
                     FileProxy дає особистий файловий кабінет з папками, пошуком, швидким переглядом і контрольованими
@@ -46,9 +45,9 @@
                 </p>
 
                 <div class="landing-points" aria-label="Ключові переваги">
-                    <span>0 грн для старту</span>
-                    <span>вхід за номером телефону</span>
-                    <span>лінки з лімітами доступу</span>
+                    <span>Безкоштовно</span>
+                    <span>Безлімітно</span>
+                    <span>Приватно</span>
                 </div>
 
                 <div class="hero-actions landing-actions">
@@ -112,32 +111,9 @@
                 </div>
             </div>
         </div>
-
-        <div class="landing-metrics" aria-label="Переваги FileProxy">
-            <div>
-                <strong>0 грн</strong>
-                <span>щоб почати</span>
-            </div>
-            <div>
-                <strong>100</strong>
-                <span>файлів у базовому сховищі</span>
-            </div>
-            <div>
-                <strong>50 MB</strong>
-                <span>на один файл</span>
-            </div>
-            <div>
-                <strong>24/7</strong>
-                <span>доступ з браузера</span>
-            </div>
-        </div>
     </section>
 
     <section class="landing-section">
-        <div class="landing-section-head">
-            <span class="landing-label">Чому це зручно</span>
-            <h2>FileProxy прибирає зайві дії між “мені треба зберегти файл” і “я вже знайшов потрібне”.</h2>
-        </div>
 
         <div class="landing-benefits">
             <article>
@@ -167,49 +143,9 @@
             </article>
             <article>
                 <span>06</span>
-                <strong>Вхід без паролів</strong>
-                <p>Авторизація через номер телефону і код з Telegram зменшує ризик забути або втратити пароль.</p>
+                <strong>Приватність</strong>
+                <p>Зберігайте свої файли в приватному сховищі з контролем доступу.</p>
             </article>
-        </div>
-    </section>
-
-    <section class="landing-section landing-use-cases">
-        <div class="landing-section-head">
-            <span class="landing-label">Для кого</span>
-            <h2>Один простий кабінет для особистих файлів, роботи з клієнтами і щоденних документів.</h2>
-        </div>
-
-        <div class="landing-audience">
-            <article>
-                <strong>Фрилансерам</strong>
-                <p>Збирайте матеріали проєкту в одну папку й надсилайте клієнту один контрольований лінк.</p>
-            </article>
-            <article>
-                <strong>Малому бізнесу</strong>
-                <p>Тримайте рахунки, акти, фото товарів і службові файли в порядку без складної інфраструктури.</p>
-            </article>
-            <article>
-                <strong>Для особистого архіву</strong>
-                <p>Зберігайте скани, нотатки, фото й архіви так, щоб їх було легко знайти через місяці.</p>
-            </article>
-        </div>
-    </section>
-
-    <section class="landing-flow">
-        <div>
-            <span>1</span>
-            <strong>Створіть акаунт</strong>
-            <p>Вкажіть номер телефону, підтвердьте кодом і відкрийте особистий кабінет.</p>
-        </div>
-        <div>
-            <span>2</span>
-            <strong>Завантажте файли</strong>
-            <p>Додавайте один або кілька файлів, одразу обирайте папку та спосіб зберігання.</p>
-        </div>
-        <div>
-            <span>3</span>
-            <strong>Керуйте доступом</strong>
-            <p>Переглядайте, фільтруйте, завантажуйте, видаляйте або діліться лінками з потрібними обмеженнями.</p>
         </div>
     </section>
 
