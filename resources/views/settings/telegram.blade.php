@@ -132,25 +132,69 @@
                                 <td><span class="token-mask">{{ $bot->masked_token }}</span></td>
                                 <td>{{ $bot->storage_groups_count }}</td>
                                 <td>
-                                    <div class="table-actions">
-                                        <form action="{{ route('telegram-settings.bots.sync', $bot) }}" method="post" title="Синхронізувати з Telegram: підтягнути всі пропущені події (наприклад, якщо ви додали бота в групу до того, як налаштували FileProxy).">
+                                    <div class="bot-actions">
+                                        <form action="{{ route('telegram-settings.bots.sync', $bot) }}" method="post">
                                             @csrf
-                                            <button class="button" type="submit">Синхронізувати групи</button>
+                                            <button
+                                                type="submit"
+                                                class="bot-action-btn bot-action-sync"
+                                                aria-label="Синхронізувати групи"
+                                                title="Синхронізувати групи — підтягнути пропущені події з Telegram"
+                                            >
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                    <polyline points="23 4 23 10 17 10"/>
+                                                    <polyline points="1 20 1 14 7 14"/>
+                                                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                                                </svg>
+                                            </button>
                                         </form>
-                                        <form action="{{ route('telegram-settings.bots.repair', $bot) }}" method="post" title="Переписати webhook на цей бот. Робіть, якщо взагалі нічого не приходить.">
+
+                                        <form action="{{ route('telegram-settings.bots.repair', $bot) }}" method="post">
                                             @csrf
-                                            <button class="button accent" type="submit">Перезаписати webhook</button>
+                                            <button
+                                                type="submit"
+                                                class="bot-action-btn bot-action-repair"
+                                                aria-label="Перезаписати webhook"
+                                                title="Перезаписати webhook на цей бот"
+                                            >
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                                                </svg>
+                                            </button>
                                         </form>
+
                                         @unless ($bot->is_default)
                                             <form action="{{ route('telegram-settings.bots.default', $bot) }}" method="post">
                                                 @csrf
-                                                <button class="button secondary" type="submit">Основний</button>
+                                                <button
+                                                    type="submit"
+                                                    class="bot-action-btn bot-action-default"
+                                                    aria-label="Зробити основним"
+                                                    title="Зробити цього бота основним"
+                                                >
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                                                    </svg>
+                                                </button>
                                             </form>
                                         @endunless
-                                        <form action="{{ route('telegram-settings.bots.destroy', $bot) }}" method="post">
+
+                                        <form action="{{ route('telegram-settings.bots.destroy', $bot) }}" method="post" onsubmit="return confirm('Видалити бота «{{ $bot->name }}»? Усі привʼязані групи теж будуть видалені.');">
                                             @csrf
                                             @method('delete')
-                                            <button class="button danger" type="submit">Видалити</button>
+                                            <button
+                                                type="submit"
+                                                class="bot-action-btn bot-action-delete"
+                                                aria-label="Видалити бота"
+                                                title="Видалити бота"
+                                            >
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                    <polyline points="3 6 5 6 21 6"/>
+                                                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                                                    <path d="M10 11v6M14 11v6"/>
+                                                    <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
+                                                </svg>
+                                            </button>
                                         </form>
                                     </div>
                                 </td>
@@ -170,7 +214,7 @@
         <section class="panel settings-panel-groups">
             <div class="panel-header compact">
                 <h2>Групи</h2>
-                <p>Групи додаються автоматично командою /storage у Telegram. Форма нижче лишається як ручний запасний варіант, якщо webhook недоступний.</p>
+                <p>Групи додаються автоматично. Форма нижче лишається на випадок, якщо webhook недоступний.</p>
             </div>
 
             <form class="settings-form compact-settings-form group-settings-form" action="{{ route('telegram-settings.groups.store') }}" method="post">

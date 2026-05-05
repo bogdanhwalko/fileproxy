@@ -1872,6 +1872,76 @@
             line-height: 1.4;
         }
 
+        /* === Bot row actions === */
+        .bot-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .bot-actions form {
+            margin: 0;
+        }
+
+        .bot-action-btn {
+            display: grid;
+            place-items: center;
+            width: 34px;
+            height: 34px;
+            padding: 0;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            background: var(--surface);
+            color: var(--muted);
+            cursor: pointer;
+            transition:
+                background 140ms ease,
+                color 140ms ease,
+                border-color 140ms ease,
+                transform 140ms ease,
+                box-shadow 140ms ease;
+        }
+
+        .bot-action-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 14px rgb(15 23 42 / 8%);
+        }
+
+        .bot-action-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .bot-action-sync:hover {
+            background: var(--primary-soft);
+            border-color: #c5c2f5;
+            color: var(--primary);
+        }
+
+        .bot-action-repair:hover {
+            background: var(--accent-soft);
+            border-color: #a8e7f1;
+            color: var(--accent);
+        }
+
+        .bot-action-default:hover {
+            background: #fef3c7;
+            border-color: #fcd34d;
+            color: #b45309;
+        }
+
+        .bot-action-delete:hover {
+            background: var(--danger-soft);
+            border-color: #fbb9c4;
+            color: var(--danger);
+        }
+
+        .bot-action-btn:active {
+            transform: translateY(0);
+        }
+
         /* === BotFather CTA === */
         .botfather-cta {
             display: inline-flex;
