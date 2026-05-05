@@ -17,7 +17,28 @@ class TelegramStorageBotService
                 ->timeout(self::REQUEST_TIMEOUT)
                 ->post($this->apiUrl($bot, 'setWebhook'), [
                     'url' => $url,
-                    'allowed_updates' => ['message'],
+                    'allowed_updates' => ['message', 'my_chat_member'],
+                ]);
+
+            return $response->successful() && (bool) $response->json('ok', false);
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
+    public function setMyCommands(TelegramBotToken $bot): bool
+    {
+        try {
+            $response = Http::asJson()
+                ->timeout(self::REQUEST_TIMEOUT)
+                ->post($this->apiUrl($bot, 'setMyCommands'), [
+                    'commands' => [
+                        [
+                            'command' => 'storage',
+                            'description' => 'Прив’язати цю групу до FileProxy-сховища',
+                        ],
+                    ],
+                    'scope' => ['type' => 'all_group_chats'],
                 ]);
 
             return $response->successful() && (bool) $response->json('ok', false);

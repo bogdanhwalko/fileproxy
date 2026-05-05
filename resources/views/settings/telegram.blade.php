@@ -43,7 +43,7 @@
     <section class="panel settings-guide">
         <div class="panel-header compact">
             <h2>Інструкція підключення Telegram</h2>
-            <p>Створіть власного бота, збережіть його token у FileProxy, додайте бота в Telegram-групу і напишіть у ній /storage. Група автоматично зʼявиться у списку сховищ.</p>
+            <p>Створіть бота, збережіть token у FileProxy і додайте бота в Telegram-групу. Група зʼявиться у списку сховищ автоматично — нічого писати не потрібно.</p>
         </div>
         <div class="guide-actions">
             <a class="button" href="{{ $botFatherNewBotUrl }}" target="_blank" rel="noopener">Створити бота в BotFather</a>
@@ -52,8 +52,8 @@
         <div class="guide-steps">
             <div><strong>1. Створіть бота</strong><span>Перейдіть за лінком до @BotFather, виконайте команду /newbot і заповніть необхідні поля.</span></div>
             <div><strong>2. Додайте token</strong><span>BotFather видасть API token. Вставте його у форму ботів нижче, щоб FileProxy налаштував webhook для команди /storage.</span></div>
-            <div><strong>3. Дodайте бота в групу</strong><span>Створіть групу для файлів, дodайте туди бота і дозвольте йому надсилати повідомлення.</span></div>
-            <div><strong>4. Напишіть /storage@username</strong><span>У групі надішліть команду <code>/storage@вашбот</code> (з @-згадкою бота). Точну команду побачите у таблиці ботів нижче. Якщо в @BotFather вимкнено privacy mode (<code>/setprivacy</code> → Disable), достатньо просто <code>/storage</code>.</span></div>
+            <div><strong>3. Додайте бота в групу</strong><span>Створіть групу для файлів і додайте туди вашого бота — група автоматично зʼявиться у списку сховищ FileProxy.</span></div>
+            <div><strong>4. Резервна команда /storage</strong><span>Якщо група не зʼявилася після додавання бота, напишіть у ній <code>/storage</code> (privacy off у BotFather) або <code>/storage@вашбот</code>. Точну команду див. у таблиці ботів нижче.</span></div>
             <div><strong>5. Перевірте список</strong><span>Після відповіді бота оновіть цю сторінку. Нова група буде в таблиці нижче з її Telegram chat_id.</span></div>
             <div><strong>6. Завантажте файл</strong><span>Поверніться до файлів, виберіть Telegram-групу в полі сховища і завантажте тестовий файл.</span></div>
         </div>

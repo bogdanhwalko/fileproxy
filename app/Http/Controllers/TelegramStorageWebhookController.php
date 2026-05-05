@@ -18,15 +18,57 @@ class TelegramStorageWebhookController extends Controller
     ): JsonResponse {
         abort_unless($bot->webhook_secret && hash_equals((string) $bot->webhook_secret, $secret), 404);
 
-        $message = $request->input('message');
+        $myChatMember = $request->input('my_chat_member');
 
-        if (! is_array($message)) {
+        if (is_array($myChatMember)) {
+            $this->handleMyChatMember($bot, $myChatMember, $telegram);
+
             return response()->json(['ok' => true]);
         }
 
-        $this->handleMessage($bot, $message, $telegram);
+        $message = $request->input('message');
+
+        if (is_array($message)) {
+            $this->handleMessage($bot, $message, $telegram);
+        }
 
         return response()->json(['ok' => true]);
+    }
+
+    private function handleMyChatMember(TelegramBotToken $bot, array $update, TelegramStorageBotService $telegram): void
+    {
+        $chatId = data_get($update, 'chat.id');
+        $chatType = (string) data_get($update, 'chat.type', '');
+
+        if (! $chatId || ! in_array($chatType, ['group', 'supergroup'], true)) {
+            return;
+        }
+
+        $oldStatus = (string) data_get($update, 'old_chat_member.status', '');
+        $newStatus = (string) data_get($update, 'new_chat_member.status', '');
+
+        $joined = in_array($newStatus, ['member', 'administrator'], true)
+            && in_array($oldStatus, ['left', 'kicked', 'restricted', ''], true);
+
+        if (! $joined) {
+            return;
+        }
+
+        $title = trim((string) data_get($update, 'chat.title', ''));
+
+        if ($title === '') {
+            $title = 'Telegram group '.$chatId;
+        }
+
+        $created = $this->upsertStorageGroup($bot, (string) $chatId, $title);
+
+        $telegram->sendMessage(
+            $bot,
+            $chatId,
+            $created
+                ? '✅ Готово! Цю групу автоматично додано до Telegram-сховищ FileProxy. Тепер її можна обрати під час завантаження файлів.'
+                : 'Ця Telegram-група вже є у списку сховищ FileProxy.'
+        );
     }
 
     private function handleMessage(TelegramBotToken $bot, array $message, TelegramStorageBotService $telegram): void
@@ -45,24 +87,38 @@ class TelegramStorageWebhookController extends Controller
         }
 
         if (! in_array($chatType, ['group', 'supergroup'], true)) {
-            $telegram->sendMessage($bot, $chatId, 'Додайте цього бота в Telegram-групу для файлів і напишіть у групі /storage.');
+            $telegram->sendMessage($bot, $chatId, 'Додайте цього бота в Telegram-групу для файлів. Група додасться автоматично.');
 
             return;
         }
 
-        $chatId = (string) $chatId;
         $title = trim((string) data_get($message, 'chat.title', ''));
 
         if ($title === '') {
             $title = 'Telegram group '.$chatId;
         }
 
+        $created = $this->upsertStorageGroup($bot, (string) $chatId, $title);
+
+        $telegram->sendMessage(
+            $bot,
+            $chatId,
+            $created
+                ? 'Групу додано до Telegram-сховищ FileProxy. Тепер її можна вибрати під час завантаження файлів.'
+                : 'Ця Telegram-група вже є у списку сховищ FileProxy.'
+        );
+    }
+
+    private function upsertStorageGroup(TelegramBotToken $bot, string $chatId, string $title): bool
+    {
         $hasGroups = $bot->user->telegramStorageGroups()->exists();
+
         $group = TelegramStorageGroup::firstOrNew([
             'user_id' => $bot->user_id,
             'telegram_bot_token_id' => $bot->id,
             'chat_id' => $chatId,
         ]);
+
         $wasRecentlyCreated = ! $group->exists;
 
         $group->title = $title;
@@ -73,13 +129,7 @@ class TelegramStorageWebhookController extends Controller
 
         $group->save();
 
-        $telegram->sendMessage(
-            $bot,
-            $chatId,
-            $wasRecentlyCreated
-                ? 'Групу додано до Telegram-сховищ FileProxy. Тепер її можна вибрати під час завантаження файлів.'
-                : 'Ця Telegram-група вже є у списку сховищ FileProxy.'
-        );
+        return $wasRecentlyCreated;
     }
 
     private function isStorageCommand(string $text, TelegramBotToken $bot): bool

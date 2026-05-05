@@ -94,6 +94,8 @@ class TelegramStorageSettingsController extends Controller
             route('telegram.storage-webhook', ['bot' => $bot, 'secret' => $bot->webhook_secret])
         );
 
+        $telegram->setMyCommands($bot);
+
         $command = $bot->username ? "/storage@{$bot->username}" : '/storage';
         $privacyHint = $privacyEnabled
             ? ' Бот у режимі privacy: пишіть у групі саме '.$command.' (з @-згадкою), або вимкніть privacy у @BotFather через /setprivacy → Disable.'
