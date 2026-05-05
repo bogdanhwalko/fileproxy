@@ -1,6 +1,94 @@
 @extends('layouts.site')
 
-@section('title', 'FileProxy - безкоштовне керування файлами')
+@section('title', 'FileProxy — безкоштовне сховище файлів з Telegram-бекендом')
+@section('description', 'Зберігайте, знаходьте і діліться файлами без хаосу. Особистий файловий кабінет з папками, швидким пошуком, переглядом у браузері та контрольованими публічними лінками. Безкоштовно і без обмежень.')
+@section('og_title', 'FileProxy — безкоштовний файловий кабінет')
+
+@push('head')
+    @php
+        $structuredData = [
+            '@context' => 'https://schema.org',
+            '@graph' => [
+                [
+                    '@type' => 'Organization',
+                    '@id' => url('/').'#org',
+                    'name' => 'FileProxy',
+                    'url' => url('/'),
+                    'logo' => asset('favicon2.ico'),
+                ],
+                [
+                    '@type' => 'WebSite',
+                    '@id' => url('/').'#website',
+                    'name' => 'FileProxy',
+                    'url' => url('/'),
+                    'inLanguage' => 'uk-UA',
+                    'publisher' => ['@id' => url('/').'#org'],
+                ],
+                [
+                    '@type' => 'WebApplication',
+                    'name' => 'FileProxy',
+                    'url' => url('/'),
+                    'description' => 'Безкоштовне сховище і файловий кабінет з папками, пошуком, переглядом у браузері та контрольованими публічними посиланнями.',
+                    'applicationCategory' => 'BusinessApplication',
+                    'operatingSystem' => 'Web',
+                    'browserRequirements' => 'Requires JavaScript and a modern browser',
+                    'inLanguage' => 'uk-UA',
+                    'offers' => [
+                        '@type' => 'Offer',
+                        'price' => '0',
+                        'priceCurrency' => 'UAH',
+                    ],
+                    'featureList' => [
+                        'Безкоштовне завантаження файлів',
+                        'Папки і швидкий пошук',
+                        'Перегляд у браузері без скачування',
+                        'Контрольовані публічні посилання',
+                        'Telegram-сховище',
+                        'Приватність і власний контроль',
+                    ],
+                ],
+                [
+                    '@type' => 'FAQPage',
+                    'mainEntity' => [
+                        [
+                            '@type' => 'Question',
+                            'name' => 'Скільки коштує FileProxy?',
+                            'acceptedAnswer' => [
+                                '@type' => 'Answer',
+                                'text' => 'FileProxy безкоштовний. Ви платите 0 ₴ за використання сервісу.',
+                            ],
+                        ],
+                        [
+                            '@type' => 'Question',
+                            'name' => 'Який максимальний розмір файлу?',
+                            'acceptedAnswer' => [
+                                '@type' => 'Answer',
+                                'text' => 'До 50 MB на файл — таке обмеження накладає Telegram Bot API. Кількість файлів не обмежена.',
+                            ],
+                        ],
+                        [
+                            '@type' => 'Question',
+                            'name' => 'Де зберігаються мої файли?',
+                            'acceptedAnswer' => [
+                                '@type' => 'Answer',
+                                'text' => 'У вашій власній Telegram-групі через бота, якого ви налаштовуєте. Тільки ви маєте доступ до файлів.',
+                            ],
+                        ],
+                        [
+                            '@type' => 'Question',
+                            'name' => 'Як ділитися файлами?',
+                            'acceptedAnswer' => [
+                                '@type' => 'Answer',
+                                'text' => 'Створіть публічне посилання з обмеженням за кількістю переглядів або датою дії. Доступ можна закрити одним кліком.',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+    @endphp
+    <script type="application/ld+json">{!! json_encode($structuredData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP) !!}</script>
+@endpush
 
 @section('content')
     <nav class="site-nav landing-nav">

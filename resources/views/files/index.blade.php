@@ -1,6 +1,7 @@
 @extends('layouts.site')
 
-@section('title', 'Файли - FileProxy')
+@section('title', 'Файли — FileProxy')
+@section('robots', 'noindex, nofollow')
 
 @section('content')
     <header class="topbar topbar-v2">

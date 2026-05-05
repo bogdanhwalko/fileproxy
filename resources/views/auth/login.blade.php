@@ -1,6 +1,7 @@
 @extends('layouts.site')
 
-@section('title', 'Вхід - FileProxy')
+@section('title', 'Вхід — FileProxy')
+@section('description', 'Увійдіть у свій FileProxy-кабінет за номером телефону. Безкоштовне сховище з папками, пошуком і контрольованими лінками.')
 
 @section('content')
     @php($telegramAuth = session('telegram_auth'))

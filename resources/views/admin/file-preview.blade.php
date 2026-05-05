@@ -1,6 +1,7 @@
 @extends('layouts.site')
 
-@section('title', $file->original_name.' - адмінка')
+@section('title', $file->original_name.' — адмінка')
+@section('robots', 'noindex, nofollow')
 
 @section('content')
     <header class="topbar">

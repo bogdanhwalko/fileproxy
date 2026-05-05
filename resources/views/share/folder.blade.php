@@ -1,6 +1,7 @@
 @extends('layouts.site')
 
-@section('title', $folder->name.' - FileProxy')
+@section('title', $folder->name.' — FileProxy')
+@section('robots', 'noindex, nofollow')
 
 @section('content')
     <header class="topbar">

@@ -4,9 +4,52 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'FileProxy')</title>
-    <!-- <link rel="icon" href="{{ asset('favicon.png') }}" type="image/png"> -->
-     <link rel="icon" href="{{ asset('favicon2.ico') }}" type="image/x-icon">
+
+    <title>@yield('title', 'FileProxy — безкоштовне сховище і керування файлами')</title>
+
+    @php
+        $metaDescription = trim((string) View::yieldContent(
+            'description',
+            'FileProxy — безкоштовний файловий кабінет з папками, пошуком і публічними лінками. Telegram-сховище, перегляд у браузері, обмеження доступу за переглядами і датою.'
+        ));
+        $metaKeywords = trim((string) View::yieldContent(
+            'keywords',
+            'FileProxy, файлове сховище, telegram сховище, безкоштовне сховище файлів, файловий менеджер, обмін файлами, публічні посилання, керування файлами'
+        ));
+        $canonicalUrl = url()->current();
+        $ogTitle = trim((string) View::yieldContent('og_title', 'FileProxy — безкоштовне сховище і керування файлами'));
+        $ogImage = asset(View::yieldContent('og_image') ?: 'favicon2.ico');
+        $robotsContent = trim((string) View::yieldContent('robots', 'index, follow'));
+    @endphp
+
+    <meta name="description" content="{{ $metaDescription }}">
+    <meta name="keywords" content="{{ $metaKeywords }}">
+    <meta name="robots" content="{{ $robotsContent }}">
+    <meta name="googlebot" content="{{ $robotsContent }}">
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="application-name" content="FileProxy">
+    <meta name="author" content="FileProxy">
+
+    <link rel="canonical" href="{{ $canonicalUrl }}">
+    <link rel="icon" href="{{ asset('favicon2.ico') }}" type="image/x-icon">
+    <link rel="alternate" hreflang="uk" href="{{ url('/') }}">
+    <link rel="alternate" hreflang="x-default" href="{{ url('/') }}">
+
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="uk_UA">
+    <meta property="og:site_name" content="FileProxy">
+    <meta property="og:title" content="{{ $ogTitle }}">
+    <meta property="og:description" content="{{ $metaDescription }}">
+    <meta property="og:url" content="{{ $canonicalUrl }}">
+    <meta property="og:image" content="{{ $ogImage }}">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ $ogTitle }}">
+    <meta name="twitter:description" content="{{ $metaDescription }}">
+    <meta name="twitter:image" content="{{ $ogImage }}">
+
+    @stack('head')
+
     <style>
         :root {
             color-scheme: light;

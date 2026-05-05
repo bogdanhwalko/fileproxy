@@ -1,6 +1,7 @@
 @extends('layouts.site')
 
-@section('title', 'Прив’язка Telegram - FileProxy')
+@section('title', 'Прив’язка Telegram — FileProxy')
+@section('robots', 'noindex, nofollow')
 
 @section('content')
     <header class="topbar">

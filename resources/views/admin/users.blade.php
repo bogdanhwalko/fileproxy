@@ -1,6 +1,7 @@
 @extends('layouts.site')
 
-@section('title', 'Адмінка - користувачі')
+@section('title', 'Адмінка — користувачі')
+@section('robots', 'noindex, nofollow')
 
 @section('content')
     <header class="topbar">
