@@ -130,6 +130,69 @@ class TelegramStorageSettingsController extends Controller
             ->with('status', 'Telegram-бота видалено.');
     }
 
+    public function repairBot(TelegramBotToken $bot, TelegramStorageBotService $telegram): RedirectResponse
+    {
+        abort_unless((int) $bot->user_id === (int) auth()->id(), 404);
+
+        $info = $telegram->getMe($bot);
+
+        if (is_array($info)) {
+            $apiUsername = $this->normalizeUsername((string) data_get($info, 'username', ''));
+
+            if ($apiUsername && $apiUsername !== (string) $bot->username) {
+                $bot->forceFill(['username' => $apiUsername])->save();
+            }
+        }
+
+        $webhookUrl = route('telegram.storage-webhook', [
+            'bot' => $bot,
+            'secret' => $bot->webhook_secret,
+        ]);
+
+        $webhookOk = $telegram->setWebhook($bot, $webhookUrl);
+        $telegram->setMyCommands($bot);
+
+        if (! $webhookOk) {
+            $webhookInfo = $telegram->getWebhookInfo($bot);
+            $lastError = data_get($webhookInfo, 'last_error_message');
+
+            $message = "Не вдалося оновити webhook для «{$bot->name}». ";
+
+            if (! str_starts_with($webhookUrl, 'https://')) {
+                $message .= 'Telegram приймає тільки HTTPS-URL, а у вас APP_URL не https. Виправте APP_URL у .env та зверніться до адміністратора.';
+            } elseif ($lastError) {
+                $message .= "Telegram повернув помилку: {$lastError}";
+            } else {
+                $message .= 'Перевірте, що сайт доступний з інтернету за HTTPS і token бота правильний.';
+            }
+
+            return redirect()
+                ->route('telegram-settings.index')
+                ->withErrors(['webhook' => $message]);
+        }
+
+        $afterInfo = $telegram->getWebhookInfo($bot);
+        $allowedUpdates = data_get($afterInfo, 'allowed_updates');
+        $hasMyChatMember = is_array($allowedUpdates) && in_array('my_chat_member', $allowedUpdates, true);
+        $lastError = data_get($afterInfo, 'last_error_message');
+
+        $status = "Webhook бота «{$bot->name}» оновлено.";
+
+        if (! $hasMyChatMember) {
+            $status .= ' Увага: Telegram ще не підтвердив підписку на події приєднання — спробуйте ще раз через 10 секунд.';
+        } else {
+            $status .= ' Якщо бот уже в групі, виключіть його і додайте знову — група зʼявиться у списку сховищ автоматично.';
+        }
+
+        if ($lastError) {
+            $status .= " Остання помилка від Telegram: {$lastError}";
+        }
+
+        return redirect()
+            ->route('telegram-settings.index')
+            ->with('status', $status);
+    }
+
     public function makeDefaultBot(TelegramBotToken $bot): RedirectResponse
     {
         abort_unless((int) $bot->user_id === (int) auth()->id(), 404);

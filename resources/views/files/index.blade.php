@@ -243,7 +243,11 @@
 
             @if (! $canUseLocalStorage && $telegramStorageGroups->isEmpty() && ! $systemTelegramStorageAvailable)
                 <div class="upload-warning">
-                    Власну Telegram-групу ще не підключено або системний ліміт вичерпано. Додайте власного бота і групу в налаштуваннях.
+                    Власну Telegram-групу ще не підключено. Перейдіть у <a href="{{ route('telegram-settings.index') }}">налаштування Telegram</a>, додайте бота і додайте його у вашу групу — група зʼявиться автоматично.
+                </div>
+            @elseif (! $canUseLocalStorage && $telegramStorageGroups->isEmpty() && $systemTelegramStorageAvailable)
+                <div class="upload-warning">
+                    Поки використовується системне Telegram-сховище (ліміт {{ $systemTelegramRemainingUploads }} файлів). Підключіть власного бота в <a href="{{ route('telegram-settings.index') }}">налаштуваннях</a>, щоб зняти ліміт.
                 </div>
             @endif
 

@@ -52,8 +52,8 @@
         <div class="guide-steps">
             <div><strong>1. Створіть бота</strong><span>Перейдіть за лінком до @BotFather, виконайте команду /newbot і заповніть необхідні поля.</span></div>
             <div><strong>2. Додайте token</strong><span>BotFather видасть API token. Вставте його у форму ботів нижче, щоб FileProxy налаштував webhook для команди /storage.</span></div>
-            <div><strong>3. Додайте бота в групу</strong><span>Створіть групу для файлів і додайте туди вашого бота — група автоматично зʼявиться у списку сховищ FileProxy.</span></div>
-            <div><strong>4. Резервна команда /storage</strong><span>Якщо група не зʼявилася після додавання бота, напишіть у ній <code>/storage</code> (privacy off у BotFather) або <code>/storage@вашбот</code>. Точну команду див. у таблиці ботів нижче.</span></div>
+            <div><strong>3. Додайте бота в групу</strong><span>Створіть групу для файлів і додайте туди вашого бота — група автоматично зʼявиться у списку сховищ FileProxy через кілька секунд.</span></div>
+            <div><strong>4. Якщо група не зʼявилась</strong><span>Натисніть <em>Перезаписати webhook</em> у таблиці ботів нижче, потім <strong>видаліть бота з групи й додайте заново</strong>. Telegram повторно надішле подію приєднання — група зʼявиться. Як запасний варіант: команда <code>/storage</code> у групі.</span></div>
             <div><strong>5. Перевірте список</strong><span>Після відповіді бота оновіть цю сторінку. Нова група буде в таблиці нижче з її Telegram chat_id.</span></div>
             <div><strong>6. Завантажте файл</strong><span>Поверніться до файлів, виберіть Telegram-групу в полі сховища і завантажте тестовий файл.</span></div>
         </div>
@@ -141,6 +141,10 @@
                                 <td>{{ $bot->storage_groups_count }}</td>
                                 <td>
                                     <div class="table-actions">
+                                        <form action="{{ route('telegram-settings.bots.repair', $bot) }}" method="post" title="Переписати webhook та оновити налаштування цього бота. Зробіть це, якщо група не додається автоматично.">
+                                            @csrf
+                                            <button class="button accent" type="submit">Перезаписати webhook</button>
+                                        </form>
                                         @unless ($bot->is_default)
                                             <form action="{{ route('telegram-settings.bots.default', $bot) }}" method="post">
                                                 @csrf

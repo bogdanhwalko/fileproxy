@@ -55,6 +55,7 @@ Route::middleware(['auth', 'not.blocked'])->group(function () {
     Route::get('/settings/telegram', [TelegramStorageSettingsController::class, 'index'])->name('telegram-settings.index');
     Route::post('/settings/telegram/bots', [TelegramStorageSettingsController::class, 'storeBot'])->name('telegram-settings.bots.store');
     Route::post('/settings/telegram/bots/{bot}/default', [TelegramStorageSettingsController::class, 'makeDefaultBot'])->name('telegram-settings.bots.default');
+    Route::post('/settings/telegram/bots/{bot}/repair', [TelegramStorageSettingsController::class, 'repairBot'])->name('telegram-settings.bots.repair');
     Route::delete('/settings/telegram/bots/{bot}', [TelegramStorageSettingsController::class, 'destroyBot'])->name('telegram-settings.bots.destroy');
     Route::post('/settings/telegram/groups', [TelegramStorageSettingsController::class, 'storeGroup'])->name('telegram-settings.groups.store');
     Route::post('/settings/telegram/groups/{group}/default', [TelegramStorageSettingsController::class, 'makeDefaultGroup'])->name('telegram-settings.groups.default');
