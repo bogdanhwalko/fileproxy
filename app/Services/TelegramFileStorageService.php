@@ -34,20 +34,19 @@ class TelegramFileStorageService
         }
 
         $payload = $response->json();
-        $document = data_get($payload, 'result.document', []);
-        $fileId = data_get($document, 'file_id');
+        $media = $this->extractMediaFromPayload($payload);
 
-        if (! $fileId) {
+        if (! data_get($media, 'file_id')) {
             throw new RuntimeException('Telegram не повернув file_id для завантаженого файла.');
         }
 
         return [
             'chat_id' => (string) data_get($payload, 'result.chat.id', $group->chat_id),
             'message_id' => (int) data_get($payload, 'result.message_id'),
-            'file_id' => (string) $fileId,
-            'file_unique_id' => data_get($document, 'file_unique_id'),
-            'file_size' => (int) (data_get($document, 'file_size') ?: ($file->getSize() ?: 0)),
-            'mime_type' => data_get($document, 'mime_type') ?: ($file->getMimeType() ?: 'application/octet-stream'),
+            'file_id' => (string) data_get($media, 'file_id'),
+            'file_unique_id' => data_get($media, 'file_unique_id'),
+            'file_size' => (int) (data_get($media, 'file_size') ?: ($file->getSize() ?: 0)),
+            'mime_type' => data_get($media, 'mime_type') ?: ($file->getMimeType() ?: 'application/octet-stream'),
             'payload' => $payload,
         ];
     }
@@ -146,6 +145,7 @@ class TelegramFileStorageService
                     ->post($this->apiUrl($bot->token, 'sendDocument'), [
                         'chat_id' => $group->chat_id,
                         'caption' => $file->getClientOriginalName(),
+                        'disable_content_type_detection' => true,
                     ]);
             } finally {
                 fclose($stream);
@@ -229,5 +229,28 @@ class TelegramFileStorageService
     private function safeFilename(string $filename): string
     {
         return preg_replace('/[^A-Za-z0-9._-]+/', '_', $filename) ?: 'telegram-file';
+    }
+
+    private function extractMediaFromPayload(?array $payload): array
+    {
+        foreach (['document', 'video', 'animation', 'audio', 'voice', 'video_note'] as $type) {
+            $media = data_get($payload, "result.{$type}");
+
+            if (is_array($media) && ! empty($media['file_id'])) {
+                return $media;
+            }
+        }
+
+        $photos = data_get($payload, 'result.photo');
+
+        if (is_array($photos) && $photos !== []) {
+            $largest = end($photos);
+
+            if (is_array($largest) && ! empty($largest['file_id'])) {
+                return $largest;
+            }
+        }
+
+        return [];
     }
 }
