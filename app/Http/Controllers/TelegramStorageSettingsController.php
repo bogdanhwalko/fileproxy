@@ -130,6 +130,68 @@ class TelegramStorageSettingsController extends Controller
             ->with('status', 'Telegram-бота видалено.');
     }
 
+    public function syncBot(TelegramBotToken $bot, TelegramStorageBotService $telegram): RedirectResponse
+    {
+        abort_unless((int) $bot->user_id === (int) auth()->id(), 404);
+
+        $telegram->deleteWebhook($bot, false);
+
+        $createdGroups = 0;
+        $processedUpdates = 0;
+        $lastUpdateId = null;
+        $offset = null;
+
+        for ($pass = 0; $pass < 5; $pass++) {
+            $updates = $telegram->getUpdates($bot, 0, $offset);
+
+            if ($updates === []) {
+                break;
+            }
+
+            foreach ($updates as $update) {
+                $processedUpdates++;
+                $updateId = (int) data_get($update, 'update_id', 0);
+
+                if ($updateId > 0) {
+                    $lastUpdateId = $updateId;
+                }
+
+                $result = $telegram->tryRegisterFromUpdate($bot, $update, true);
+
+                if ($result['created']) {
+                    $createdGroups++;
+                }
+            }
+
+            if ($lastUpdateId === null) {
+                break;
+            }
+
+            $offset = $lastUpdateId + 1;
+        }
+
+        if ($lastUpdateId !== null) {
+            $telegram->getUpdates($bot, 0, $lastUpdateId + 1);
+        }
+
+        $webhookUrl = route('telegram.storage-webhook', [
+            'bot' => $bot,
+            'secret' => $bot->webhook_secret,
+        ]);
+        $telegram->setWebhook($bot, $webhookUrl);
+        $telegram->setMyCommands($bot);
+
+        $message = "Синхронізацію бота «{$bot->name}» завершено. ";
+        $message .= "Опрацьовано подій: {$processedUpdates}. ";
+        $message .= $createdGroups > 0
+            ? "Додано нових груп: {$createdGroups}."
+            : 'Нових груп не знайдено. Якщо очікуєте додавання — переконайтесь, що бот реально доданий у групу як учасник.';
+
+        return redirect()
+            ->route('telegram-settings.index')
+            ->with('status', $message);
+    }
+
     public function repairBot(TelegramBotToken $bot, TelegramStorageBotService $telegram): RedirectResponse
     {
         abort_unless((int) $bot->user_id === (int) auth()->id(), 404);
