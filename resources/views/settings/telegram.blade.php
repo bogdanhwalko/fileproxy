@@ -53,7 +53,7 @@
             <div><strong>1. Створіть бота</strong><span>Перейдіть за лінком до @BotFather, виконайте команду /newbot і заповніть необхідні поля.</span></div>
             <div><strong>2. Додайте token</strong><span>BotFather видасть API token. Вставте його у форму ботів нижче, щоб FileProxy налаштував webhook для команди /storage.</span></div>
             <div><strong>3. Дodайте бота в групу</strong><span>Створіть групу для файлів, дodайте туди бота і дозвольте йому надсилати повідомлення.</span></div>
-            <div><strong>4. Напишіть /storage</strong><span>Надішліть команду /storage у цій групі. Бот відповість, а група автоматично додасться до списку сховищ.</span></div>
+            <div><strong>4. Напишіть /storage@username</strong><span>У групі надішліть команду <code>/storage@вашбот</code> (з @-згадкою бота). Точну команду побачите у таблиці ботів нижче. Якщо в @BotFather вимкнено privacy mode (<code>/setprivacy</code> → Disable), достатньо просто <code>/storage</code>.</span></div>
             <div><strong>5. Перевірте список</strong><span>Після відповіді бота оновіть цю сторінку. Нова група буде в таблиці нижче з її Telegram chat_id.</span></div>
             <div><strong>6. Завантажте файл</strong><span>Поверніться до файлів, виберіть Telegram-групу в полі сховища і завантажте тестовий файл.</span></div>
         </div>
@@ -118,9 +118,23 @@
                             <tr>
                                 <td>
                                     <strong>{{ $bot->name }}</strong>
-                                    <span>{{ $bot->username ?: 'Username не задано' }}</span>
+                                    <span>{{ $bot->username ? '@'.$bot->username : 'Username не визначено' }}</span>
                                     @if ($bot->is_default)
                                         <span class="badge success">Основний</span>
+                                    @endif
+                                    @if ($bot->username)
+                                        <button
+                                            type="button"
+                                            class="button secondary bot-command-pill"
+                                            data-copy-text="/storage@{{ $bot->username }}"
+                                            title="Скопіювати і вставити в групі"
+                                        >
+                                            <span class="bot-command-pill-text">/storage@{{ $bot->username }}</span>
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                <rect x="9" y="9" width="13" height="13" rx="2"/>
+                                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                                            </svg>
+                                        </button>
                                     @endif
                                 </td>
                                 <td><span class="token-mask">{{ $bot->masked_token }}</span></td>
@@ -254,3 +268,45 @@
         </section>
     </section>
 @endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener('click', async (event) => {
+            const trigger = event.target.closest('[data-copy-text]');
+
+            if (! trigger) {
+                return;
+            }
+
+            event.preventDefault();
+
+            const text = trigger.dataset.copyText;
+            const original = trigger.querySelector('.bot-command-pill-text');
+            const originalText = original?.textContent;
+
+            const showCopied = () => {
+                if (! original) return;
+                original.textContent = 'Скопійовано ✓';
+                trigger.classList.add('is-copied');
+                setTimeout(() => {
+                    original.textContent = originalText;
+                    trigger.classList.remove('is-copied');
+                }, 1400);
+            };
+
+            try {
+                await navigator.clipboard.writeText(text);
+                showCopied();
+            } catch (e) {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                try { document.execCommand('copy'); showCopied(); } catch (_) {}
+                document.body.removeChild(ta);
+            }
+        });
+    </script>
+@endpush

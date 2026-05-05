@@ -70,21 +70,51 @@ class TelegramStorageSettingsController extends Controller
 
         $bot = $user->telegramBotTokens()->create([
             'name' => $validated['name'],
-            'username' => $validated['username'] ?? null,
+            'username' => $this->normalizeUsername($validated['username'] ?? null),
             'token' => $validated['token'],
             'webhook_secret' => Str::random(48),
             'is_default' => $isDefault,
         ]);
+
+        $botInfo = $telegram->getMe($bot);
+        $privacyEnabled = false;
+
+        if (is_array($botInfo)) {
+            $apiUsername = $this->normalizeUsername((string) data_get($botInfo, 'username', ''));
+
+            if ($apiUsername && $apiUsername !== $bot->username) {
+                $bot->forceFill(['username' => $apiUsername])->save();
+            }
+
+            $privacyEnabled = ! (bool) data_get($botInfo, 'can_read_all_group_messages', true);
+        }
+
         $webhookConfigured = $telegram->setWebhook(
             $bot,
             route('telegram.storage-webhook', ['bot' => $bot, 'secret' => $bot->webhook_secret])
         );
 
+        $command = $bot->username ? "/storage@{$bot->username}" : '/storage';
+        $privacyHint = $privacyEnabled
+            ? ' Бот у режимі privacy: пишіть у групі саме '.$command.' (з @-згадкою), або вимкніть privacy у @BotFather через /setprivacy → Disable.'
+            : '';
+
         return redirect()
             ->route('telegram-settings.index')
             ->with('status', $webhookConfigured
-                ? 'Telegram-бота додано. Додайте його в групу та напишіть /storage, щоб група автоматично зʼявилась у сховищах.'
-                : 'Telegram-бота додано, але webhook не налаштовано. Перевірте публічний APP_URL і token бота, після цього додайте бота повторно або налаштуйте webhook вручну.');
+                ? 'Telegram-бота додано. Додайте його в групу і напишіть там '.$command.', щоб група автоматично зʼявилась у сховищах.'.$privacyHint
+                : 'Telegram-бота додано, але webhook не налаштовано. Перевірте публічний APP_URL і token бота. Після цього перездайте бота або налаштуйте webhook вручну.');
+    }
+
+    private function normalizeUsername(?string $username): ?string
+    {
+        $username = trim((string) $username);
+
+        if ($username === '') {
+            return null;
+        }
+
+        return ltrim($username, '@');
     }
 
     public function destroyBot(TelegramBotToken $bot): RedirectResponse

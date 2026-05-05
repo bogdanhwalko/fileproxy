@@ -26,6 +26,25 @@ class TelegramStorageBotService
         }
     }
 
+    public function getMe(TelegramBotToken $bot): ?array
+    {
+        try {
+            $response = Http::asJson()
+                ->timeout(self::REQUEST_TIMEOUT)
+                ->get($this->apiUrl($bot, 'getMe'));
+        } catch (Throwable) {
+            return null;
+        }
+
+        if (! $response->successful() || ! $response->json('ok', false)) {
+            return null;
+        }
+
+        $result = $response->json('result');
+
+        return is_array($result) ? $result : null;
+    }
+
     public function sendMessage(TelegramBotToken $bot, int|string $chatId, string $text): bool
     {
         try {

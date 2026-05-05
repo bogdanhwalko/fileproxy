@@ -1872,6 +1872,46 @@
             line-height: 1.4;
         }
 
+        /* === Bot command pill === */
+        .bot-command-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 8px;
+            min-height: 30px;
+            padding: 4px 10px;
+            border-radius: 8px;
+            background: var(--primary-soft);
+            border: 1px solid var(--line);
+            color: var(--primary-dark);
+            font-family: Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 140ms ease, transform 140ms ease, color 140ms ease, border-color 140ms ease;
+        }
+
+        .bot-command-pill:hover {
+            background: #e0deff;
+            transform: translateY(-1px);
+        }
+
+        .bot-command-pill.is-copied {
+            background: var(--success-soft);
+            color: var(--success);
+            border-color: #a7e0c8;
+        }
+
+        .bot-command-pill svg {
+            width: 14px;
+            height: 14px;
+            flex: 0 0 auto;
+        }
+
+        .bot-command-pill-text {
+            white-space: nowrap;
+        }
+
         /* === Topbar v2 === */
         .topbar-v2 {
             padding: 14px 18px;
