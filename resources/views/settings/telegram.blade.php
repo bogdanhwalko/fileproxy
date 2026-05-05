@@ -46,14 +46,20 @@
             <p>Створіть бота, збережіть token у FileProxy і додайте бота в Telegram-групу. Група зʼявиться у списку сховищ автоматично — нічого писати не потрібно.</p>
         </div>
         <div class="guide-actions">
-            <a class="button" href="{{ $botFatherNewBotUrl }}" target="_blank" rel="noopener">Створити бота в BotFather</a>
-            <span>Посилання відкриває @BotFather одразу зі сценарієм створення нового бота. Назву, username і token потрібно підтвердити у Telegram. Для автоматичного додавання через /storage сайт має бути доступний Telegram за публічним HTTPS APP_URL.</span>
+            <a class="button botfather-cta" href="{{ $botFatherNewBotUrl }}" target="_blank" rel="noopener">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M22 2 11 13"/>
+                    <path d="M22 2 15 22l-4-9-9-4z"/>
+                </svg>
+                Створити бота в BotFather
+            </a>
+            <span>Посилання відкриває @BotFather - інструмент для створення ботів</span>
         </div>
         <div class="guide-steps">
             <div><strong>1. Створіть бота</strong><span>Перейдіть за лінком до @BotFather, виконайте команду /newbot і заповніть необхідні поля.</span></div>
             <div><strong>2. Додайте token</strong><span>BotFather видасть API token. Вставте його у форму ботів нижче, щоб FileProxy налаштував webhook для команди /storage.</span></div>
             <div><strong>3. Додайте бота в групу</strong><span>Створіть групу для файлів і додайте туди вашого бота — група автоматично зʼявиться у списку сховищ FileProxy через кілька секунд.</span></div>
-            <div><strong>4. Якщо група не зʼявилась</strong><span>Натисніть <em>Синхронізувати групи</em> у таблиці ботів — FileProxy сам забере пропущені події з Telegram (рятує, якщо ви додали бота в групу до того, як налаштували FileProxy). Якщо не допомогло — <em>Перезаписати webhook</em> і додайте бота в групу заново.</span></div>
+            <div><strong>4. Якщо група не зʼявилась</strong><span>Натисніть <em>Синхронізувати групи</em> у таблиці ботів — FileProxy сам забере пропущені події з Telegram (у випадку якщо щось пішло не так).</span></div>
             <div><strong>5. Перевірте список</strong><span>Після відповіді бота оновіть цю сторінку. Нова група буде в таблиці нижче з її Telegram chat_id.</span></div>
             <div><strong>6. Завантажте файл</strong><span>Поверніться до файлів, виберіть Telegram-групу в полі сховища і завантажте тестовий файл.</span></div>
         </div>
@@ -121,20 +127,6 @@
                                     <span>{{ $bot->username ? '@'.$bot->username : 'Username не визначено' }}</span>
                                     @if ($bot->is_default)
                                         <span class="badge success">Основний</span>
-                                    @endif
-                                    @if ($bot->username)
-                                        <button
-                                            type="button"
-                                            class="button secondary bot-command-pill"
-                                            data-copy-text="/storage@{{ $bot->username }}"
-                                            title="Скопіювати і вставити в групі"
-                                        >
-                                            <span class="bot-command-pill-text">/storage@{{ $bot->username }}</span>
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                                <rect x="9" y="9" width="13" height="13" rx="2"/>
-                                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                                            </svg>
-                                        </button>
                                     @endif
                                 </td>
                                 <td><span class="token-mask">{{ $bot->masked_token }}</span></td>

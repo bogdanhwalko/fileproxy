@@ -1872,6 +1872,48 @@
             line-height: 1.4;
         }
 
+        /* === BotFather CTA === */
+        .botfather-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 38px;
+            padding: 8px 16px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            color: #fff;
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+            box-shadow: 0 8px 18px rgb(79 70 229 / 22%);
+            transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+        }
+
+        .botfather-cta:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.06);
+            box-shadow: 0 12px 24px rgb(79 70 229 / 28%);
+            color: #fff;
+        }
+
+        .botfather-cta:active {
+            transform: translateY(0);
+        }
+
+        .botfather-cta svg {
+            width: 16px;
+            height: 16px;
+            flex: 0 0 auto;
+        }
+
+        @media (max-width: 480px) {
+            .botfather-cta {
+                width: 100%;
+                justify-content: center;
+                white-space: normal;
+            }
+        }
+
         /* === Bot command pill === */
         .bot-command-pill {
             display: inline-flex;
