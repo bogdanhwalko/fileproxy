@@ -350,8 +350,16 @@
                 <select class="field" name="type">
                     <option value="all" @selected($type === 'all')>Усі типи</option>
                     <option value="images" @selected($type === 'images')>Зображення</option>
+                    <option value="videos" @selected($type === 'videos')>Відео</option>
+                    <option value="audio" @selected($type === 'audio')>Аудіо</option>
                     <option value="documents" @selected($type === 'documents')>Документи</option>
+                    <option value="spreadsheets" @selected($type === 'spreadsheets')>Таблиці</option>
+                    <option value="presentations" @selected($type === 'presentations')>Презентації</option>
                     <option value="archives" @selected($type === 'archives')>Архіви</option>
+                    <option value="code" @selected($type === 'code')>Код</option>
+                    <option value="design" @selected($type === 'design')>Дизайн</option>
+                    <option value="ebooks" @selected($type === 'ebooks')>Книги</option>
+                    <option value="fonts" @selected($type === 'fonts')>Шрифти</option>
                 </select>
                 <button class="button secondary" type="submit">Фільтрувати</button>
             </form>
@@ -830,14 +838,31 @@
 
                     const item = document.createElement('li');
                     item.className = 'upload-selected-item';
+                    item.dataset.uploadItem = index;
+                    item.dataset.state = 'idle';
                     item.innerHTML = `
                         <span class="upload-selected-icon">${escapeHtml(fileBadge(file))}</span>
                         <span class="upload-selected-name">
                             <strong title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</strong>
-                            <span>${escapeHtml(file.type || 'unknown')}</span>
+                            <span class="upload-selected-status" data-upload-status>${escapeHtml(file.type || 'unknown')}</span>
                         </span>
                         <span class="upload-selected-size">${escapeHtml(formatBytes(file.size))}</span>
+                        <span class="upload-selected-state" data-upload-state aria-hidden="true">
+                            <svg class="upload-state-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                                <path d="M12 3a9 9 0 1 0 9 9"/>
+                            </svg>
+                            <svg class="upload-state-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="5 12 10 17 19 7"/>
+                            </svg>
+                            <svg class="upload-state-error" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+                                <line x1="6" y1="6" x2="18" y2="18"/>
+                                <line x1="18" y1="6" x2="6" y2="18"/>
+                            </svg>
+                        </span>
                         <button type="button" class="upload-selected-remove" data-upload-remove="${index}" aria-label="Видалити ${escapeHtml(file.name)}">×</button>
+                        <span class="upload-item-progress" data-upload-item-progress>
+                            <span class="upload-item-progress-bar" data-upload-item-bar></span>
+                        </span>
                     `;
                     list.appendChild(item);
                 });
@@ -892,69 +917,182 @@
                 return `${value < 10 && unit > 0 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`;
             }
 
-            function uploadFiles(form) {
+            async function uploadFiles(form) {
                 const fileInput = form.querySelector('input[type="file"]');
+                const files = Array.from(fileInput?.files || []);
 
-                if (! fileInput?.files?.length) {
+                if (! files.length) {
                     showPageFlash('Оберіть хоча б один файл для завантаження.', true);
                     return;
                 }
 
                 const submitter = form.querySelector('[type="submit"]');
-                const xhr = new XMLHttpRequest();
-                let fallbackProgress = 0;
-                const fallbackTimer = window.setInterval(() => {
-                    fallbackProgress = Math.min(fallbackProgress + 3, 72);
-                    setUploadProgress(form, fallbackProgress, 'Завантаження файлів...');
-                }, 650);
+                const folderId = form.querySelector('[name="folder_id"]')?.value || '';
+                const storageId = form.querySelector('[name="telegram_storage_group_id"]')?.value || '';
+                const csrfToken = form.querySelector('[name="_token"]')?.value || '';
 
                 setShareBusy(submitter, true);
-                setUploadProgress(form, 2, 'Підготовка до завантаження...');
+                form.classList.add('is-uploading');
 
-                xhr.open('POST', form.action);
-                xhr.setRequestHeader('Accept', 'text/html');
-                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                files.forEach((_, index) => setUploadItemState(index, 'queued'));
+                setUploadProgress(form, 0, `Очікування... 0 / ${files.length}`);
 
-                xhr.upload.addEventListener('progress', (event) => {
-                    if (! event.lengthComputable) {
-                        return;
+                let succeeded = 0;
+                let failed = 0;
+                let lastResponseHtml = null;
+                let lastResponseUrl = null;
+                const failures = [];
+
+                for (let i = 0; i < files.length; i++) {
+                    setUploadProgress(
+                        form,
+                        Math.round((i / files.length) * 100),
+                        `Завантаження ${i + 1} з ${files.length}: ${files[i].name}`
+                    );
+
+                    try {
+                        const result = await uploadSingleFile(form.action, files[i], i, {
+                            folderId,
+                            storageId,
+                            csrfToken,
+                        });
+
+                        succeeded++;
+                        lastResponseHtml = result.html;
+                        lastResponseUrl = result.url;
+                        setUploadItemState(i, 'done');
+                    } catch (error) {
+                        failed++;
+                        failures.push(`${files[i].name}: ${error.message}`);
+                        setUploadItemState(i, 'error', 0, error.message);
                     }
+                }
 
-                    const percent = Math.min(85, Math.max(2, Math.round((event.loaded / event.total) * 85)));
-                    fallbackProgress = percent;
-                    setUploadProgress(form, percent, 'Передача файлів на сервер...');
-                });
+                setShareBusy(submitter, false);
+                form.classList.remove('is-uploading');
 
-                xhr.upload.addEventListener('load', () => {
-                    fallbackProgress = Math.max(fallbackProgress, 90);
-                    setUploadProgress(form, fallbackProgress, 'Файли передано. Обробка сховища...');
-                });
+                const finalLabel = failed === 0
+                    ? `Готово. Завантажено ${succeeded} ${pluralFiles(succeeded)}.`
+                    : `Завершено: ${succeeded} з ${files.length}. Помилок: ${failed}.`;
 
-                xhr.onload = () => {
-                    window.clearInterval(fallbackTimer);
-                    setShareBusy(submitter, false);
+                setUploadProgress(form, 100, finalLabel);
 
-                    if (xhr.status < 200 || xhr.status >= 300) {
-                        setUploadProgress(form, 0, 'Завантаження не виконано.');
-                        showPageFlash(extractErrorFromHtml(xhr.responseText) || 'Завантаження не виконано.', true);
-                        return;
-                    }
+                if (failed > 0) {
+                    showPageFlash(failures.slice(0, 3).join('; ') + (failures.length > 3 ? '...' : ''), true);
+                }
 
-                    setUploadProgress(form, 100, 'Готово. Оновлюю список файлів...');
-
+                if (succeeded > 0) {
                     window.setTimeout(() => {
-                        replaceFilesPageFromHtml(xhr.responseText, xhr.responseURL || window.location.href, true);
-                    }, 220);
-                };
+                        if (lastResponseHtml) {
+                            replaceFilesPageFromHtml(lastResponseHtml, lastResponseUrl || window.location.href, true);
+                        } else {
+                            refreshFilesPage(window.location.href, false);
+                        }
+                    }, 600);
+                }
+            }
 
-                xhr.onerror = () => {
-                    window.clearInterval(fallbackTimer);
-                    setShareBusy(submitter, false);
-                    setUploadProgress(form, 0, 'Помилка мережі.');
-                    showPageFlash('Не вдалося передати файли. Перевірте з’єднання і повторіть спробу.', true);
-                };
+            function uploadSingleFile(action, file, index, options) {
+                return new Promise((resolve, reject) => {
+                    const formData = new FormData();
 
-                xhr.send(new FormData(form));
+                    formData.append('files[]', file);
+                    formData.append('_token', options.csrfToken);
+
+                    if (options.folderId) {
+                        formData.append('folder_id', options.folderId);
+                    }
+
+                    if (options.storageId) {
+                        formData.append('telegram_storage_group_id', options.storageId);
+                    }
+
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', action);
+                    xhr.setRequestHeader('Accept', 'text/html');
+                    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+                    setUploadItemState(index, 'uploading', 0);
+
+                    xhr.upload.addEventListener('progress', (event) => {
+                        if (! event.lengthComputable) {
+                            return;
+                        }
+
+                        const percent = Math.max(1, Math.min(95, (event.loaded / event.total) * 95));
+                        setUploadItemState(index, 'uploading', percent);
+                    });
+
+                    xhr.upload.addEventListener('load', () => {
+                        setUploadItemState(index, 'processing', 98);
+                    });
+
+                    xhr.onload = () => {
+                        if (xhr.status < 200 || xhr.status >= 300) {
+                            const error = extractErrorFromHtml(xhr.responseText) || `HTTP ${xhr.status}`;
+                            reject(new Error(error));
+                            return;
+                        }
+
+                        resolve({
+                            html: xhr.responseText,
+                            url: xhr.responseURL,
+                        });
+                    };
+
+                    xhr.onerror = () => reject(new Error('Помилка мережі'));
+                    xhr.ontimeout = () => reject(new Error('Перевищено час очікування'));
+
+                    xhr.send(formData);
+                });
+            }
+
+            function setUploadItemState(index, state, percent, statusText) {
+                const item = document.querySelector(`[data-upload-item="${index}"]`);
+
+                if (! item) {
+                    return;
+                }
+
+                item.dataset.state = state;
+
+                const bar = item.querySelector('[data-upload-item-bar]');
+                const status = item.querySelector('[data-upload-status]');
+
+                if (bar) {
+                    if (state === 'done') {
+                        bar.style.width = '100%';
+                    } else if (state === 'error' || state === 'idle' || state === 'queued') {
+                        bar.style.width = state === 'queued' ? '0%' : (state === 'error' ? '100%' : '0%');
+                    } else if (typeof percent === 'number') {
+                        bar.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+                    }
+                }
+
+                if (status) {
+                    const labels = {
+                        idle: '',
+                        queued: 'У черзі',
+                        uploading: typeof percent === 'number' ? `Завантаження ${Math.round(percent)}%` : 'Завантаження...',
+                        processing: 'Обробка на сервері...',
+                        done: 'Готово ✓',
+                        error: statusText || 'Помилка завантаження',
+                    };
+
+                    if (labels[state] !== undefined) {
+                        status.textContent = labels[state];
+                    }
+                }
+            }
+
+            function pluralFiles(count) {
+                const mod10 = count % 10;
+                const mod100 = count % 100;
+
+                if (mod10 === 1 && mod100 !== 11) return 'файл';
+                if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) return 'файли';
+
+                return 'файлів';
             }
 
             async function refreshFilesPage(url, pushHistory) {

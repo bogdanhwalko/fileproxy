@@ -267,13 +267,33 @@ class FileController extends Controller
     private function applyTypeFilter($query, string $type)
     {
         return match ($type) {
-            'images' => $query->where('mime_type', 'like', 'image/%'),
+            'images' => $query->where(function ($query) {
+                $query
+                    ->where('mime_type', 'like', 'image/%')
+                    ->orWhereIn('extension', ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'heic', 'heif', 'tiff', 'tif', 'ico', 'avif']);
+            }),
+            'videos' => $query->where(function ($query) {
+                $query
+                    ->where('mime_type', 'like', 'video/%')
+                    ->orWhereIn('extension', ['mp4', 'mov', 'avi', 'mkv', 'webm', 'flv', 'wmv', 'm4v', '3gp', 'mpeg', 'mpg', 'ogv']);
+            }),
+            'audio' => $query->where(function ($query) {
+                $query
+                    ->where('mime_type', 'like', 'audio/%')
+                    ->orWhereIn('extension', ['mp3', 'wav', 'ogg', 'oga', 'm4a', 'flac', 'aac', 'wma', 'opus', 'aiff', 'amr']);
+            }),
             'documents' => $query->where(function ($query) {
                 $query
                     ->where('mime_type', 'like', 'text/%')
-                    ->orWhereIn('extension', ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv']);
+                    ->orWhereIn('extension', ['pdf', 'doc', 'docx', 'odt', 'rtf', 'txt', 'md', 'tex', 'pages']);
             }),
-            'archives' => $query->whereIn('extension', ['zip', 'rar', '7z', 'tar', 'gz']),
+            'spreadsheets' => $query->whereIn('extension', ['xls', 'xlsx', 'xlsm', 'ods', 'csv', 'tsv', 'numbers']),
+            'presentations' => $query->whereIn('extension', ['ppt', 'pptx', 'odp', 'key']),
+            'archives' => $query->whereIn('extension', ['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'tgz', 'tbz', 'iso', 'dmg']),
+            'code' => $query->whereIn('extension', ['js', 'ts', 'jsx', 'tsx', 'mjs', 'cjs', 'php', 'py', 'rb', 'go', 'rs', 'java', 'kt', 'swift', 'c', 'cpp', 'cc', 'h', 'hpp', 'cs', 'sh', 'bash', 'ps1', 'sql', 'html', 'htm', 'css', 'scss', 'sass', 'less', 'vue', 'svelte', 'json', 'yaml', 'yml', 'toml', 'ini', 'env', 'xml', 'lua', 'r', 'pl', 'dart']),
+            'design' => $query->whereIn('extension', ['psd', 'ai', 'sketch', 'fig', 'xd', 'eps', 'indd', 'cdr']),
+            'ebooks' => $query->whereIn('extension', ['epub', 'mobi', 'azw', 'azw3', 'fb2', 'djvu']),
+            'fonts' => $query->whereIn('extension', ['ttf', 'otf', 'woff', 'woff2', 'eot']),
             default => $query,
         };
     }

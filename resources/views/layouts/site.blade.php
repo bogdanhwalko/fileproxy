@@ -1768,11 +1768,14 @@
         .upload-progress {
             display: grid;
             grid-column: 1 / -1;
-            gap: 8px;
-            padding: 12px;
-            border: 1px solid #bce0d0;
-            border-radius: 8px;
-            background: var(--success-soft);
+            gap: 10px;
+            padding: 14px 16px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background:
+                linear-gradient(135deg, rgb(79 70 229 / 6%) 0%, rgb(6 182 212 / 6%) 100%),
+                var(--surface);
+            box-shadow: 0 8px 24px rgb(79 70 229 / 8%);
         }
 
         .upload-progress[hidden] {
@@ -1789,19 +1792,34 @@
         }
 
         .upload-progress-track {
-            height: 9px;
+            position: relative;
+            height: 10px;
             overflow: hidden;
             border-radius: 999px;
-            background: rgb(255 255 255 / 80%);
+            background: rgb(15 23 42 / 6%);
         }
 
         .upload-progress-track span {
+            position: relative;
             display: block;
             width: 0;
             height: 100%;
             border-radius: inherit;
-            background: linear-gradient(90deg, var(--primary), var(--accent));
-            transition: width 180ms ease;
+            background:
+                linear-gradient(90deg, var(--primary), var(--accent));
+            transition: width 220ms ease;
+            box-shadow: 0 0 12px rgb(79 70 229 / 30%);
+        }
+
+        .upload-progress-track span::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background-image: linear-gradient(135deg, rgb(255 255 255 / 30%) 25%, transparent 25%, transparent 50%, rgb(255 255 255 / 30%) 50%, rgb(255 255 255 / 30%) 75%, transparent 75%, transparent);
+            background-size: 24px 24px;
+            animation: upload-stripes 800ms linear infinite;
+            opacity: 0.7;
         }
 
         .upload-progress p {
@@ -2374,14 +2392,162 @@
         }
 
         .upload-selected-item {
+            position: relative;
             display: grid;
-            grid-template-columns: 36px minmax(0, 1fr) auto auto;
+            grid-template-columns: 36px minmax(0, 1fr) auto auto auto;
             gap: 10px;
             align-items: center;
-            padding: 8px 10px;
+            padding: 10px 12px 14px;
             border: 1px solid var(--line);
             border-radius: 10px;
             background: var(--surface-subtle);
+            overflow: hidden;
+            transition: border-color 200ms ease, background 200ms ease, box-shadow 200ms ease;
+        }
+
+        .upload-selected-item[data-state="queued"] {
+            opacity: 0.85;
+        }
+
+        .upload-selected-item[data-state="uploading"],
+        .upload-selected-item[data-state="processing"] {
+            border-color: var(--primary);
+            background: var(--primary-soft);
+            box-shadow: 0 6px 18px rgb(79 70 229 / 10%);
+        }
+
+        .upload-selected-item[data-state="done"] {
+            border-color: #a7e0c8;
+            background: var(--success-soft);
+        }
+
+        .upload-selected-item[data-state="error"] {
+            border-color: #fbb9c4;
+            background: var(--danger-soft);
+        }
+
+        .upload-selected-state {
+            display: none;
+            place-items: center;
+            width: 24px;
+            height: 24px;
+        }
+
+        .upload-selected-state svg {
+            width: 18px;
+            height: 18px;
+            display: none;
+        }
+
+        .upload-selected-item[data-state="uploading"] .upload-selected-state,
+        .upload-selected-item[data-state="processing"] .upload-selected-state,
+        .upload-selected-item[data-state="done"] .upload-selected-state,
+        .upload-selected-item[data-state="error"] .upload-selected-state {
+            display: grid;
+        }
+
+        .upload-selected-item[data-state="uploading"] .upload-state-spinner,
+        .upload-selected-item[data-state="processing"] .upload-state-spinner {
+            display: block;
+            color: var(--primary);
+            animation: upload-spinner 900ms linear infinite;
+        }
+
+        .upload-selected-item[data-state="done"] .upload-state-check {
+            display: block;
+            color: var(--success);
+            animation: upload-pop 240ms ease;
+        }
+
+        .upload-selected-item[data-state="error"] .upload-state-error {
+            display: block;
+            color: var(--danger);
+        }
+
+        .upload-selected-item[data-state="uploading"] .upload-selected-remove,
+        .upload-selected-item[data-state="processing"] .upload-selected-remove,
+        .upload-selected-item[data-state="queued"] .upload-selected-remove,
+        .upload-selected-item[data-state="done"] .upload-selected-remove {
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .upload-selected-item[data-state="uploading"] .upload-selected-status,
+        .upload-selected-item[data-state="processing"] .upload-selected-status {
+            color: var(--primary-dark);
+            font-weight: 600;
+        }
+
+        .upload-selected-item[data-state="done"] .upload-selected-status {
+            color: var(--success);
+            font-weight: 600;
+        }
+
+        .upload-selected-item[data-state="error"] .upload-selected-status {
+            color: var(--danger);
+            font-weight: 600;
+        }
+
+        .upload-item-progress {
+            position: absolute;
+            inset: auto 0 0 0;
+            display: block;
+            height: 3px;
+            background: rgb(15 23 42 / 5%);
+            overflow: hidden;
+        }
+
+        .upload-item-progress-bar {
+            display: block;
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            transition: width 200ms ease;
+        }
+
+        .upload-selected-item[data-state="done"] .upload-item-progress-bar {
+            background: var(--success);
+        }
+
+        .upload-selected-item[data-state="error"] .upload-item-progress-bar {
+            background: var(--danger);
+        }
+
+        .upload-selected-item[data-state="uploading"] .upload-item-progress-bar,
+        .upload-selected-item[data-state="processing"] .upload-item-progress-bar {
+            background-size: 24px 24px;
+            background-image:
+                linear-gradient(90deg, var(--primary), var(--accent)),
+                linear-gradient(135deg, rgb(255 255 255 / 25%) 25%, transparent 25%, transparent 50%, rgb(255 255 255 / 25%) 50%, rgb(255 255 255 / 25%) 75%, transparent 75%, transparent);
+            background-blend-mode: overlay;
+            animation: upload-stripes 800ms linear infinite;
+        }
+
+        @keyframes upload-spinner {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes upload-pop {
+            0% { transform: scale(0.6); opacity: 0; }
+            60% { transform: scale(1.15); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes upload-stripes {
+            from { background-position: 0 0, 0 0; }
+            to { background-position: 0 0, 24px 0; }
+        }
+
+        .upload-form-v2.is-uploading,
+        .is-uploading .upload-controls,
+        .is-uploading .dropzone-v2,
+        .is-uploading .upload-selected-clear {
+            pointer-events: none;
+        }
+
+        .is-uploading .dropzone-v2,
+        .is-uploading .upload-controls {
+            opacity: 0.55;
         }
 
         .upload-selected-icon {
