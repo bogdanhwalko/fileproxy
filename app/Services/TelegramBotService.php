@@ -3,9 +3,12 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
+use Throwable;
 
 class TelegramBotService
 {
+    private const REQUEST_TIMEOUT = 10;
+
     public function configured(): bool
     {
         return trim((string) config('services.telegram.bot_token')) !== '';
@@ -26,9 +29,15 @@ class TelegramBotService
             $payload['reply_markup'] = $replyMarkup;
         }
 
-        $response = Http::asJson()->post($this->apiUrl('sendMessage'), $payload);
+        try {
+            $response = Http::asJson()
+                ->timeout(self::REQUEST_TIMEOUT)
+                ->post($this->apiUrl('sendMessage'), $payload);
 
-        return $response->successful();
+            return $response->successful();
+        } catch (Throwable) {
+            return false;
+        }
     }
 
     public function getUpdates(?int $offset = null, int $timeout = 25): array
@@ -37,12 +46,16 @@ class TelegramBotService
             return [];
         }
 
-        $response = Http::asJson()
-            ->timeout($timeout + 5)
-            ->get($this->apiUrl('getUpdates'), array_filter([
-                'offset' => $offset,
-                'timeout' => $timeout,
-            ], fn ($value) => $value !== null));
+        try {
+            $response = Http::asJson()
+                ->timeout($timeout + 5)
+                ->get($this->apiUrl('getUpdates'), array_filter([
+                    'offset' => $offset,
+                    'timeout' => $timeout,
+                ], fn ($value) => $value !== null));
+        } catch (Throwable) {
+            return [];
+        }
 
         if (! $response->successful()) {
             return [];
@@ -57,11 +70,17 @@ class TelegramBotService
             return ['ok' => false, 'description' => 'TELEGRAM_BOT_TOKEN is not configured.'];
         }
 
-        $response = Http::asJson()->post($this->apiUrl('setWebhook'), [
-            'url' => $url,
-            'allowed_updates' => ['message'],
-            'drop_pending_updates' => $dropPendingUpdates,
-        ]);
+        try {
+            $response = Http::asJson()
+                ->timeout(self::REQUEST_TIMEOUT)
+                ->post($this->apiUrl('setWebhook'), [
+                    'url' => $url,
+                    'allowed_updates' => ['message'],
+                    'drop_pending_updates' => $dropPendingUpdates,
+                ]);
+        } catch (Throwable $exception) {
+            return ['ok' => false, 'description' => $exception->getMessage()];
+        }
 
         return $response->json() ?: [
             'ok' => $response->successful(),
@@ -75,7 +94,13 @@ class TelegramBotService
             return ['ok' => false, 'description' => 'TELEGRAM_BOT_TOKEN is not configured.'];
         }
 
-        $response = Http::asJson()->get($this->apiUrl('getWebhookInfo'));
+        try {
+            $response = Http::asJson()
+                ->timeout(self::REQUEST_TIMEOUT)
+                ->get($this->apiUrl('getWebhookInfo'));
+        } catch (Throwable $exception) {
+            return ['ok' => false, 'description' => $exception->getMessage()];
+        }
 
         return $response->json() ?: [
             'ok' => $response->successful(),
@@ -89,9 +114,15 @@ class TelegramBotService
             return ['ok' => false, 'description' => 'TELEGRAM_BOT_TOKEN is not configured.'];
         }
 
-        $response = Http::asJson()->post($this->apiUrl('deleteWebhook'), [
-            'drop_pending_updates' => $dropPendingUpdates,
-        ]);
+        try {
+            $response = Http::asJson()
+                ->timeout(self::REQUEST_TIMEOUT)
+                ->post($this->apiUrl('deleteWebhook'), [
+                    'drop_pending_updates' => $dropPendingUpdates,
+                ]);
+        } catch (Throwable $exception) {
+            return ['ok' => false, 'description' => $exception->getMessage()];
+        }
 
         return $response->json() ?: [
             'ok' => $response->successful(),

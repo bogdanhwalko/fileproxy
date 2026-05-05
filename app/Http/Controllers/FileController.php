@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use RuntimeException;
 use Throwable;
 
 class FileController extends Controller
@@ -195,7 +196,9 @@ class FileController extends Controller
 
             return back()
                 ->withInput($request->except('files'))
-                ->withErrors(['files' => $exception->getMessage()]);
+                ->withErrors(['files' => $exception instanceof RuntimeException
+                    ? $exception->getMessage()
+                    : 'Не вдалося завантажити файли. Перевірте сховище та повторіть спробу.']);
         }
 
         $count = count($validated['files']);

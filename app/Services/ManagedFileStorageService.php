@@ -9,6 +9,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\HeaderUtils;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ManagedFileStorageService
@@ -21,7 +22,7 @@ class ManagedFileStorageService
         ?int $folderId = null,
         ?TelegramStorageGroup $telegramGroup = null
     ): ManagedFile {
-        $extension = strtolower($uploadedFile->getClientOriginalExtension());
+        $extension = preg_replace('/[^a-z0-9]+/', '', strtolower($uploadedFile->getClientOriginalExtension())) ?? '';
         $storedName = (string) Str::uuid();
 
         if ($extension !== '') {
@@ -119,7 +120,11 @@ class ManagedFileStorageService
             }
         }, 200, [
             'Content-Type' => $file->mime_type ?: 'application/octet-stream',
-            'Content-Disposition' => 'inline; filename="'.$file->original_name.'"',
+            'Content-Disposition' => HeaderUtils::makeDisposition(
+                HeaderUtils::DISPOSITION_INLINE,
+                $this->safeDownloadName($file->original_name),
+                $this->asciiDownloadFallback($file->original_name)
+            ),
         ]);
     }
 
@@ -174,5 +179,19 @@ class ManagedFileStorageService
         }
 
         $file->delete();
+    }
+
+    private function safeDownloadName(string $name): string
+    {
+        $name = trim(str_replace(["\r", "\n"], '', $name));
+
+        return $name !== '' ? $name : 'file';
+    }
+
+    private function asciiDownloadFallback(string $name): string
+    {
+        $fallback = preg_replace('/[^A-Za-z0-9._-]+/', '_', $this->safeDownloadName($name)) ?: 'file';
+
+        return trim($fallback, '._') !== '' ? $fallback : 'file';
     }
 }

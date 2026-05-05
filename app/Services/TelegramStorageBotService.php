@@ -8,13 +8,17 @@ use Throwable;
 
 class TelegramStorageBotService
 {
+    private const REQUEST_TIMEOUT = 10;
+
     public function setWebhook(TelegramBotToken $bot, string $url): bool
     {
         try {
-            $response = Http::asJson()->post($this->apiUrl($bot, 'setWebhook'), [
-                'url' => $url,
-                'allowed_updates' => ['message'],
-            ]);
+            $response = Http::asJson()
+                ->timeout(self::REQUEST_TIMEOUT)
+                ->post($this->apiUrl($bot, 'setWebhook'), [
+                    'url' => $url,
+                    'allowed_updates' => ['message'],
+                ]);
 
             return $response->successful() && (bool) $response->json('ok', false);
         } catch (Throwable) {
@@ -25,10 +29,12 @@ class TelegramStorageBotService
     public function sendMessage(TelegramBotToken $bot, int|string $chatId, string $text): bool
     {
         try {
-            $response = Http::asJson()->post($this->apiUrl($bot, 'sendMessage'), [
-                'chat_id' => $chatId,
-                'text' => $text,
-            ]);
+            $response = Http::asJson()
+                ->timeout(self::REQUEST_TIMEOUT)
+                ->post($this->apiUrl($bot, 'sendMessage'), [
+                    'chat_id' => $chatId,
+                    'text' => $text,
+                ]);
 
             return $response->successful() && (bool) $response->json('ok', false);
         } catch (Throwable) {

@@ -353,9 +353,19 @@ class ShareController extends Controller
 
     private function consumeFileShareView(ManagedFile $file): void
     {
-        abort_if($file->share_is_expired || $file->share_limit_reached, 404);
+        $updated = ManagedFile::query()
+            ->whereKey($file->id)
+            ->where(function ($query) {
+                $query->whereNull('share_expires_at')
+                    ->orWhere('share_expires_at', '>=', now());
+            })
+            ->where(function ($query) {
+                $query->whereNull('share_max_views')
+                    ->orWhereColumn('share_views_count', '<', 'share_max_views');
+            })
+            ->increment('share_views_count');
 
-        $file->increment('share_views_count');
+        abort_unless($updated === 1, 404);
         $file->refresh();
     }
 
@@ -374,9 +384,19 @@ class ShareController extends Controller
 
     private function consumeFolderShareView(FileFolder $folder): void
     {
-        abort_if($folder->share_is_expired || $folder->share_limit_reached, 404);
+        $updated = FileFolder::query()
+            ->whereKey($folder->id)
+            ->where(function ($query) {
+                $query->whereNull('share_expires_at')
+                    ->orWhere('share_expires_at', '>=', now());
+            })
+            ->where(function ($query) {
+                $query->whereNull('share_max_views')
+                    ->orWhereColumn('share_views_count', '<', 'share_max_views');
+            })
+            ->increment('share_views_count');
 
-        $folder->increment('share_views_count');
+        abort_unless($updated === 1, 404);
         $folder->refresh();
     }
 

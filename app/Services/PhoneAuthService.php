@@ -8,7 +8,6 @@ use Illuminate\Support\Str;
 
 class PhoneAuthService
 {
-    private const PHONE_START_PREFIX = 'phone_';
     private const TOKEN_START_PREFIX = 'fileproxy_';
 
     public function normalizePhone(string $phone): string
@@ -88,13 +87,7 @@ class PhoneAuthService
             return $this->generateCodeForToken(substr($payload, strlen(self::TOKEN_START_PREFIX)));
         }
 
-        $phone = $this->phoneFromPayload($payload);
-
-        if (! $phone) {
-            return null;
-        }
-
-        return $this->generateCodeForPhone($phone);
+        return null;
     }
 
     public function generateCodeForToken(string $token): ?string
@@ -150,10 +143,6 @@ class PhoneAuthService
     public function phoneFromPayload(string $payload): ?string
     {
         $payload = trim($payload);
-
-        if (str_starts_with($payload, self::PHONE_START_PREFIX)) {
-            $payload = substr($payload, strlen(self::PHONE_START_PREFIX));
-        }
 
         $phone = $this->normalizePhone($payload);
 
