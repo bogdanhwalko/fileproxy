@@ -42,46 +42,127 @@
         @endif
     </div>
 
-    <section class="stats" aria-label="Статистика сховища">
-        <div class="stat">
-            <span>Усього файлів</span>
-            <strong>{{ $stats['total'] }}</strong>
+    <section class="stats stats-v2" aria-label="Статистика сховища">
+        <div class="stat stat-primary">
+            <span class="stat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                </svg>
+            </span>
+            <div class="stat-body">
+                <strong>{{ $stats['total'] }}</strong>
+                <span>Усього файлів</span>
+            </div>
         </div>
-        <div class="stat">
-            <span>Зайнято місця</span>
-            <strong>{{ $stats['storage'] }}</strong>
+        <div class="stat stat-accent">
+            <span class="stat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                    <path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                    <path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/>
+                </svg>
+            </span>
+            <div class="stat-body">
+                <strong>{{ $stats['storage'] }}</strong>
+                <span>Зайнято місця</span>
+            </div>
         </div>
-        <div class="stat">
-            <span>Папки</span>
-            <strong>{{ $stats['folders'] }}</strong>
+        <div class="stat stat-violet">
+            <span class="stat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                </svg>
+            </span>
+            <div class="stat-body">
+                <strong>{{ $stats['folders'] }}</strong>
+                <span>Папки</span>
+            </div>
         </div>
-        <div class="stat">
-            <span>У Telegram</span>
-            <strong>{{ $stats['telegram'] }}</strong>
+        <div class="stat stat-telegram">
+            <span class="stat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 2 11 13"/>
+                    <path d="M22 2 15 22l-4-9-9-4z"/>
+                </svg>
+            </span>
+            <div class="stat-body">
+                <strong>{{ $stats['telegram'] }}</strong>
+                <span>У Telegram</span>
+            </div>
         </div>
-        <div class="stat">
-            <span>У поточному розділі</span>
-            <strong>{{ $stats['current'] }}</strong>
+        <div class="stat stat-ink">
+            <span class="stat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+                </svg>
+            </span>
+            <div class="stat-body">
+                <strong>{{ $stats['current'] }}</strong>
+                <span>У поточному розділі</span>
+            </div>
         </div>
     </section>
 
-    <section class="panel upload-panel">
-        <div class="upload-panel-head">
-            <div>
+    <section class="panel upload-panel upload-panel-v2">
+        <header class="upload-hero">
+            <div class="upload-hero-text">
                 <span class="section-kicker">Нове завантаження</span>
-                <h2>Додайте файли у вибране сховище</h2>
-                <p>Підтримується багато файлів за раз. Один файл - до {{ $telegramUploadMaxMb }} MB.</p>
+                <h2>Перетягніть файли або оберіть з пристрою</h2>
+                <p>Підтримується багато файлів за раз. Максимальний розмір одного файлу — {{ $telegramUploadMaxMb }} MB.</p>
             </div>
-            <div class="upload-limit">
-                <span>Ліміт файла</span>
-                <strong>{{ $telegramUploadMaxMb }} MB</strong>
+            <div class="upload-hero-chips">
+                <div class="upload-chip">
+                    <span>Ліміт файла</span>
+                    <strong>{{ $telegramUploadMaxMb }} MB</strong>
+                </div>
+                @if (! $canUseLocalStorage && $telegramStorageGroups->isEmpty() && $systemTelegramStorageAvailable)
+                    <div class="upload-chip upload-chip-info">
+                        <span>Системне сховище</span>
+                        <strong>{{ $systemTelegramRemainingUploads }} / {{ $systemTelegramUploadLimit }}</strong>
+                    </div>
+                @endif
             </div>
-        </div>
+        </header>
 
-        <form class="upload-form premium-upload-form" action="{{ route('files.store') }}" method="post" enctype="multipart/form-data" data-upload-form>
+        <form class="upload-form-v2" action="{{ route('files.store') }}" method="post" enctype="multipart/form-data" data-upload-form>
             @csrf
-            <div class="upload-fields">
-                <div class="field-group upload-target">
+
+            <label class="dropzone-v2" data-dropzone>
+                <input type="file" name="files[]" multiple required data-upload-input>
+                <div class="dropzone-v2-graphic" aria-hidden="true">
+                    <svg viewBox="0 0 64 64" fill="none">
+                        <rect x="8" y="14" width="48" height="40" rx="6" stroke="currentColor" stroke-width="2.5"/>
+                        <path d="M20 14v-2a4 4 0 0 1 4-4h6l4 4h12a4 4 0 0 1 4 4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                        <path d="M32 26v18m-7-11 7-7 7 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <div class="dropzone-v2-body">
+                    <strong>Перетягніть файли сюди</strong>
+                    <span>або <em>натисніть</em>, щоб обрати з пристрою</span>
+                    <small>
+                        @if ($canUseLocalStorage)
+                            Локально або Telegram — залежно від обраного сховища нижче.
+                        @else
+                            Файли потраплять у Telegram-сховище.
+                        @endif
+                    </small>
+                </div>
+            </label>
+
+            <div class="upload-selected" data-upload-selected hidden>
+                <div class="upload-selected-head">
+                    <div class="upload-selected-summary">
+                        <strong>Обрано: <span data-upload-count>0</span></strong>
+                        <span data-upload-total-size>0 KB</span>
+                    </div>
+                    <button type="button" class="button link upload-selected-clear" data-upload-clear>Очистити список</button>
+                </div>
+                <ul class="upload-selected-list" data-upload-list></ul>
+            </div>
+
+            <div class="upload-controls">
+                <div class="field-group">
                     <label for="folder_id">Папка</label>
                     <select class="field" id="folder_id" name="folder_id">
                         <option value="">Без папки</option>
@@ -91,7 +172,7 @@
                     </select>
                 </div>
 
-                <div class="field-group upload-target">
+                <div class="field-group">
                     <label for="telegram_storage_group_id">Сховище</label>
                     <select class="field" id="telegram_storage_group_id" name="telegram_storage_group_id">
                         @if ($canUseLocalStorage)
@@ -110,34 +191,13 @@
                         @endforeach
                     </select>
                 </div>
-
-                @if (! $canUseLocalStorage && $telegramStorageGroups->isEmpty())
-                    <div class="upload-meta">
-                        @if ($systemTelegramStorageAvailable)
-                            Буде використано системне Telegram-сховище адміністратора. Залишилось {{ $systemTelegramRemainingUploads }} з {{ $systemTelegramUploadLimit }} файлів.
-                        @else
-                            Власну Telegram-групу ще не підключено або системний ліміт вичерпано. Додайте власного бота і групу в налаштуваннях.
-                        @endif
-                    </div>
-                @endif
             </div>
 
-            <label class="dropzone">
-                <span class="dropzone-inner">
-                    <span class="dropzone-icon">+</span>
-                    <span class="dropzone-copy">
-                        <strong>Оберіть файли для завантаження</strong>
-                        <span>
-                            @if ($canUseLocalStorage)
-                                Локально або Telegram, залежно від обраного сховища.
-                            @else
-                                Для звичайних користувачів доступне тільки Telegram-сховище.
-                            @endif
-                        </span>
-                    </span>
-                    <input type="file" name="files[]" multiple required>
-                </span>
-            </label>
+            @if (! $canUseLocalStorage && $telegramStorageGroups->isEmpty() && ! $systemTelegramStorageAvailable)
+                <div class="upload-warning">
+                    Власну Telegram-групу ще не підключено або системний ліміт вичерпано. Додайте власного бота і групу в налаштуваннях.
+                </div>
+            @endif
 
             <div class="upload-progress" data-upload-progress hidden>
                 <div class="upload-progress-head">
@@ -152,10 +212,12 @@
 
             <div class="upload-footer">
                 <div class="upload-meta">
-                    Метадані зберігаються в MariaDB, а файли - у дозволеному сховищі.
+                    Метадані зберігаються в MariaDB, а файли — у дозволеному сховищі.
                 </div>
                 <div class="upload-actions">
-                    <button class="button" type="submit">Завантажити</button>
+                    <button class="button" type="submit" data-upload-submit>
+                        <span data-upload-submit-label>Завантажити</span>
+                    </button>
                     @if (! $telegramStorageGroups->count() && ! $systemTelegramStorageAvailable)
                         <a class="button secondary" href="{{ route('telegram-settings.index') }}">Як прив’язати Telegram</a>
                     @elseif (! $telegramStorageGroups->count())
@@ -335,6 +397,8 @@
             if (! document.querySelector('[data-file-items]')) {
                 return;
             }
+
+            initDropzone();
 
             window.addEventListener('popstate', () => {
                 refreshFilesPage(window.location.href, false);
@@ -538,6 +602,199 @@
                 }
             }
 
+            function initDropzone() {
+                const dropzone = document.querySelector('[data-dropzone]');
+                const input = document.querySelector('[data-upload-input]');
+
+                if (! dropzone || ! input) {
+                    return;
+                }
+
+                if (! dropzone.dataset.bound) {
+                    dropzone.dataset.bound = '1';
+
+                    ['dragenter', 'dragover'].forEach((type) => {
+                        dropzone.addEventListener(type, (event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            dropzone.classList.add('is-dragover');
+                        });
+                    });
+
+                    ['dragleave', 'drop'].forEach((type) => {
+                        dropzone.addEventListener(type, (event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+
+                            if (type === 'dragleave' && dropzone.contains(event.relatedTarget)) {
+                                return;
+                            }
+
+                            dropzone.classList.remove('is-dragover');
+                        });
+                    });
+
+                    dropzone.addEventListener('drop', (event) => {
+                        const dropped = event.dataTransfer?.files;
+
+                        if (! dropped?.length) {
+                            return;
+                        }
+
+                        const transfer = new DataTransfer();
+
+                        Array.from(input.files || []).forEach((existing) => transfer.items.add(existing));
+                        Array.from(dropped).forEach((file) => transfer.items.add(file));
+
+                        input.files = transfer.files;
+                        renderSelectedFiles();
+                    });
+
+                    input.addEventListener('change', renderSelectedFiles);
+                }
+
+                document.addEventListener('click', handleSelectedListClick);
+                renderSelectedFiles();
+            }
+
+            function handleSelectedListClick(event) {
+                const removeBtn = event.target.closest('[data-upload-remove]');
+
+                if (removeBtn) {
+                    event.preventDefault();
+                    removeFileFromInput(parseInt(removeBtn.dataset.uploadRemove, 10));
+                    return;
+                }
+
+                const clearBtn = event.target.closest('[data-upload-clear]');
+
+                if (clearBtn) {
+                    event.preventDefault();
+                    const input = document.querySelector('[data-upload-input]');
+
+                    if (input) {
+                        input.value = '';
+                        renderSelectedFiles();
+                    }
+                }
+            }
+
+            function removeFileFromInput(index) {
+                const input = document.querySelector('[data-upload-input]');
+
+                if (! input?.files) {
+                    return;
+                }
+
+                const transfer = new DataTransfer();
+
+                Array.from(input.files).forEach((file, fileIndex) => {
+                    if (fileIndex !== index) {
+                        transfer.items.add(file);
+                    }
+                });
+
+                input.files = transfer.files;
+                renderSelectedFiles();
+            }
+
+            function renderSelectedFiles() {
+                const input = document.querySelector('[data-upload-input]');
+                const wrapper = document.querySelector('[data-upload-selected]');
+                const list = document.querySelector('[data-upload-list]');
+                const countLabel = document.querySelector('[data-upload-count]');
+                const totalLabel = document.querySelector('[data-upload-total-size]');
+                const submitLabel = document.querySelector('[data-upload-submit-label]');
+
+                if (! input || ! wrapper || ! list) {
+                    return;
+                }
+
+                const files = Array.from(input.files || []);
+
+                if (files.length === 0) {
+                    wrapper.hidden = true;
+                    list.innerHTML = '';
+
+                    if (submitLabel) {
+                        submitLabel.textContent = 'Завантажити';
+                    }
+
+                    return;
+                }
+
+                wrapper.hidden = false;
+                list.innerHTML = '';
+
+                let totalSize = 0;
+
+                files.forEach((file, index) => {
+                    totalSize += file.size;
+
+                    const item = document.createElement('li');
+                    item.className = 'upload-selected-item';
+                    item.innerHTML = `
+                        <span class="upload-selected-icon">${escapeHtml(fileBadge(file))}</span>
+                        <span class="upload-selected-name">
+                            <strong title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</strong>
+                            <span>${escapeHtml(file.type || 'unknown')}</span>
+                        </span>
+                        <span class="upload-selected-size">${escapeHtml(formatBytes(file.size))}</span>
+                        <button type="button" class="upload-selected-remove" data-upload-remove="${index}" aria-label="Видалити ${escapeHtml(file.name)}">×</button>
+                    `;
+                    list.appendChild(item);
+                });
+
+                if (countLabel) {
+                    countLabel.textContent = files.length;
+                }
+
+                if (totalLabel) {
+                    totalLabel.textContent = formatBytes(totalSize);
+                }
+
+                if (submitLabel) {
+                    submitLabel.textContent = files.length === 1
+                        ? 'Завантажити 1 файл'
+                        : `Завантажити ${files.length} файли`;
+                }
+            }
+
+            function fileBadge(file) {
+                const type = (file.type || '').toLowerCase();
+                const name = (file.name || '').toLowerCase();
+                const ext = name.includes('.') ? name.split('.').pop() : '';
+
+                if (type.startsWith('image/')) return 'IMG';
+                if (type.startsWith('video/') || ['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext)) return 'VID';
+                if (type.startsWith('audio/') || ['mp3', 'ogg', 'wav', 'm4a'].includes(ext)) return 'AUD';
+                if (['pdf'].includes(ext)) return 'PDF';
+                if (['doc', 'docx', 'odt', 'rtf'].includes(ext)) return 'DOC';
+                if (['xls', 'xlsx', 'csv'].includes(ext)) return 'XLS';
+                if (['ppt', 'pptx'].includes(ext)) return 'PPT';
+                if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return 'ZIP';
+                if (['txt', 'md', 'log'].includes(ext)) return 'TXT';
+
+                return ext ? ext.slice(0, 4).toUpperCase() : 'FILE';
+            }
+
+            function formatBytes(bytes) {
+                if (! Number.isFinite(bytes) || bytes <= 0) {
+                    return '0 B';
+                }
+
+                const units = ['B', 'KB', 'MB', 'GB'];
+                let value = bytes;
+                let unit = 0;
+
+                while (value >= 1024 && unit < units.length - 1) {
+                    value /= 1024;
+                    unit++;
+                }
+
+                return `${value < 10 && unit > 0 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`;
+            }
+
             function uploadFiles(form) {
                 const fileInput = form.querySelector('input[type="file"]');
 
@@ -698,6 +955,8 @@
                 if (pushHistory && url && url !== window.location.href) {
                     window.history.pushState({}, '', url);
                 }
+
+                initDropzone();
             }
 
             function setUploadProgress(form, percent, label) {
