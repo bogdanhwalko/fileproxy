@@ -3,7 +3,7 @@
 @section('title', 'Файли - FileProxy')
 
 @section('content')
-    <header class="topbar">
+    <header class="topbar topbar-v2">
         <a class="brand" href="{{ route('home') }}">
             <div class="brand-mark">FP</div>
             <div>
@@ -13,14 +13,35 @@
         </a>
 
         <div class="nav-actions">
-            <span class="user-chip">{{ auth()->user()->name }}</span>
+            <span class="user-chip user-chip-v2">
+                <span class="user-chip-avatar" aria-hidden="true">{{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 1)) ?: 'U' }}</span>
+                <span class="user-chip-name">{{ auth()->user()->name }}</span>
+            </span>
             @if (auth()->user()->is_admin)
-                <a class="button secondary" href="{{ route('admin.users.index') }}">Адмінка</a>
+                <a class="button secondary nav-button" href="{{ route('admin.users.index') }}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5z"/>
+                    </svg>
+                    Адмінка
+                </a>
             @endif
-            <a class="button secondary" href="{{ route('telegram-settings.index') }}">Telegram-сховище</a>
+            <a class="button secondary nav-button" href="{{ route('telegram-settings.index') }}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M22 2 11 13"/>
+                    <path d="M22 2 15 22l-4-9-9-4z"/>
+                </svg>
+                Telegram-сховище
+            </a>
             <form action="{{ route('logout') }}" method="post">
                 @csrf
-                <button class="button secondary" type="submit">Вийти</button>
+                <button class="button secondary nav-button nav-button-logout" type="submit">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                        <polyline points="16 17 21 12 16 7"/>
+                        <line x1="21" y1="12" x2="9" y2="12"/>
+                    </svg>
+                    Вийти
+                </button>
             </form>
         </div>
     </header>
@@ -162,9 +183,22 @@
             </div>
 
             <div class="upload-controls">
-                <div class="field-group">
-                    <label for="folder_id">Папка</label>
-                    <select class="field" id="folder_id" name="folder_id">
+                <div class="upload-control upload-control-folder" data-upload-control>
+                    <span class="upload-control-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                        </svg>
+                    </span>
+                    <span class="upload-control-body">
+                        <span class="upload-control-label">Папка</span>
+                        <span class="upload-control-value" data-upload-control-value></span>
+                    </span>
+                    <span class="upload-control-chevron" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    </span>
+                    <select class="upload-control-select" id="folder_id" name="folder_id" data-upload-control-select aria-label="Папка">
                         <option value="">Без папки</option>
                         @foreach ($folders as $folder)
                             <option value="{{ $folder->id }}" @selected($activeFolder?->id === $folder->id)>{{ $folder->name }}</option>
@@ -172,9 +206,22 @@
                     </select>
                 </div>
 
-                <div class="field-group">
-                    <label for="telegram_storage_group_id">Сховище</label>
-                    <select class="field" id="telegram_storage_group_id" name="telegram_storage_group_id">
+                <div class="upload-control upload-control-storage" data-upload-control>
+                    <span class="upload-control-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17.5 19a4.5 4.5 0 0 0 .5-8.97 7 7 0 0 0-13.74 2.05A4 4 0 0 0 5 19z"/>
+                        </svg>
+                    </span>
+                    <span class="upload-control-body">
+                        <span class="upload-control-label">Сховище</span>
+                        <span class="upload-control-value" data-upload-control-value></span>
+                    </span>
+                    <span class="upload-control-chevron" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    </span>
+                    <select class="upload-control-select" id="telegram_storage_group_id" name="telegram_storage_group_id" data-upload-control-select aria-label="Сховище">
                         @if ($canUseLocalStorage)
                             <option value="">Локальне сховище</option>
                         @elseif ($telegramStorageGroups->isEmpty() && $systemTelegramStorageAvailable)
@@ -212,7 +259,7 @@
 
             <div class="upload-footer">
                 <div class="upload-meta">
-                    Метадані зберігаються в MariaDB, а файли — у дозволеному сховищі.
+                    Метадані зберігаються в базі, а файли — у дозволеному сховищі.
                 </div>
                 <div class="upload-actions">
                     <button class="button" type="submit" data-upload-submit>
@@ -230,24 +277,45 @@
 
     <section class="workspace">
         <aside class="sidebar-stack">
-            <section class="panel">
-                <div class="panel-header">
-                    <h2>Папки</h2>
-                    <p>Створюйте окремі папки і завантажуйте файли безпосередньо в потрібний розділ.</p>
+            <section class="panel sidebar-panel">
+                <div class="panel-header sidebar-header">
+                    <span class="sidebar-header-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                        </svg>
+                    </span>
+                    <div>
+                        <h2>Папки</h2>
+                        <p>Створюйте окремі папки і завантажуйте файли в потрібний розділ.</p>
+                    </div>
                 </div>
 
-                <form class="folder-form" action="{{ route('folders.store') }}" method="post" data-ajax-form>
+                <form class="folder-form folder-form-v2" action="{{ route('folders.store') }}" method="post" data-ajax-form>
                     @csrf
                     <input class="field" type="text" name="name" value="{{ old('name') }}" placeholder="Назва папки" maxlength="100" required>
                     <button class="button" type="submit">Створити</button>
                 </form>
 
-                <div class="folder-list" aria-label="Список папок">
+                <div class="folder-list folder-list-v2" aria-label="Список папок">
                     <a class="folder-link {{ $folderFilter === 'all' ? 'active' : '' }}" href="{{ route('files.index') }}">
+                        <span class="folder-link-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+                                <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+                                <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+                                <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+                            </svg>
+                        </span>
                         <span class="folder-name">Усі файли</span>
                         <span class="folder-count">{{ $stats['total'] }}</span>
                     </a>
                     <a class="folder-link {{ $folderFilter === 'root' ? 'active' : '' }}" href="{{ route('files.index', ['folder' => 'root']) }}">
+                        <span class="folder-link-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="9"/>
+                                <line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
+                        </span>
                         <span class="folder-name">Без папки</span>
                         <span class="folder-count">{{ $stats['root'] }}</span>
                     </a>
@@ -255,6 +323,11 @@
                     @foreach ($folders as $folder)
                         <div class="folder-row">
                             <a class="folder-link {{ $activeFolder?->id === $folder->id ? 'active' : '' }}" href="{{ route('files.index', ['folder' => $folder->id]) }}">
+                                <span class="folder-link-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                                    </svg>
+                                </span>
                                 <span class="folder-name">{{ $folder->name }}</span>
                                 <span class="folder-count">{{ $folder->files_count }}</span>
                             </a>
@@ -655,6 +728,30 @@
 
                 document.addEventListener('click', handleSelectedListClick);
                 renderSelectedFiles();
+                initUploadControls();
+            }
+
+            function initUploadControls() {
+                document.querySelectorAll('[data-upload-control]').forEach((control) => {
+                    const select = control.querySelector('[data-upload-control-select]');
+                    const valueSpan = control.querySelector('[data-upload-control-value]');
+
+                    if (! select || ! valueSpan) {
+                        return;
+                    }
+
+                    const sync = () => {
+                        const option = select.options[select.selectedIndex];
+                        valueSpan.textContent = option ? option.text : '';
+                    };
+
+                    sync();
+
+                    if (! select.dataset.bound) {
+                        select.dataset.bound = '1';
+                        select.addEventListener('change', sync);
+                    }
+                });
             }
 
             function handleSelectedListClick(event) {
