@@ -52,7 +52,7 @@ class PhoneAuthService
 
     public function telegramPayload(PhoneAuthChallenge $challenge): string
     {
-        return 'auth';
+        return self::TOKEN_START_PREFIX.$challenge->token;
     }
 
     public function telegramLink(PhoneAuthChallenge $challenge): ?string
@@ -63,7 +63,7 @@ class PhoneAuthService
             return null;
         }
 
-        return 'https://t.me/'.ltrim($username, '@');
+        return 'https://t.me/'.ltrim($username, '@').'?start='.$this->telegramPayload($challenge);
     }
 
     public function localCodeForChallenge(PhoneAuthChallenge $challenge): ?string
