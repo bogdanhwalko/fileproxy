@@ -35,7 +35,7 @@ class TelegramStorageSettingsController extends Controller
                 ->count();
 
         return view('settings.telegram', [
-            'botFatherNewBotUrl' => 'https://telegram.me/botfather/newbot',
+            'botFatherNewBotUrl' => 'https://telegram.me/botfather',
             'botTokens' => $user->telegramBotTokens()
                 ->withCount('storageGroups')
                 ->orderByDesc('is_default')
