@@ -35,6 +35,10 @@
     <link rel="alternate" hreflang="uk" href="{{ url('/') }}">
     <link rel="alternate" hreflang="x-default" href="{{ url('/') }}">
 
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/uk.js" defer></script>
+
     <meta property="og:type" content="website">
     <meta property="og:locale" content="uk_UA">
     <meta property="og:site_name" content="FileProxy">
@@ -1872,6 +1876,377 @@
             line-height: 1.4;
         }
 
+        /* === Filters v2 + archive === */
+        .filters-v2 {
+            display: grid;
+            grid-template-columns: minmax(240px, 2.4fr) minmax(160px, 1fr) minmax(220px, 1.4fr) auto;
+            gap: 14px 16px;
+            align-items: end;
+            padding: 16px 18px;
+        }
+
+        .filter-field {
+            display: grid;
+            gap: 6px;
+            min-width: 0;
+        }
+
+        .filter-field label {
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            padding-left: 2px;
+        }
+
+        .filter-field .field {
+            min-height: 40px;
+            padding: 8px 12px;
+            font-family: inherit;
+            background: var(--surface);
+        }
+
+        .filter-field-daterange,
+        .filter-field-daterange .field,
+        .filter-field-daterange input.flatpickr-input.form-control,
+        .filter-field-daterange .form-control.input {
+            cursor: pointer;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+            padding-bottom: 1px;
+        }
+
+        .filter-actions .button {
+            min-height: 40px;
+            padding: 8px 16px;
+            font-size: 13px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .filter-actions .button svg {
+            width: 14px;
+            height: 14px;
+            flex: 0 0 auto;
+        }
+
+        .filter-actions .filter-reset {
+            color: var(--text);
+        }
+
+        .filter-actions .filter-reset:hover {
+            background: var(--danger-soft);
+            border-color: #fbb9c4;
+            color: var(--danger);
+        }
+
+        .filter-actions .filter-reset.is-disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        /* Flatpickr theme overrides — match indigo/cyan palette */
+        .flatpickr-calendar {
+            border: 1px solid var(--line) !important;
+            border-radius: 14px !important;
+            box-shadow: 0 24px 60px rgb(15 23 42 / 14%) !important;
+            font-family: inherit !important;
+            background: var(--surface) !important;
+        }
+
+        .flatpickr-calendar.arrowTop::before,
+        .flatpickr-calendar.arrowBottom::before {
+            border-bottom-color: var(--line) !important;
+            border-top-color: var(--line) !important;
+        }
+
+        .flatpickr-months .flatpickr-month {
+            color: var(--ink) !important;
+            fill: var(--ink) !important;
+        }
+
+        .flatpickr-current-month .flatpickr-monthDropdown-months,
+        .flatpickr-current-month input.cur-year {
+            color: var(--ink) !important;
+            font-weight: 700 !important;
+        }
+
+        .flatpickr-weekdays,
+        span.flatpickr-weekday {
+            color: var(--muted) !important;
+            font-weight: 700 !important;
+            background: transparent !important;
+        }
+
+        .flatpickr-day {
+            color: var(--text) !important;
+            border-radius: 8px !important;
+            border: 0 !important;
+            margin: 1px 0 !important;
+        }
+
+        .flatpickr-day:hover {
+            background: var(--primary-soft) !important;
+            color: var(--primary-dark) !important;
+        }
+
+        .flatpickr-day.today {
+            border: 1px solid var(--primary) !important;
+            background: transparent !important;
+            color: var(--primary) !important;
+        }
+
+        .flatpickr-day.today:hover {
+            background: var(--primary-soft) !important;
+        }
+
+        .flatpickr-day.selected,
+        .flatpickr-day.startRange,
+        .flatpickr-day.endRange {
+            background: var(--primary) !important;
+            color: #fff !important;
+            border-color: var(--primary) !important;
+        }
+
+        .flatpickr-day.inRange {
+            background: var(--primary-soft) !important;
+            color: var(--primary-dark) !important;
+            box-shadow: -5px 0 0 var(--primary-soft), 5px 0 0 var(--primary-soft) !important;
+        }
+
+        .flatpickr-day.flatpickr-disabled,
+        .flatpickr-day.prevMonthDay,
+        .flatpickr-day.nextMonthDay {
+            color: rgb(91 100 120 / 35%) !important;
+        }
+
+        .flatpickr-prev-month svg,
+        .flatpickr-next-month svg {
+            fill: var(--muted) !important;
+        }
+
+        .flatpickr-prev-month:hover svg,
+        .flatpickr-next-month:hover svg {
+            fill: var(--primary) !important;
+        }
+
+        .flatpickr-monthDropdown-months .flatpickr-monthDropdown-month {
+            background: var(--surface) !important;
+        }
+
+        .filters-v2 .filter-submit {
+            min-height: 40px;
+            padding: 8px 14px;
+        }
+
+        .filters-v2 .filter-reset {
+            min-height: 40px;
+            padding: 8px 4px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .filters-v2 .filter-reset:hover {
+            color: var(--danger);
+        }
+
+        .file-view-bar-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .file-archive-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            min-height: 34px;
+            padding: 6px 12px;
+            border-radius: 9px;
+            background: var(--accent-soft);
+            border: 1px solid #a8e7f1;
+            color: var(--accent);
+            font-size: 13px;
+            font-weight: 600;
+            box-shadow: none;
+            transition: background 140ms ease, color 140ms ease, border-color 140ms ease, transform 140ms ease;
+        }
+
+        .file-archive-btn:hover {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px rgb(6 182 212 / 24%);
+        }
+
+        .file-archive-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        @media (max-width: 980px) {
+            .filters-v2 {
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            }
+
+            .filter-field-daterange {
+                grid-column: 1 / -1;
+            }
+
+            .filter-actions {
+                grid-column: 1 / -1;
+                justify-content: flex-end;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .filters-v2 {
+                grid-template-columns: 1fr;
+                padding: 14px;
+            }
+
+            .filter-actions .button {
+                flex: 1;
+                justify-content: center;
+            }
+        }
+
+        /* === Pagination v2 === */
+        .pagination-v2 {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            border-top: 1px solid var(--line);
+            background: var(--surface-subtle);
+        }
+
+        .pagination-summary {
+            color: var(--muted);
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        .pagination-pages {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .pagination-page {
+            display: inline-grid;
+            place-items: center;
+            min-width: 36px;
+            height: 36px;
+            padding: 0 10px;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            background: var(--surface);
+            color: var(--text);
+            font-size: 13px;
+            font-weight: 600;
+            transition: background 140ms ease, color 140ms ease, border-color 140ms ease, transform 140ms ease;
+        }
+
+        .pagination-page:hover {
+            background: var(--primary-soft);
+            color: var(--primary-dark);
+            border-color: #c5c2f5;
+            transform: translateY(-1px);
+        }
+
+        .pagination-page.is-active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+            box-shadow: 0 6px 14px rgb(79 70 229 / 24%);
+        }
+
+        .pagination-page.is-active:hover {
+            background: var(--primary-dark);
+            color: #fff;
+            transform: translateY(-1px);
+        }
+
+        .pagination-page.is-disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .pagination-arrow svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .pagination-ellipsis {
+            display: inline-grid;
+            place-items: center;
+            min-width: 28px;
+            height: 36px;
+            color: var(--muted);
+            font-weight: 700;
+            user-select: none;
+        }
+
+        .pagination-jump {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .pagination-jump label {
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .pagination-jump .field {
+            width: 70px;
+            min-height: 36px;
+            padding: 6px 10px;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .pagination-jump .button {
+            min-height: 36px;
+            padding: 6px 12px;
+            font-size: 14px;
+            line-height: 1;
+        }
+
+        @media (max-width: 720px) {
+            .pagination-v2 {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .pagination-summary,
+            .pagination-jump {
+                justify-self: center;
+            }
+
+            .pagination-pages {
+                order: -1;
+            }
+        }
+
         /* === Bot row actions === */
         .bot-actions {
             display: inline-flex;
@@ -3070,11 +3445,25 @@
         .upload-panel-v2 {
             position: relative;
             overflow: hidden;
+            margin-bottom: 20px;
             border: 1px solid var(--line);
+            border-radius: 16px;
             background:
-                radial-gradient(120% 140% at 100% 0%, rgb(6 182 212 / 6%) 0%, transparent 55%),
-                radial-gradient(120% 140% at 0% 100%, rgb(79 70 229 / 8%) 0%, transparent 55%),
+                radial-gradient(120% 140% at 100% 0%, rgb(6 182 212 / 10%) 0%, transparent 55%),
+                radial-gradient(120% 140% at 0% 100%, rgb(79 70 229 / 12%) 0%, transparent 55%),
                 var(--surface);
+            box-shadow:
+                0 18px 48px rgb(79 70 229 / 10%),
+                0 4px 12px rgb(15 23 42 / 4%);
+        }
+
+        .upload-panel-v2::before {
+            content: "";
+            position: absolute;
+            inset: 0 0 auto 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
+            z-index: 1;
         }
 
         .upload-hero {

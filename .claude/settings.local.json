@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir)",
+      "Bash(php -l \"app/Services/TelegramFileStorageService.php\")",
+      "Bash(php -r 'require '\\\\''vendor/autoload.php'\\\\''; $factory = \\(new \\\\Illuminate\\\\View\\\\Compilers\\\\BladeCompiler\\(new \\\\Illuminate\\\\Filesystem\\\\Filesystem, sys_get_temp_dir\\(\\)\\)\\); echo $factory->compileString\\(file_get_contents\\('\\\\''resources/views/files/index.blade.php'\\\\''\\)\\) ? '\\\\''OK'\\\\'' : '\\\\''FAIL'\\\\''; echo PHP_EOL;')",
+      "Bash(php artisan *)",
+      "Bash(php -l app/Http/Controllers/TelegramStorageSettingsController.php)",
+      "Bash(php -l app/Http/Controllers/FileController.php)",
+      "Bash(php -l app/Services/PhoneAuthService.php)",
+      "Bash(awk 'NR>=478 && NR<=1402' resources/views/files/index.blade.php)",
+      "Bash(awk 'NR>=478 && NR<=1410' resources/views/files/index.blade.php)",
+      "Bash(awk 'NR<478 || NR>1410' resources/views/files/index.blade.php)",
+      "Read(//tmp/**)",
+      "Bash(php -l app/Http/Controllers/Auth/AuthenticatedSessionController.php)",
+      "Bash(php -l app/Http/Controllers/Auth/RegisteredUserController.php)",
+      "Bash(grep -n \"fillable\\\\|guarded\\\\|protected \\\\$\" app/Models/TelegramBotToken.php)",
+      "Bash(php -l app/Services/TelegramStorageBotService.php)",
+      "Bash(php -l app/Http/Controllers/TelegramStorageWebhookController.php)",
+      "Bash(php -l app/Console/Commands/TelegramStorageRepairCommand.php)"
+    ]
+  }
+}

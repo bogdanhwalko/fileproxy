@@ -6,20 +6,27 @@ use App\Models\ManagedFile;
 use App\Models\TelegramStorageGroup;
 use App\Models\User;
 use App\Services\ManagedFileStorageService;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Throwable;
+use ZipArchive;
 
 class FileController extends Controller
 {
     private const TELEGRAM_UPLOAD_MAX_KB = 51200;
 
     private const SYSTEM_TELEGRAM_UPLOAD_LIMIT = 100;
+
+    private const ARCHIVE_FILE_LIMIT = 500;
 
     public function index(Request $request): View
     {
@@ -38,6 +45,9 @@ class FileController extends Controller
             : 'table';
         $imagePreviews = $display === 'grid' && $request->boolean('image_previews');
         $folderFilter = (string) $request->query('folder', 'all');
+        $dateFrom = trim((string) $request->query('date_from', ''));
+        $dateTo = trim((string) $request->query('date_to', ''));
+        [$dateFromCarbon, $dateToCarbon] = $this->parseDateRange($dateFrom, $dateTo);
         $user = $request->user();
         $activeFolder = null;
 
@@ -54,19 +64,27 @@ class FileController extends Controller
             $folderFilter = 'all';
         }
 
-        $files = (clone $baseQuery)
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($query) use ($search) {
-                    $query
-                        ->where('original_name', 'like', "%{$search}%")
-                        ->orWhere('mime_type', 'like', "%{$search}%")
-                        ->orWhere('extension', 'like', "%{$search}%");
-                });
-            })
-            ->when($type !== 'all', fn ($query) => $this->applyTypeFilter($query, $type))
+        $applyContentFilters = function ($query) use ($search, $type, $dateFromCarbon, $dateToCarbon) {
+            return $query
+                ->when($search !== '', function ($query) use ($search) {
+                    $query->where(function ($query) use ($search) {
+                        $query
+                            ->where('original_name', 'like', "%{$search}%")
+                            ->orWhere('mime_type', 'like', "%{$search}%")
+                            ->orWhere('extension', 'like', "%{$search}%");
+                    });
+                })
+                ->when($type !== 'all', fn ($query) => $this->applyTypeFilter($query, $type))
+                ->when($dateFromCarbon !== null, fn ($query) => $query->where('created_at', '>=', $dateFromCarbon))
+                ->when($dateToCarbon !== null, fn ($query) => $query->where('created_at', '<=', $dateToCarbon));
+        };
+
+        $files = $applyContentFilters(clone $baseQuery)
             ->latest()
-            ->paginate(20)
+            ->paginate(12)
             ->withQueryString();
+
+        $filteredCount = $applyContentFilters(clone $baseQuery)->count();
 
         $folders = $user->folders()
             ->withCount('files')
@@ -90,8 +108,12 @@ class FileController extends Controller
         return view('files.index', [
             'activeFolder' => $activeFolder,
             'canUseLocalStorage' => (bool) $user->is_admin,
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
             'display' => $display,
             'files' => $files,
+            'filteredCount' => $filteredCount,
+            'archiveFileLimit' => self::ARCHIVE_FILE_LIMIT,
             'folderFilter' => $folderFilter,
             'folders' => $folders,
             'imagePreviews' => $imagePreviews,
@@ -262,6 +284,160 @@ class FileController extends Controller
         return redirect()
             ->route('files.index', $routeParameters)
             ->with('status', 'Файл видалено.');
+    }
+
+    public function downloadArchive(Request $request, ManagedFileStorageService $fileStorage): BinaryFileResponse
+    {
+        abort_unless(class_exists(ZipArchive::class), 503);
+
+        $user = $request->user();
+
+        $search = trim((string) $request->query('search', ''));
+        $type = (string) $request->query('type', 'all');
+        $folderFilter = (string) $request->query('folder', 'all');
+        $dateFrom = trim((string) $request->query('date_from', ''));
+        $dateTo = trim((string) $request->query('date_to', ''));
+        [$dateFromCarbon, $dateToCarbon] = $this->parseDateRange($dateFrom, $dateTo);
+
+        $query = $user->files()->with(['folder', 'telegramBotToken', 'telegramStorageGroup.botToken']);
+
+        $folderName = null;
+
+        if ($folderFilter === 'root') {
+            $query->whereNull('folder_id');
+            $folderName = 'root';
+        } elseif ($folderFilter !== 'all' && $folderFilter !== '' && ctype_digit($folderFilter)) {
+            $folder = $user->folders()->findOrFail((int) $folderFilter);
+            $query->where('folder_id', $folder->id);
+            $folderName = Str::slug($folder->name) ?: 'folder-'.$folder->id;
+        }
+
+        $query
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($query) use ($search) {
+                    $query
+                        ->where('original_name', 'like', "%{$search}%")
+                        ->orWhere('mime_type', 'like', "%{$search}%")
+                        ->orWhere('extension', 'like', "%{$search}%");
+                });
+            })
+            ->when($type !== 'all', fn ($query) => $this->applyTypeFilter($query, $type))
+            ->when($dateFromCarbon !== null, fn ($query) => $query->where('created_at', '>=', $dateFromCarbon))
+            ->when($dateToCarbon !== null, fn ($query) => $query->where('created_at', '<=', $dateToCarbon));
+
+        $totalMatching = (clone $query)->count();
+
+        abort_if($totalMatching === 0, 404, 'Жодного файлу не знайдено за поточними фільтрами.');
+        abort_if(
+            $totalMatching > self::ARCHIVE_FILE_LIMIT,
+            413,
+            "Архів обмежений до ".self::ARCHIVE_FILE_LIMIT." файлів. Уточніть фільтри (знайдено: {$totalMatching})."
+        );
+
+        $files = $query->oldest()->get();
+
+        $directory = storage_path('app/file-archives');
+        File::ensureDirectoryExists($directory);
+
+        $zipPath = $directory.'/'.Str::uuid().'.zip';
+        $zip = new ZipArchive;
+
+        abort_unless($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) === true, 500);
+
+        $addedFiles = 0;
+        $usedNames = [];
+        $temporaryPaths = [];
+
+        try {
+            foreach ($files as $file) {
+                if (! $fileStorage->exists($file)) {
+                    continue;
+                }
+
+                try {
+                    [$sourcePath, $deleteAfter] = $fileStorage->temporaryPathForArchive($file);
+                } catch (Throwable $exception) {
+                    report($exception);
+
+                    continue;
+                }
+
+                if ($zip->addFile($sourcePath, $this->uniqueArchiveName($usedNames, $file->original_name))) {
+                    $addedFiles++;
+                }
+
+                if ($deleteAfter) {
+                    $temporaryPaths[] = $sourcePath;
+                }
+            }
+
+            if ($addedFiles === 0) {
+                $zip->addFromString('README.txt', 'Жодного доступного файлу не знайдено для додавання в архів.');
+            }
+        } finally {
+            $zip->close();
+
+            foreach ($temporaryPaths as $temporaryPath) {
+                @unlink($temporaryPath);
+            }
+        }
+
+        $downloadName = 'fileproxy-'.($folderName ?: 'export').'-'.now()->format('Y-m-d').'.zip';
+
+        return response()
+            ->download($zipPath, $downloadName, ['Content-Type' => 'application/zip'])
+            ->deleteFileAfterSend();
+    }
+
+    private function parseDateRange(string $from, string $to): array
+    {
+        $fromCarbon = null;
+        $toCarbon = null;
+
+        if ($from !== '') {
+            try {
+                $fromCarbon = Carbon::parse($from)->startOfDay();
+            } catch (Throwable) {
+                $fromCarbon = null;
+            }
+        }
+
+        if ($to !== '') {
+            try {
+                $toCarbon = Carbon::parse($to)->endOfDay();
+            } catch (Throwable) {
+                $toCarbon = null;
+            }
+        }
+
+        if ($fromCarbon && $toCarbon && $fromCarbon->greaterThan($toCarbon)) {
+            [$fromCarbon, $toCarbon] = [$toCarbon->copy()->startOfDay(), $fromCarbon->copy()->endOfDay()];
+        }
+
+        return [$fromCarbon, $toCarbon];
+    }
+
+    private function uniqueArchiveName(array &$usedNames, string $name): string
+    {
+        $name = trim(str_replace(['/', '\\'], '-', $name));
+
+        if ($name === '') {
+            $name = 'file';
+        }
+
+        $baseName = pathinfo($name, PATHINFO_FILENAME) ?: 'file';
+        $extension = pathinfo($name, PATHINFO_EXTENSION);
+        $candidate = $name;
+        $counter = 2;
+
+        while (isset($usedNames[strtolower($candidate)])) {
+            $candidate = $baseName.'-'.$counter.($extension ? '.'.$extension : '');
+            $counter++;
+        }
+
+        $usedNames[strtolower($candidate)] = true;
+
+        return $candidate;
     }
 
     private function applyTypeFilter($query, string $type)

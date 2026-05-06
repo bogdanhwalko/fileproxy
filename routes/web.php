@@ -35,6 +35,7 @@ Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
 
 Route::middleware(['auth', 'not.blocked'])->group(function () {
     Route::get('/files', [FileController::class, 'index'])->name('files.index');
+    Route::get('/files/archive', [FileController::class, 'downloadArchive'])->name('files.archive');
     Route::post('/files', [FileController::class, 'store'])->name('files.store');
     Route::get('/files/{file}/preview', [FileController::class, 'preview'])->name('files.preview');
     Route::get('/files/{file}/inline', [FileController::class, 'inline'])->name('files.inline');

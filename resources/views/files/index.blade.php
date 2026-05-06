@@ -64,68 +64,6 @@
         @endif
     </div>
 
-    <section class="stats stats-v2" aria-label="Статистика сховища">
-        <div class="stat stat-primary">
-            <span class="stat-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/>
-                </svg>
-            </span>
-            <div class="stat-body">
-                <strong>{{ $stats['total'] }}</strong>
-                <span>Усього файлів</span>
-            </div>
-        </div>
-        <div class="stat stat-accent">
-            <span class="stat-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <ellipse cx="12" cy="5" rx="9" ry="3"/>
-                    <path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
-                    <path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/>
-                </svg>
-            </span>
-            <div class="stat-body">
-                <strong>{{ $stats['storage'] }}</strong>
-                <span>Зайнято місця</span>
-            </div>
-        </div>
-        <div class="stat stat-violet">
-            <span class="stat-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                </svg>
-            </span>
-            <div class="stat-body">
-                <strong>{{ $stats['folders'] }}</strong>
-                <span>Папки</span>
-            </div>
-        </div>
-        <div class="stat stat-telegram">
-            <span class="stat-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M22 2 11 13"/>
-                    <path d="M22 2 15 22l-4-9-9-4z"/>
-                </svg>
-            </span>
-            <div class="stat-body">
-                <strong>{{ $stats['telegram'] }}</strong>
-                <span>У Telegram</span>
-            </div>
-        </div>
-        <div class="stat stat-ink">
-            <span class="stat-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
-                </svg>
-            </span>
-            <div class="stat-body">
-                <strong>{{ $stats['current'] }}</strong>
-                <span>У поточному розділі</span>
-            </div>
-        </div>
-    </section>
-
     <section class="panel upload-panel upload-panel-v2">
         <header class="upload-hero">
             <div class="upload-hero-text">
@@ -280,6 +218,69 @@
         </form>
     </section>
 
+    <section class="stats stats-v2" aria-label="Статистика сховища">
+        <div class="stat stat-primary">
+            <span class="stat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                </svg>
+            </span>
+            <div class="stat-body">
+                <strong>{{ $stats['total'] }}</strong>
+                <span>Усього файлів</span>
+            </div>
+        </div>
+        <div class="stat stat-accent">
+            <span class="stat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                    <path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                    <path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/>
+                </svg>
+            </span>
+            <div class="stat-body">
+                <strong>{{ $stats['storage'] }}</strong>
+                <span>Зайнято місця</span>
+            </div>
+        </div>
+        <div class="stat stat-violet">
+            <span class="stat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                </svg>
+            </span>
+            <div class="stat-body">
+                <strong>{{ $stats['folders'] }}</strong>
+                <span>Папки</span>
+            </div>
+        </div>
+        <div class="stat stat-telegram">
+            <span class="stat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 2 11 13"/>
+                    <path d="M22 2 15 22l-4-9-9-4z"/>
+                </svg>
+            </span>
+            <div class="stat-body">
+                <strong>{{ $stats['telegram'] }}</strong>
+                <span>У Telegram</span>
+            </div>
+        </div>
+        <div class="stat stat-ink">
+            <span class="stat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+                </svg>
+            </span>
+            <div class="stat-body">
+                <strong>{{ $stats['current'] }}</strong>
+                <span>У поточному розділі</span>
+            </div>
+        </div>
+    </section>
+
+
     <section class="workspace">
         <aside class="sidebar-stack">
             <section class="panel sidebar-panel">
@@ -346,44 +347,109 @@
         </aside>
 
         <section class="panel" aria-label="Список файлів">
-            <form class="filters" action="{{ route('files.index') }}" method="get" data-ajax-filter>
+            <form class="filters filters-v2" action="{{ route('files.index') }}" method="get" data-ajax-filter>
                 @if ($folderFilter !== 'all')
                     <input type="hidden" name="folder" value="{{ $folderFilter }}">
                 @endif
                 <input type="hidden" name="view" value="{{ $display }}">
-                <input class="field" type="search" name="search" value="{{ $search }}" placeholder="Пошук за назвою, MIME або розширенням">
-                <select class="field" name="type">
-                    <option value="all" @selected($type === 'all')>Усі типи</option>
-                    <option value="images" @selected($type === 'images')>Зображення</option>
-                    <option value="videos" @selected($type === 'videos')>Відео</option>
-                    <option value="audio" @selected($type === 'audio')>Аудіо</option>
-                    <option value="documents" @selected($type === 'documents')>Документи</option>
-                    <option value="spreadsheets" @selected($type === 'spreadsheets')>Таблиці</option>
-                    <option value="presentations" @selected($type === 'presentations')>Презентації</option>
-                    <option value="archives" @selected($type === 'archives')>Архіви</option>
-                    <option value="code" @selected($type === 'code')>Код</option>
-                    <option value="design" @selected($type === 'design')>Дизайн</option>
-                    <option value="ebooks" @selected($type === 'ebooks')>Книги</option>
-                    <option value="fonts" @selected($type === 'fonts')>Шрифти</option>
-                </select>
-                <button class="button secondary" type="submit">Фільтрувати</button>
+
+                <div class="filter-field filter-field-search">
+                    <label for="filter-search">Пошук</label>
+                    <input id="filter-search" class="field" type="search" name="search" value="{{ $search }}" placeholder="Назва, MIME або розширення">
+                </div>
+
+                <div class="filter-field filter-field-type">
+                    <label for="filter-type">Тип</label>
+                    <select id="filter-type" class="field" name="type">
+                        <option value="all" @selected($type === 'all')>Усі типи</option>
+                        <option value="images" @selected($type === 'images')>Зображення</option>
+                        <option value="videos" @selected($type === 'videos')>Відео</option>
+                        <option value="audio" @selected($type === 'audio')>Аудіо</option>
+                        <option value="documents" @selected($type === 'documents')>Документи</option>
+                        <option value="spreadsheets" @selected($type === 'spreadsheets')>Таблиці</option>
+                        <option value="presentations" @selected($type === 'presentations')>Презентації</option>
+                        <option value="archives" @selected($type === 'archives')>Архіви</option>
+                        <option value="code" @selected($type === 'code')>Код</option>
+                        <option value="design" @selected($type === 'design')>Дизайн</option>
+                        <option value="ebooks" @selected($type === 'ebooks')>Книги</option>
+                        <option value="fonts" @selected($type === 'fonts')>Шрифти</option>
+                    </select>
+                </div>
+
+                <div class="filter-field filter-field-daterange filter-daterange">
+                    <label for="filter-daterange">Період</label>
+                    <input
+                        id="filter-daterange"
+                        type="text"
+                        class="field"
+                        data-flatpickr-range
+                        data-initial-from="{{ $dateFrom }}"
+                        data-initial-to="{{ $dateTo }}"
+                        placeholder="Оберіть діапазон"
+                        readonly
+                    >
+                    <input type="hidden" name="date_from" value="{{ $dateFrom }}" data-flatpickr-from>
+                    <input type="hidden" name="date_to" value="{{ $dateTo }}" data-flatpickr-to>
+                </div>
+
+                <div class="filter-actions">
+                    <button class="button filter-submit" type="submit">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+                        </svg>
+                        Фільтрувати
+                    </button>
+                    @php
+                        $hasActiveFilter = $search !== '' || $type !== 'all' || $dateFrom !== '' || $dateTo !== '';
+                        $resetUrl = route('files.index', $folderFilter !== 'all' ? ['folder' => $folderFilter, 'view' => $display] : ['view' => $display]);
+                    @endphp
+                    <a
+                        class="button secondary filter-reset {{ $hasActiveFilter ? '' : 'is-disabled' }}"
+                        href="{{ $hasActiveFilter ? $resetUrl : '#' }}"
+                        @if (! $hasActiveFilter) aria-disabled="true" tabindex="-1" @endif
+                        title="{{ $hasActiveFilter ? 'Скинути всі фільтри' : 'Зараз немає активних фільтрів' }}"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M3 12a9 9 0 1 0 3-6.7"/>
+                            <polyline points="3 4 3 10 9 10"/>
+                        </svg>
+                        Скинути
+                    </a>
+                </div>
             </form>
 
             <div class="file-view-bar">
                 <span data-file-summary data-total="{{ $files->total() }}">Показано {{ $files->count() }} з {{ $files->total() }}</span>
-                <div class="view-toggle" aria-label="Вигляд списку файлів">
-                    <a class="button secondary {{ $display === 'table' ? 'active' : '' }}" href="{{ route('files.index', array_merge(request()->except(['page', 'view', 'image_previews']), ['view' => 'table'])) }}">Таблиця</a>
-                    <a class="button secondary {{ $display === 'grid' ? 'active' : '' }}" href="{{ route('files.index', array_merge(request()->except(['page', 'view']), ['view' => 'grid'])) }}">Плитки</a>
-                    @if ($display === 'grid')
+                <div class="file-view-bar-actions">
+                    @if ($filteredCount > 0)
                         <a
-                            class="button secondary {{ $imagePreviews ? 'active' : '' }}"
-                            href="{{ route('files.index', $imagePreviews
-                                ? array_merge(request()->except(['page', 'image_previews']), ['view' => 'grid'])
-                                : array_merge(request()->except(['page']), ['view' => 'grid', 'image_previews' => 1])) }}"
+                            class="button accent file-archive-btn"
+                            href="{{ route('files.archive', request()->except(['page', 'view', 'image_previews'])) }}"
+                            title="Завантажити ZIP-архів усіх файлів за поточними фільтрами ({{ $filteredCount }} {{ $filteredCount === 1 ? 'файл' : ($filteredCount < 5 ? 'файли' : 'файлів') }})."
                         >
-                            {{ $imagePreviews ? 'Фото увімкнено' : 'Передзавантажити фото' }}
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            <span>Архів ({{ $filteredCount }})</span>
                         </a>
                     @endif
+
+                    <div class="view-toggle" aria-label="Вигляд списку файлів">
+                        <a class="button secondary {{ $display === 'table' ? 'active' : '' }}" href="{{ route('files.index', array_merge(request()->except(['page', 'view', 'image_previews']), ['view' => 'table'])) }}">Таблиця</a>
+                        <a class="button secondary {{ $display === 'grid' ? 'active' : '' }}" href="{{ route('files.index', array_merge(request()->except(['page', 'view']), ['view' => 'grid'])) }}">Плитки</a>
+                        @if ($display === 'grid')
+                            <a
+                                class="button secondary {{ $imagePreviews ? 'active' : '' }}"
+                                href="{{ route('files.index', $imagePreviews
+                                    ? array_merge(request()->except(['page', 'image_previews']), ['view' => 'grid'])
+                                    : array_merge(request()->except(['page']), ['view' => 'grid', 'image_previews' => 1])) }}"
+                            >
+                                {{ $imagePreviews ? 'Фото увімкнено' : 'Передзавантажити фото' }}
+                            </a>
+                        @endif
+                    </div>
                 </div>
             </div>
 
@@ -467,10 +533,90 @@
                 </div>
             @endif
 
-            @if ($files->hasMorePages())
-                <nav class="pagination" data-load-more aria-label="Завантаження додаткових файлів">
-                    <span>Показано {{ min($files->currentPage() * $files->perPage(), $files->total()) }} з {{ $files->total() }}</span>
-                    <a class="button secondary" href="{{ $files->nextPageUrl() }}" data-load-more-link>Завантажити ще</a>
+            @if ($files->lastPage() > 1)
+                @php
+                    $current = $files->currentPage();
+                    $last = $files->lastPage();
+                    $window = 1;
+                    $pages = [];
+                    $pages[] = 1;
+                    if ($current - $window > 2) {
+                        $pages[] = '...';
+                    }
+                    for ($i = max(2, $current - $window); $i <= min($last - 1, $current + $window); $i++) {
+                        $pages[] = $i;
+                    }
+                    if ($current + $window < $last - 1) {
+                        $pages[] = '...';
+                    }
+                    if ($last > 1) {
+                        $pages[] = $last;
+                    }
+                    $from = ($current - 1) * $files->perPage() + 1;
+                    $to = min($current * $files->perPage(), $files->total());
+                @endphp
+
+                <nav class="pagination-v2" aria-label="Навігація сторінок" data-pagination>
+                    <span class="pagination-summary">
+                        {{ $from }}–{{ $to }} з {{ $files->total() }}
+                    </span>
+
+                    <div class="pagination-pages" role="group" aria-label="Сторінки">
+                        <a
+                            class="pagination-page pagination-arrow {{ $files->onFirstPage() ? 'is-disabled' : '' }}"
+                            href="{{ $files->onFirstPage() ? '#' : $files->previousPageUrl() }}"
+                            @if ($files->onFirstPage()) aria-disabled="true" tabindex="-1" @endif
+                            aria-label="Попередня сторінка"
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <polyline points="15 18 9 12 15 6"/>
+                            </svg>
+                        </a>
+
+                        @foreach ($pages as $page)
+                            @if ($page === '...')
+                                <span class="pagination-ellipsis" aria-hidden="true">…</span>
+                            @else
+                                <a
+                                    class="pagination-page {{ $page === $current ? 'is-active' : '' }}"
+                                    href="{{ $files->url($page) }}"
+                                    @if ($page === $current) aria-current="page" @endif
+                                >{{ $page }}</a>
+                            @endif
+                        @endforeach
+
+                        <a
+                            class="pagination-page pagination-arrow {{ ! $files->hasMorePages() ? 'is-disabled' : '' }}"
+                            href="{{ ! $files->hasMorePages() ? '#' : $files->nextPageUrl() }}"
+                            @if (! $files->hasMorePages()) aria-disabled="true" tabindex="-1" @endif
+                            aria-label="Наступна сторінка"
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <polyline points="9 18 15 12 9 6"/>
+                            </svg>
+                        </a>
+                    </div>
+
+                    <form
+                        class="pagination-jump"
+                        action="{{ $files->path() }}"
+                        method="get"
+                        data-pagination-jump
+                        data-base-url="{{ $files->url(1) }}"
+                    >
+                        <label for="pagination-page-input">Перейти на</label>
+                        <input
+                            id="pagination-page-input"
+                            class="field"
+                            type="number"
+                            name="page"
+                            min="1"
+                            max="{{ $last }}"
+                            value="{{ $current }}"
+                            inputmode="numeric"
+                        >
+                        <button class="button secondary" type="submit">→</button>
+                    </form>
                 </nav>
             @endif
         </section>
@@ -512,6 +658,36 @@
                         }
                     });
                     url.searchParams.delete('page');
+
+                    refreshFilesPage(url.toString(), true);
+
+                    return;
+                }
+
+                const jumpForm = event.target.closest('[data-pagination-jump]');
+
+                if (jumpForm) {
+                    event.preventDefault();
+
+                    const baseUrl = jumpForm.dataset.baseUrl || jumpForm.action || window.location.href;
+                    const pageInput = jumpForm.querySelector('input[name="page"]');
+                    const target = parseInt(pageInput?.value || '1', 10);
+                    const max = parseInt(pageInput?.max || '1', 10);
+                    const page = Math.max(1, Math.min(max || 1, isNaN(target) ? 1 : target));
+
+                    const url = new URL(baseUrl, window.location.origin);
+
+                    new URL(window.location.href).searchParams.forEach((value, key) => {
+                        if (key !== 'page' && value !== '') {
+                            url.searchParams.set(key, value);
+                        }
+                    });
+
+                    if (page > 1) {
+                        url.searchParams.set('page', page);
+                    } else {
+                        url.searchParams.delete('page');
+                    }
 
                     refreshFilesPage(url.toString(), true);
 
@@ -607,11 +783,14 @@
                     });
                 }
 
-                const link = event.target.closest('[data-load-more-link]');
+                const paginationLink = event.target.closest('.pagination-page:not(.is-disabled)');
 
-                if (link) {
+                if (paginationLink) {
                     event.preventDefault();
-                    loadMoreFiles(link);
+
+                    if (paginationLink.getAttribute('href') && paginationLink.getAttribute('href') !== '#') {
+                        refreshFilesPage(paginationLink.href, true);
+                    }
 
                     return;
                 }
@@ -742,6 +921,52 @@
                 document.addEventListener('click', handleSelectedListClick);
                 renderSelectedFiles();
                 initUploadControls();
+                initFlatpickr();
+            }
+
+            function initFlatpickr() {
+                if (typeof window.flatpickr !== 'function') {
+                    window.setTimeout(initFlatpickr, 200);
+                    return;
+                }
+
+                document.querySelectorAll('[data-flatpickr-range]').forEach((input) => {
+                    if (input._flatpickr) {
+                        input._flatpickr.destroy();
+                    }
+
+                    const wrapper = input.closest('.filter-daterange');
+                    const fromInput = wrapper?.querySelector('[data-flatpickr-from]');
+                    const toInput = wrapper?.querySelector('[data-flatpickr-to]');
+
+                    const initial = [];
+
+                    if (input.dataset.initialFrom) initial.push(input.dataset.initialFrom);
+                    if (input.dataset.initialTo) initial.push(input.dataset.initialTo);
+
+                    window.flatpickr(input, {
+                        mode: 'range',
+                        dateFormat: 'Y-m-d',
+                        altInput: true,
+                        altFormat: 'd.m.Y',
+                        locale: window.flatpickr?.l10ns?.uk || 'default',
+                        maxDate: 'today',
+                        defaultDate: initial.length ? initial : null,
+                        showMonths: window.matchMedia('(min-width: 720px)').matches ? 2 : 1,
+                        onChange: (dates) => {
+                            const fmt = (d) => {
+                                if (! d) return '';
+                                const y = d.getFullYear();
+                                const m = String(d.getMonth() + 1).padStart(2, '0');
+                                const day = String(d.getDate()).padStart(2, '0');
+                                return `${y}-${m}-${day}`;
+                            };
+
+                            if (fromInput) fromInput.value = fmt(dates[0]);
+                            if (toInput) toInput.value = fmt(dates[1] || dates[0]);
+                        },
+                    });
+                });
             }
 
             function initUploadControls() {
@@ -1117,56 +1342,6 @@
                     replaceFilesPageFromHtml(html, response.url || url, pushHistory);
                 } catch (error) {
                     showPageFlash(error.message || 'Не вдалося оновити сторінку.', true);
-                }
-            }
-
-            async function loadMoreFiles(link) {
-                const currentItems = document.querySelector('[data-file-items]');
-
-                if (! currentItems) {
-                    window.location.href = link.href;
-                    return;
-                }
-
-                const originalText = link.textContent;
-                link.textContent = 'Завантаження...';
-                link.setAttribute('aria-disabled', 'true');
-
-                try {
-                    const response = await fetch(link.href, {
-                        headers: {
-                            'Accept': 'text/html',
-                            'X-Requested-With': 'XMLHttpRequest',
-                        },
-                    });
-                    const html = await response.text();
-                    const doc = new DOMParser().parseFromString(html, 'text/html');
-                    const nextItems = doc.querySelector('[data-file-items]');
-
-                    if (! response.ok || ! nextItems) {
-                        throw new Error(extractErrorFromHtml(html) || 'Не вдалося завантажити наступну сторінку.');
-                    }
-
-                    Array.from(nextItems.children).forEach((item) => currentItems.appendChild(item));
-
-                    const currentPagination = document.querySelector('[data-load-more]');
-                    const nextPagination = doc.querySelector('[data-load-more]');
-
-                    if (currentPagination && nextPagination) {
-                        currentPagination.replaceWith(nextPagination);
-                    } else if (currentPagination) {
-                        currentPagination.remove();
-                    }
-
-                    const summary = document.querySelector('[data-file-summary]');
-
-                    if (summary) {
-                        summary.textContent = `Показано ${currentItems.querySelectorAll('[data-file-item]').length} з ${summary.dataset.total}`;
-                    }
-                } catch (error) {
-                    link.textContent = originalText;
-                    link.removeAttribute('aria-disabled');
-                    showPageFlash(error.message || 'Не вдалося завантажити файли.', true);
                 }
             }
 
