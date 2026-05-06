@@ -408,7 +408,7 @@
             }
 
             button.addEventListener('click', async () => {
-                const rows = document.querySelectorAll('tr[data-bot-id]');
+                const rows = document.querySelectorAll('[data-bot-id]');
 
                 if (rows.length === 0) {
                     showResult('Спочатку додайте Telegram-бота у списку вище.', 'warn');
