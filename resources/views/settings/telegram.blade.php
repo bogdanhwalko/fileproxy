@@ -56,12 +56,11 @@
             <span>Посилання відкриває @BotFather - інструмент для створення ботів</span>
         </div>
         <div class="guide-steps">
-            <div><strong>1. Створіть бота</strong><span>Перейдіть за лінком до @BotFather, виконайте команду /newbot і заповніть необхідні поля.</span></div>
-            <div><strong>2. Додайте token</strong><span>BotFather видасть API token. Вставте його у форму ботів нижче, щоб FileProxy налаштував webhook для команди /storage.</span></div>
-            <div><strong>3. Додайте бота в групу</strong><span>Створіть групу для файлів і додайте туди вашого бота — група автоматично зʼявиться у списку сховищ FileProxy через кілька секунд.</span></div>
-            <div><strong>4. Якщо група не зʼявилась</strong><span>FileProxy автоматично перевіряє кожні 5 секунд протягом хвилини. Якщо ви додаєте бота в групу прямо зараз — група зʼявиться сама. Можна також натиснути «Перевірити» біля бота. Як зовсім не допомагає — кнопка <em>Перезаписати webhook</em> у таблиці.</span></div>
-            <div><strong>5. Перевірте список</strong><span>Після відповіді бота оновіть цю сторінку. Нова група буде в таблиці нижче з її Telegram chat_id.</span></div>
-            <div><strong>6. Завантажте файл</strong><span>Поверніться до файлів, виберіть Telegram-групу в полі сховища і завантажте тестовий файл.</span></div>
+            <div><strong>1. Створіть бота</strong><span>Перейдіть за лінком до @BotFather, виконайте команду <code>/newbot</code> і заповніть необхідні поля. Запам’ятайте API token.</span></div>
+            <div><strong>2. Додайте token у FileProxy</strong><span>Вставте отриманий token у форму «Боти» нижче. Це звʼяже бота з вашим акаунтом.</span></div>
+            <div><strong>3. Додайте бота у Telegram-групу</strong><span>Створіть нову групу або оберіть існуючу і додайте туди вашого бота як учасника. Роль адміна не обовʼязкова.</span></div>
+            <div><strong>4. Натисніть «Знайти групи»</strong><span>У блоці «Групи» нижче — велика кнопка <em>Знайти групи автоматично</em>. Один клік — і FileProxy сам знайде групи, до яких ви додали бота, і додасть їх у сховище.</span></div>
+            <div><strong>5. Готово</strong><span>Поверніться до файлів, виберіть свою Telegram-групу в полі сховища і завантажте перший файл.</span></div>
         </div>
         @if (! auth()->user()->is_admin && $storageGroups->isEmpty())
             <div class="settings-note system-limit-note">
@@ -127,17 +126,6 @@
                                     <span>{{ $bot->username ? '@'.$bot->username : 'Username не визначено' }}</span>
                                     @if ($bot->is_default)
                                         <span class="badge success">Основний</span>
-                                    @endif
-                                    <span class="bot-sync-indicator" data-bot-sync-indicator hidden>
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                            <path d="M21 12a9 9 0 1 1-3-6.7"/>
-                                        </svg>
-                                        Шукаю групи...
-                                    </span>
-                                    @if ($bot->storage_groups_count === 0)
-                                        <button type="button" class="bot-check-link" data-bot-check title="Перевірити, чи бот вже у якійсь групі">
-                                            Перевірити
-                                        </button>
                                     @endif
                                 </td>
                                 <td><span class="token-mask">{{ $bot->masked_token }}</span></td>
@@ -209,8 +197,25 @@
         <section class="panel settings-panel-groups">
             <div class="panel-header compact">
                 <h2>Групи</h2>
-                <p>Групи додаються автоматично. Форма нижче лишається на випадок, якщо webhook недоступний.</p>
+                <p>Додайте бота у вашу Telegram-групу і натисніть кнопку нижче — група зʼявиться у списку. Форма знизу — для ручного додавання за chat_id.</p>
             </div>
+
+            @if ($botTokens->isNotEmpty())
+                <div class="groups-autosync" data-groups-autosync>
+                    <div class="groups-autosync-text">
+                        <strong>Не бачите свою групу?</strong>
+                        <span>Спочатку додайте бота у Telegram-групу, а потім натисніть кнопку — FileProxy сам знайде і додасть групу.</span>
+                    </div>
+                    <button type="button" class="button groups-autosync-button" data-groups-search>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="11" cy="11" r="7"/>
+                            <line x1="21" y1="21" x2="16.5" y2="16.5"/>
+                        </svg>
+                        <span data-groups-search-label>Знайти групи автоматично</span>
+                    </button>
+                    <div class="groups-autosync-result" data-groups-search-result hidden></div>
+                </div>
+            @endif
 
             <form class="settings-form compact-settings-form group-settings-form" action="{{ route('telegram-settings.groups.store') }}" method="post">
                 @csrf
@@ -310,29 +315,21 @@
 
 @push('scripts')
     <script>
-        // Auto-sync bots without groups: polling every 5s for first 60s,
-        // plus manual button trigger. Catches case when user adds bot to group
-        // while sitting on the settings page.
+        // "Знайти групи автоматично" — single button that syncs all user's bots
+        // and pulls in any groups they were added to.
         (() => {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            const button = document.querySelector('[data-groups-search]');
+            const result = document.querySelector('[data-groups-search-result]');
+            const label = document.querySelector('[data-groups-search-label]');
 
-            if (! csrfToken) return;
+            if (! csrfToken || ! button) return;
 
-            const POLL_INTERVAL_MS = 5000;
-            const POLL_DURATION_MS = 60000;
-            let pollStartedAt = Date.now();
-            let pollTimer = null;
+            const ORIGINAL_LABEL = label?.textContent || 'Знайти групи';
 
-            async function syncBot(row, opts = {}) {
-                const syncUrl = row.dataset.syncUrl;
-                const indicator = row.querySelector('[data-bot-sync-indicator]');
-
-                if (! syncUrl) return null;
-
-                if (indicator && opts.showIndicator !== false) indicator.hidden = false;
-
+            async function syncBot(row) {
                 try {
-                    const response = await fetch(syncUrl, {
+                    const response = await fetch(row.dataset.syncUrl, {
                         method: 'POST',
                         headers: {
                             'X-CSRF-TOKEN': csrfToken,
@@ -346,95 +343,62 @@
                     return await response.json().catch(() => null);
                 } catch (e) {
                     return null;
-                } finally {
-                    if (indicator) indicator.hidden = true;
                 }
             }
 
-            async function syncAllPending(opts = {}) {
-                const rows = document.querySelectorAll('tr[data-bot-id][data-group-count="0"]');
+            function showResult(message, kind = 'info') {
+                if (! result) return;
 
-                if (rows.length === 0) return false;
-
-                const results = await Promise.all(
-                    Array.from(rows).map((row) => syncBot(row, opts))
-                );
-
-                return results.some((r) => r?.created_groups > 0);
+                result.hidden = false;
+                result.textContent = message;
+                result.dataset.kind = kind;
             }
 
-            async function pollOnce() {
-                const created = await syncAllPending({ showIndicator: false });
+            button.addEventListener('click', async () => {
+                const rows = document.querySelectorAll('tr[data-bot-id]');
 
-                if (created) {
-                    stopPolling();
-                    window.location.reload();
+                if (rows.length === 0) {
+                    showResult('Спочатку додайте Telegram-бота у списку вище.', 'warn');
                     return;
                 }
 
-                if (Date.now() - pollStartedAt > POLL_DURATION_MS) {
-                    stopPolling();
+                button.disabled = true;
+                button.classList.add('is-loading');
+                if (label) label.textContent = 'Шукаю...';
+                if (result) result.hidden = true;
+
+                let totalCreated = 0;
+                let totalProcessed = 0;
+                let succeeded = 0;
+
+                const results = await Promise.all(Array.from(rows).map((row) => syncBot(row)));
+
+                for (const r of results) {
+                    if (! r) continue;
+                    succeeded++;
+                    totalCreated += r.created_groups || 0;
+                    totalProcessed += r.processed_updates || 0;
                 }
-            }
 
-            function startPolling() {
-                pollStartedAt = Date.now();
-                stopPolling();
-                pollTimer = setInterval(pollOnce, POLL_INTERVAL_MS);
-            }
+                button.disabled = false;
+                button.classList.remove('is-loading');
+                if (label) label.textContent = ORIGINAL_LABEL;
 
-            function stopPolling() {
-                if (pollTimer) {
-                    clearInterval(pollTimer);
-                    pollTimer = null;
+                if (totalCreated > 0) {
+                    showResult(`✓ Знайдено та додано груп: ${totalCreated}. Оновлюю сторінку...`, 'ok');
+                    setTimeout(() => window.location.reload(), 800);
+                    return;
                 }
-            }
 
-            // Initial sync (with visible indicator) + start polling
-            syncAllPending({ showIndicator: true }).then((created) => {
-                if (created) {
-                    window.location.reload();
-                } else if (document.querySelectorAll('tr[data-bot-id][data-group-count="0"]').length > 0) {
-                    startPolling();
+                if (succeeded === 0) {
+                    showResult('Не вдалося звʼязатися з Telegram. Перевірте з’єднання та спробуйте ще раз.', 'warn');
+                    return;
                 }
-            });
 
-            // Restart polling when window regains focus (user came back from Telegram)
-            window.addEventListener('focus', () => {
-                if (document.querySelectorAll('tr[data-bot-id][data-group-count="0"]').length > 0) {
-                    syncAllPending({ showIndicator: true }).then((created) => {
-                        if (created) window.location.reload();
-                        else startPolling();
-                    });
-                }
-            });
-
-            // Manual "Перевірити" button
-            document.addEventListener('click', async (event) => {
-                const checkBtn = event.target.closest('[data-bot-check]');
-
-                if (! checkBtn) return;
-
-                event.preventDefault();
-                const row = checkBtn.closest('tr[data-bot-id]');
-
-                if (! row) return;
-
-                checkBtn.disabled = true;
-                const originalText = checkBtn.textContent;
-                checkBtn.textContent = 'Шукаю...';
-
-                const result = await syncBot(row, { showIndicator: true });
-
-                if (result?.created_groups > 0) {
-                    window.location.reload();
-                } else {
-                    checkBtn.textContent = 'Не знайдено';
-                    setTimeout(() => {
-                        checkBtn.textContent = originalText;
-                        checkBtn.disabled = false;
-                    }, 2000);
-                }
+                showResult(
+                    'Нових груп не знайдено. Переконайтесь, що бот реально доданий у Telegram-групу як учасник.',
+                    'info'
+                );
             });
         })();
 
