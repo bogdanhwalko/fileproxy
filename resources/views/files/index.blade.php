@@ -449,28 +449,37 @@
 
     <section class="workspace">
         <aside class="sidebar-stack">
-            <section class="panel sidebar-panel">
-                <div class="panel-header sidebar-header">
-                    <span class="sidebar-header-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                        </svg>
-                    </span>
-                    <div>
+            <section class="panel folders-panel-v2">
+                <header class="folders-header-v2">
+                    <div class="folders-header-title">
+                        <span class="folders-header-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                            </svg>
+                        </span>
                         <h2>Папки</h2>
-                        <p>Створюйте окремі папки і завантажуйте файли в потрібний розділ.</p>
+                        <span class="folders-header-count">{{ $folders->count() }}</span>
                     </div>
-                </div>
+                    <button type="button" class="folders-add-toggle" data-folders-add-toggle aria-label="Створити нову папку" title="Створити нову папку">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <line x1="12" y1="5" x2="12" y2="19"/>
+                            <line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                    </button>
+                </header>
 
-                <form class="folder-form folder-form-v2" action="{{ route('folders.store') }}" method="post" data-ajax-form>
+                <form class="folders-form-v2" action="{{ route('folders.store') }}" method="post" data-ajax-form data-folders-form hidden>
                     @csrf
-                    <input class="field" type="text" name="name" value="{{ old('name') }}" placeholder="Назва папки" maxlength="100" required>
-                    <button class="button" type="submit">Створити</button>
+                    <input class="field" type="text" name="name" value="{{ old('name') }}" placeholder="Назва нової папки" maxlength="100" data-folders-form-input required>
+                    <div class="folders-form-actions">
+                        <button class="button secondary" type="button" data-folders-form-cancel>Скасувати</button>
+                        <button class="button" type="submit">Створити</button>
+                    </div>
                 </form>
 
-                <div class="folder-list folder-list-v2" aria-label="Список папок">
-                    <a class="folder-link {{ $folderFilter === 'all' ? 'active' : '' }}" href="{{ route('files.index') }}">
-                        <span class="folder-link-icon" aria-hidden="true">
+                <nav class="folders-list-v2" aria-label="Список папок">
+                    <a class="folder-item folder-item-pinned {{ $folderFilter === 'all' ? 'is-active' : '' }}" href="{{ route('files.index') }}">
+                        <span class="folder-item-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                                 <rect x="3" y="3" width="7" height="7" rx="1.5"/>
                                 <rect x="14" y="3" width="7" height="7" rx="1.5"/>
@@ -478,37 +487,42 @@
                                 <rect x="14" y="14" width="7" height="7" rx="1.5"/>
                             </svg>
                         </span>
-                        <span class="folder-name">Усі файли</span>
-                        <span class="folder-count">{{ $stats['total'] }}</span>
+                        <span class="folder-item-name">Усі файли</span>
+                        <span class="folder-item-count">{{ $stats['total'] }}</span>
                     </a>
-                    <a class="folder-link {{ $folderFilter === 'root' ? 'active' : '' }}" href="{{ route('files.index', ['folder' => 'root']) }}">
-                        <span class="folder-link-icon" aria-hidden="true">
+
+                    <a class="folder-item folder-item-pinned {{ $folderFilter === 'root' ? 'is-active' : '' }}" href="{{ route('files.index', ['folder' => 'root']) }}">
+                        <span class="folder-item-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="12" cy="12" r="9"/>
                                 <line x1="6" y1="6" x2="18" y2="18"/>
                             </svg>
                         </span>
-                        <span class="folder-name">Без папки</span>
-                        <span class="folder-count">{{ $stats['root'] }}</span>
+                        <span class="folder-item-name">Без папки</span>
+                        <span class="folder-item-count">{{ $stats['root'] }}</span>
                     </a>
 
+                    @if ($folders->isNotEmpty())
+                        <div class="folders-divider" aria-hidden="true"></div>
+                    @endif
+
                     @foreach ($folders as $folder)
-                        <div class="folder-row">
-                            <a class="folder-link {{ $activeFolder?->id === $folder->id ? 'active' : '' }}" href="{{ route('files.index', ['folder' => $folder->id]) }}">
-                                <span class="folder-link-icon" aria-hidden="true">
+                        <div class="folder-row-v2">
+                            <a class="folder-item {{ $activeFolder?->id === $folder->id ? 'is-active' : '' }}" href="{{ route('files.index', ['folder' => $folder->id]) }}">
+                                <span class="folder-item-icon" aria-hidden="true">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                                         <path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
                                     </svg>
                                 </span>
-                                <span class="folder-name">{{ $folder->name }}</span>
-                                <span class="folder-count">{{ $folder->files_count }}</span>
+                                <span class="folder-item-name">{{ $folder->name }}</span>
+                                <span class="folder-item-count">{{ $folder->files_count }}</span>
                             </a>
                             <div class="folder-actions">
                                 @include('files.partials.folder-actions', ['folder' => $folder])
                             </div>
                         </div>
                     @endforeach
-                </div>
+                </nav>
             </section>
         </aside>
 
@@ -1088,6 +1102,43 @@
                 renderSelectedFiles();
                 initUploadControls();
                 initFlatpickr();
+                initFoldersAddToggle();
+            }
+
+            function initFoldersAddToggle() {
+                if (document.body.dataset.foldersToggleBound) return;
+                document.body.dataset.foldersToggleBound = '1';
+
+                document.addEventListener('click', (event) => {
+                    const toggle = event.target.closest('[data-folders-add-toggle]');
+
+                    if (toggle) {
+                        event.preventDefault();
+                        const form = document.querySelector('[data-folders-form]');
+
+                        if (form) {
+                            const isOpen = ! form.hidden;
+                            form.hidden = isOpen;
+                            toggle.classList.toggle('is-active', ! isOpen);
+                            if (! isOpen) {
+                                form.querySelector('[data-folders-form-input]')?.focus();
+                            }
+                        }
+
+                        return;
+                    }
+
+                    const cancel = event.target.closest('[data-folders-form-cancel]');
+
+                    if (cancel) {
+                        event.preventDefault();
+                        const form = document.querySelector('[data-folders-form]');
+                        const tog = document.querySelector('[data-folders-add-toggle]');
+                        if (form) form.hidden = true;
+                        if (tog) tog.classList.remove('is-active');
+                        return;
+                    }
+                });
             }
 
             function initFlatpickr() {
