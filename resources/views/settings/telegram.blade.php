@@ -59,7 +59,7 @@
             <div><strong>1. Створіть бота</strong><span>Перейдіть за лінком до @BotFather, виконайте команду /newbot і заповніть необхідні поля.</span></div>
             <div><strong>2. Додайте token</strong><span>BotFather видасть API token. Вставте його у форму ботів нижче, щоб FileProxy налаштував webhook для команди /storage.</span></div>
             <div><strong>3. Додайте бота в групу</strong><span>Створіть групу для файлів і додайте туди вашого бота — група автоматично зʼявиться у списку сховищ FileProxy через кілька секунд.</span></div>
-            <div><strong>4. Якщо група не зʼявилась</strong><span>Просто перезавантажте сторінку — FileProxy автоматично перевірить, чи бот десь у групі. Як зовсім не допомагає — натисніть кнопку <em>Перезаписати webhook</em> у таблиці ботів.</span></div>
+            <div><strong>4. Якщо група не зʼявилась</strong><span>FileProxy автоматично перевіряє кожні 5 секунд протягом хвилини. Якщо ви додаєте бота в групу прямо зараз — група зʼявиться сама. Можна також натиснути «Перевірити» біля бота. Як зовсім не допомагає — кнопка <em>Перезаписати webhook</em> у таблиці.</span></div>
             <div><strong>5. Перевірте список</strong><span>Після відповіді бота оновіть цю сторінку. Нова група буде в таблиці нижче з її Telegram chat_id.</span></div>
             <div><strong>6. Завантажте файл</strong><span>Поверніться до файлів, виберіть Telegram-групу в полі сховища і завантажте тестовий файл.</span></div>
         </div>
@@ -134,6 +134,11 @@
                                         </svg>
                                         Шукаю групи...
                                     </span>
+                                    @if ($bot->storage_groups_count === 0)
+                                        <button type="button" class="bot-check-link" data-bot-check title="Перевірити, чи бот вже у якійсь групі">
+                                            Перевірити
+                                        </button>
+                                    @endif
                                 </td>
                                 <td><span class="token-mask">{{ $bot->masked_token }}</span></td>
                                 <td>{{ $bot->storage_groups_count }}</td>
@@ -305,23 +310,26 @@
 
 @push('scripts')
     <script>
-        // Auto-sync bots without groups on page load
+        // Auto-sync bots without groups: polling every 5s for first 60s,
+        // plus manual button trigger. Catches case when user adds bot to group
+        // while sitting on the settings page.
         (() => {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-            const botsNeedingSync = document.querySelectorAll('tr[data-bot-id][data-group-count="0"]');
 
-            if (! csrfToken || botsNeedingSync.length === 0) {
-                return;
-            }
+            if (! csrfToken) return;
 
-            let anyCreated = false;
-            const promises = Array.from(botsNeedingSync).map(async (row) => {
+            const POLL_INTERVAL_MS = 5000;
+            const POLL_DURATION_MS = 60000;
+            let pollStartedAt = Date.now();
+            let pollTimer = null;
+
+            async function syncBot(row, opts = {}) {
                 const syncUrl = row.dataset.syncUrl;
                 const indicator = row.querySelector('[data-bot-sync-indicator]');
 
-                if (! syncUrl) return;
+                if (! syncUrl) return null;
 
-                if (indicator) indicator.hidden = false;
+                if (indicator && opts.showIndicator !== false) indicator.hidden = false;
 
                 try {
                     const response = await fetch(syncUrl, {
@@ -333,23 +341,99 @@
                         },
                     });
 
-                    if (! response.ok) return;
+                    if (! response.ok) return null;
 
-                    const data = await response.json().catch(() => null);
-
-                    if (data?.created_groups > 0) {
-                        anyCreated = true;
-                    }
+                    return await response.json().catch(() => null);
                 } catch (e) {
-                    // silent — not critical
+                    return null;
                 } finally {
                     if (indicator) indicator.hidden = true;
                 }
+            }
+
+            async function syncAllPending(opts = {}) {
+                const rows = document.querySelectorAll('tr[data-bot-id][data-group-count="0"]');
+
+                if (rows.length === 0) return false;
+
+                const results = await Promise.all(
+                    Array.from(rows).map((row) => syncBot(row, opts))
+                );
+
+                return results.some((r) => r?.created_groups > 0);
+            }
+
+            async function pollOnce() {
+                const created = await syncAllPending({ showIndicator: false });
+
+                if (created) {
+                    stopPolling();
+                    window.location.reload();
+                    return;
+                }
+
+                if (Date.now() - pollStartedAt > POLL_DURATION_MS) {
+                    stopPolling();
+                }
+            }
+
+            function startPolling() {
+                pollStartedAt = Date.now();
+                stopPolling();
+                pollTimer = setInterval(pollOnce, POLL_INTERVAL_MS);
+            }
+
+            function stopPolling() {
+                if (pollTimer) {
+                    clearInterval(pollTimer);
+                    pollTimer = null;
+                }
+            }
+
+            // Initial sync (with visible indicator) + start polling
+            syncAllPending({ showIndicator: true }).then((created) => {
+                if (created) {
+                    window.location.reload();
+                } else if (document.querySelectorAll('tr[data-bot-id][data-group-count="0"]').length > 0) {
+                    startPolling();
+                }
             });
 
-            Promise.all(promises).then(() => {
-                if (anyCreated) {
+            // Restart polling when window regains focus (user came back from Telegram)
+            window.addEventListener('focus', () => {
+                if (document.querySelectorAll('tr[data-bot-id][data-group-count="0"]').length > 0) {
+                    syncAllPending({ showIndicator: true }).then((created) => {
+                        if (created) window.location.reload();
+                        else startPolling();
+                    });
+                }
+            });
+
+            // Manual "Перевірити" button
+            document.addEventListener('click', async (event) => {
+                const checkBtn = event.target.closest('[data-bot-check]');
+
+                if (! checkBtn) return;
+
+                event.preventDefault();
+                const row = checkBtn.closest('tr[data-bot-id]');
+
+                if (! row) return;
+
+                checkBtn.disabled = true;
+                const originalText = checkBtn.textContent;
+                checkBtn.textContent = 'Шукаю...';
+
+                const result = await syncBot(row, { showIndicator: true });
+
+                if (result?.created_groups > 0) {
                     window.location.reload();
+                } else {
+                    checkBtn.textContent = 'Не знайдено';
+                    setTimeout(() => {
+                        checkBtn.textContent = originalText;
+                        checkBtn.disabled = false;
+                    }, 2000);
                 }
             });
         })();

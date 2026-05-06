@@ -2247,6 +2247,33 @@
             }
         }
 
+        /* === Bot check link === */
+        .bot-check-link {
+            display: inline-block;
+            margin-top: 6px;
+            margin-left: 8px;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            color: var(--accent);
+            font-size: 12px;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+            cursor: pointer;
+            transition: color 140ms ease;
+        }
+
+        .bot-check-link:hover {
+            color: var(--primary);
+        }
+
+        .bot-check-link:disabled {
+            color: var(--muted);
+            cursor: wait;
+            text-decoration: none;
+        }
+
         /* === Bot sync indicator === */
         .bot-sync-indicator {
             display: inline-flex;
