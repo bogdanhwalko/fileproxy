@@ -2247,6 +2247,35 @@
             }
         }
 
+        /* === Bot sync indicator === */
+        .bot-sync-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 6px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: var(--accent-soft);
+            color: var(--accent);
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .bot-sync-indicator[hidden] {
+            display: none;
+        }
+
+        .bot-sync-indicator svg {
+            width: 12px;
+            height: 12px;
+            animation: bot-sync-spin 900ms linear infinite;
+        }
+
+        @keyframes bot-sync-spin {
+            to { transform: rotate(360deg); }
+        }
+
         /* === Bot row actions === */
         .bot-actions {
             display: inline-flex;
@@ -3448,22 +3477,10 @@
             margin-bottom: 20px;
             border: 1px solid var(--line);
             border-radius: 16px;
-            background:
-                radial-gradient(120% 140% at 100% 0%, rgb(6 182 212 / 10%) 0%, transparent 55%),
-                radial-gradient(120% 140% at 0% 100%, rgb(79 70 229 / 12%) 0%, transparent 55%),
-                var(--surface);
+            background: var(--surface);
             box-shadow:
                 0 18px 48px rgb(79 70 229 / 10%),
                 0 4px 12px rgb(15 23 42 / 4%);
-        }
-
-        .upload-panel-v2::before {
-            content: "";
-            position: absolute;
-            inset: 0 0 auto 0;
-            height: 4px;
-            background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
-            z-index: 1;
         }
 
         .upload-hero {
@@ -3474,6 +3491,100 @@
             flex-wrap: wrap;
             padding: 22px 22px 18px;
             border-bottom: 1px solid var(--line);
+        }
+
+        .upload-hero-compact {
+            align-items: center;
+            padding: 16px 22px;
+        }
+
+        .upload-hero-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .upload-hero-icon {
+            display: grid;
+            place-items: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 9px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            color: #fff;
+            box-shadow: 0 6px 16px rgb(79 70 229 / 24%);
+            flex: 0 0 auto;
+        }
+
+        .upload-hero-icon svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .upload-hero-title {
+            color: var(--ink);
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .upload-hero-meta {
+            display: inline-flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .upload-hero-meta-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .upload-hero-meta-item strong {
+            color: var(--ink);
+            font-weight: 700;
+        }
+
+        .upload-hero-meta-item svg {
+            width: 14px;
+            height: 14px;
+            color: var(--primary);
+            flex: 0 0 auto;
+        }
+
+        .upload-hero-meta-info {
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: var(--accent-soft);
+            color: var(--accent);
+        }
+
+        .upload-hero-meta-info svg {
+            color: var(--accent);
+        }
+
+        .upload-hero-meta-info strong {
+            color: var(--accent);
+        }
+
+        @media (max-width: 720px) {
+            .upload-hero-compact {
+                padding: 12px 16px;
+                gap: 10px;
+            }
+
+            .upload-hero-meta {
+                gap: 10px;
+            }
+
+            .upload-hero-meta-item {
+                font-size: 12px;
+            }
         }
 
         .upload-hero-text {

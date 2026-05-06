@@ -65,22 +65,35 @@
     </div>
 
     <section class="panel upload-panel upload-panel-v2">
-        <header class="upload-hero">
-            <div class="upload-hero-text">
-                <span class="section-kicker">Нове завантаження</span>
-                <h2>Перетягніть файли або оберіть з пристрою</h2>
-                <p>Підтримується багато файлів за раз. Максимальний розмір одного файлу — {{ $telegramUploadMaxMb }} MB.</p>
+        <header class="upload-hero upload-hero-compact">
+            <div class="upload-hero-eyebrow">
+                <span class="upload-hero-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                </span>
+                <span class="upload-hero-title">Нове завантаження</span>
             </div>
-            <div class="upload-hero-chips">
-                <div class="upload-chip">
-                    <span>Ліміт файла</span>
-                    <strong>{{ $telegramUploadMaxMb }} MB</strong>
-                </div>
+
+            <div class="upload-hero-meta">
+                <span class="upload-hero-meta-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    до <strong>{{ $telegramUploadMaxMb }} MB</strong> на файл
+                </span>
+
                 @if (! $canUseLocalStorage && $telegramStorageGroups->isEmpty() && $systemTelegramStorageAvailable)
-                    <div class="upload-chip upload-chip-info">
-                        <span>Системне сховище</span>
-                        <strong>{{ $systemTelegramRemainingUploads }} / {{ $systemTelegramUploadLimit }}</strong>
-                    </div>
+                    <span class="upload-hero-meta-item upload-hero-meta-info">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M22 2 11 13"/>
+                            <path d="M22 2 15 22l-4-9-9-4z"/>
+                        </svg>
+                        Системне: <strong>{{ $systemTelegramRemainingUploads }} / {{ $systemTelegramUploadLimit }}</strong>
+                    </span>
                 @endif
             </div>
         </header>

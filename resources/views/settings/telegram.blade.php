@@ -59,7 +59,7 @@
             <div><strong>1. Створіть бота</strong><span>Перейдіть за лінком до @BotFather, виконайте команду /newbot і заповніть необхідні поля.</span></div>
             <div><strong>2. Додайте token</strong><span>BotFather видасть API token. Вставте його у форму ботів нижче, щоб FileProxy налаштував webhook для команди /storage.</span></div>
             <div><strong>3. Додайте бота в групу</strong><span>Створіть групу для файлів і додайте туди вашого бота — група автоматично зʼявиться у списку сховищ FileProxy через кілька секунд.</span></div>
-            <div><strong>4. Якщо група не зʼявилась</strong><span>Натисніть <em>Синхронізувати групи</em> у таблиці ботів — FileProxy сам забере пропущені події з Telegram (у випадку якщо щось пішло не так).</span></div>
+            <div><strong>4. Якщо група не зʼявилась</strong><span>Просто перезавантажте сторінку — FileProxy автоматично перевірить, чи бот десь у групі. Як зовсім не допомагає — натисніть кнопку <em>Перезаписати webhook</em> у таблиці ботів.</span></div>
             <div><strong>5. Перевірте список</strong><span>Після відповіді бота оновіть цю сторінку. Нова група буде в таблиці нижче з її Telegram chat_id.</span></div>
             <div><strong>6. Завантажте файл</strong><span>Поверніться до файлів, виберіть Telegram-групу в полі сховища і завантажте тестовий файл.</span></div>
         </div>
@@ -121,34 +121,24 @@
                     </thead>
                     <tbody>
                         @forelse ($botTokens as $bot)
-                            <tr>
+                            <tr data-bot-id="{{ $bot->id }}" data-group-count="{{ $bot->storage_groups_count }}" data-sync-url="{{ route('telegram-settings.bots.sync', $bot) }}">
                                 <td>
                                     <strong>{{ $bot->name }}</strong>
                                     <span>{{ $bot->username ? '@'.$bot->username : 'Username не визначено' }}</span>
                                     @if ($bot->is_default)
                                         <span class="badge success">Основний</span>
                                     @endif
+                                    <span class="bot-sync-indicator" data-bot-sync-indicator hidden>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="M21 12a9 9 0 1 1-3-6.7"/>
+                                        </svg>
+                                        Шукаю групи...
+                                    </span>
                                 </td>
                                 <td><span class="token-mask">{{ $bot->masked_token }}</span></td>
                                 <td>{{ $bot->storage_groups_count }}</td>
                                 <td>
                                     <div class="bot-actions">
-                                        <form action="{{ route('telegram-settings.bots.sync', $bot) }}" method="post">
-                                            @csrf
-                                            <button
-                                                type="submit"
-                                                class="bot-action-btn bot-action-sync"
-                                                aria-label="Синхронізувати групи"
-                                                title="Синхронізувати групи — підтягнути пропущені події з Telegram"
-                                            >
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                                    <polyline points="23 4 23 10 17 10"/>
-                                                    <polyline points="1 20 1 14 7 14"/>
-                                                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-                                                </svg>
-                                            </button>
-                                        </form>
-
                                         <form action="{{ route('telegram-settings.bots.repair', $bot) }}" method="post">
                                             @csrf
                                             <button
@@ -315,6 +305,55 @@
 
 @push('scripts')
     <script>
+        // Auto-sync bots without groups on page load
+        (() => {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            const botsNeedingSync = document.querySelectorAll('tr[data-bot-id][data-group-count="0"]');
+
+            if (! csrfToken || botsNeedingSync.length === 0) {
+                return;
+            }
+
+            let anyCreated = false;
+            const promises = Array.from(botsNeedingSync).map(async (row) => {
+                const syncUrl = row.dataset.syncUrl;
+                const indicator = row.querySelector('[data-bot-sync-indicator]');
+
+                if (! syncUrl) return;
+
+                if (indicator) indicator.hidden = false;
+
+                try {
+                    const response = await fetch(syncUrl, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                    });
+
+                    if (! response.ok) return;
+
+                    const data = await response.json().catch(() => null);
+
+                    if (data?.created_groups > 0) {
+                        anyCreated = true;
+                    }
+                } catch (e) {
+                    // silent — not critical
+                } finally {
+                    if (indicator) indicator.hidden = true;
+                }
+            });
+
+            Promise.all(promises).then(() => {
+                if (anyCreated) {
+                    window.location.reload();
+                }
+            });
+        })();
+
         document.addEventListener('click', async (event) => {
             const trigger = event.target.closest('[data-copy-text]');
 

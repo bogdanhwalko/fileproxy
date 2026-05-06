@@ -89,6 +89,8 @@ class TelegramStorageSettingsController extends Controller
             $privacyEnabled = ! (bool) data_get($botInfo, 'can_read_all_group_messages', true);
         }
 
+        $drainedGroups = $this->drainPendingUpdates($bot, $telegram);
+
         $webhookConfigured = $telegram->setWebhook(
             $bot,
             route('telegram.storage-webhook', ['bot' => $bot, 'secret' => $bot->webhook_secret])
@@ -101,11 +103,60 @@ class TelegramStorageSettingsController extends Controller
             ? ' Бот у режимі privacy: пишіть у групі саме '.$command.' (з @-згадкою), або вимкніть privacy у @BotFather через /setprivacy → Disable.'
             : '';
 
+        $statusMessage = $webhookConfigured
+            ? 'Telegram-бота додано.'
+            : 'Telegram-бота додано, але webhook не налаштовано. Перевірте публічний APP_URL і token бота.';
+
+        if ($drainedGroups > 0) {
+            $statusMessage .= " Підтягнуто груп з історії: {$drainedGroups}.";
+        } elseif ($webhookConfigured) {
+            $statusMessage .= ' Додайте його в групу — група автоматично зʼявиться у списку сховищ.'.$privacyHint;
+        }
+
         return redirect()
             ->route('telegram-settings.index')
-            ->with('status', $webhookConfigured
-                ? 'Telegram-бота додано. Додайте його в групу і напишіть там '.$command.', щоб група автоматично зʼявилась у сховищах.'.$privacyHint
-                : 'Telegram-бота додано, але webhook не налаштовано. Перевірте публічний APP_URL і token бота. Після цього перездайте бота або налаштуйте webhook вручну.');
+            ->with('status', $statusMessage);
+    }
+
+    private function drainPendingUpdates(TelegramBotToken $bot, TelegramStorageBotService $telegram): int
+    {
+        $created = 0;
+        $offset = null;
+        $lastId = null;
+
+        for ($pass = 0; $pass < 5; $pass++) {
+            $updates = $telegram->getUpdates($bot, 0, $offset);
+
+            if ($updates === []) {
+                break;
+            }
+
+            foreach ($updates as $update) {
+                $updateId = (int) data_get($update, 'update_id', 0);
+
+                if ($updateId > 0) {
+                    $lastId = $updateId;
+                }
+
+                $result = $telegram->tryRegisterFromUpdate($bot, $update, false);
+
+                if ($result['created']) {
+                    $created++;
+                }
+            }
+
+            if ($lastId === null) {
+                break;
+            }
+
+            $offset = $lastId + 1;
+        }
+
+        if ($lastId !== null) {
+            $telegram->getUpdates($bot, 0, $lastId + 1);
+        }
+
+        return $created;
     }
 
     private function normalizeUsername(?string $username): ?string
@@ -130,7 +181,7 @@ class TelegramStorageSettingsController extends Controller
             ->with('status', 'Telegram-бота видалено.');
     }
 
-    public function syncBot(TelegramBotToken $bot, TelegramStorageBotService $telegram): RedirectResponse
+    public function syncBot(TelegramBotToken $bot, Request $request, TelegramStorageBotService $telegram)
     {
         abort_unless((int) $bot->user_id === (int) auth()->id(), 404);
 
@@ -180,6 +231,14 @@ class TelegramStorageSettingsController extends Controller
         ]);
         $telegram->setWebhook($bot, $webhookUrl);
         $telegram->setMyCommands($bot);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'ok' => true,
+                'created_groups' => $createdGroups,
+                'processed_updates' => $processedUpdates,
+            ]);
+        }
 
         $message = "Синхронізацію бота «{$bot->name}» завершено. ";
         $message .= "Опрацьовано подій: {$processedUpdates}. ";
