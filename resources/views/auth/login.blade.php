@@ -92,7 +92,7 @@
             @endif
 
             <label class="checkbox">
-                <input type="checkbox" name="remember" value="1">
+                <input type="checkbox" name="remember" value="1" checked />
                 <span>Запам'ятати мене</span>
             </label>
 
