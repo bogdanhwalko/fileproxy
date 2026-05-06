@@ -1812,6 +1812,107 @@
             flex: 1;
         }
 
+        /* === Upload submit v2 === */
+        .upload-footer-v2 {
+            justify-content: flex-end;
+        }
+
+        .upload-actions-v2 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .upload-submit-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            min-height: 56px;
+            padding: 14px 32px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+            border: 0;
+            box-shadow: 0 12px 28px rgb(79 70 229 / 28%);
+            cursor: pointer;
+            transition: transform 200ms ease, box-shadow 200ms ease, filter 200ms ease;
+            position: relative;
+        }
+
+        .upload-submit-btn:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.06);
+            box-shadow: 0 18px 36px rgb(79 70 229 / 38%);
+            color: #fff;
+        }
+
+        .upload-submit-btn:active {
+            transform: translateY(0);
+        }
+
+        .upload-submit-btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .upload-submit-icon {
+            width: 20px;
+            height: 20px;
+            flex: 0 0 auto;
+        }
+
+        /* When files are selected — pulse glow to draw eye */
+        .has-files .upload-submit-btn {
+            animation: upload-submit-glow 2s ease-in-out infinite;
+        }
+
+        @keyframes upload-submit-glow {
+            0%, 100% {
+                box-shadow: 0 12px 28px rgb(79 70 229 / 28%), 0 0 0 0 rgb(79 70 229 / 0%);
+            }
+            50% {
+                box-shadow: 0 12px 28px rgb(79 70 229 / 36%), 0 0 0 10px rgb(79 70 229 / 0%);
+            }
+        }
+
+        .has-files .upload-submit-btn::before {
+            content: "";
+            position: absolute;
+            inset: -3px;
+            border-radius: inherit;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            opacity: 0.4;
+            filter: blur(12px);
+            z-index: -1;
+            animation: upload-submit-pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes upload-submit-pulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.55; }
+        }
+
+        @media (max-width: 600px) {
+            .upload-submit-btn {
+                width: 100%;
+                justify-content: center;
+                min-height: 52px;
+                font-size: 15px;
+                padding: 12px 24px;
+            }
+
+            .upload-actions-v2 {
+                width: 100%;
+            }
+        }
+
         .upload-progress {
             display: grid;
             grid-column: 1 / -1;
@@ -4594,28 +4695,191 @@
 
         .upload-control {
             position: relative;
+        }
+
+        .upload-control-trigger {
             display: grid;
             grid-template-columns: 44px minmax(0, 1fr) 22px;
             gap: 12px;
             align-items: center;
+            width: 100%;
             padding: 10px 14px;
             border: 1px solid var(--line);
             border-radius: 12px;
             background: var(--surface);
+            color: inherit;
+            font: inherit;
+            text-align: left;
             cursor: pointer;
             transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease, transform 160ms ease;
         }
 
-        .upload-control:hover {
+        .upload-control-trigger:hover {
             border-color: var(--line-strong);
             background: var(--surface-subtle);
         }
 
-        .upload-control:focus-within {
+        .upload-control.is-open .upload-control-trigger,
+        .upload-control-trigger:focus-visible {
+            outline: none;
             border-color: var(--primary);
             background: var(--surface);
             box-shadow: 0 0 0 4px rgb(79 70 229 / 12%);
             transform: translateY(-1px);
+        }
+
+        .upload-control-trigger:hover .upload-control-icon {
+            transform: scale(1.04);
+        }
+
+        .upload-control.is-open .upload-control-chevron {
+            transform: rotate(180deg);
+            color: var(--primary);
+        }
+
+        .upload-control-chevron {
+            display: grid;
+            place-items: center;
+            transition: transform 200ms ease, color 160ms ease;
+        }
+
+        .upload-control-chevron svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* === Upload custom dropdown menu === */
+        .upload-dropdown-menu {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            z-index: 30;
+            display: grid;
+            gap: 2px;
+            max-height: 360px;
+            overflow-y: auto;
+            padding: 6px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: var(--surface);
+            box-shadow: 0 22px 50px rgb(15 23 42 / 16%);
+            animation: upload-dropdown-in 160ms ease;
+        }
+
+        .upload-dropdown-menu[hidden] {
+            display: none;
+        }
+
+        @keyframes upload-dropdown-in {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .upload-dropdown-option {
+            display: grid;
+            grid-template-columns: 36px minmax(0, 1fr) 18px;
+            gap: 12px;
+            align-items: center;
+            width: 100%;
+            padding: 8px 10px;
+            border: 0;
+            border-radius: 9px;
+            background: transparent;
+            color: var(--text);
+            text-align: left;
+            cursor: pointer;
+            transition: background 120ms ease, color 120ms ease;
+        }
+
+        .upload-dropdown-option:hover,
+        .upload-dropdown-option:focus-visible {
+            outline: none;
+            background: var(--surface-muted);
+        }
+
+        .upload-dropdown-option.is-selected {
+            background: var(--primary-soft);
+        }
+
+        .upload-dropdown-option-icon {
+            display: grid;
+            place-items: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 9px;
+            background: var(--surface-muted);
+            color: var(--muted);
+            transition: background 120ms ease, color 120ms ease;
+        }
+
+        .upload-dropdown-option-icon svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .upload-dropdown-option.is-selected .upload-dropdown-option-icon {
+            background: #fff;
+            color: var(--primary);
+        }
+
+        .upload-dropdown-option-icon-tg {
+            background: var(--accent-soft);
+            color: var(--accent);
+        }
+
+        .upload-dropdown-option-icon-server {
+            background: #efe9fc;
+            color: #6a3fc7;
+        }
+
+        .upload-dropdown-option-icon-warn {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .upload-dropdown-option-body {
+            display: grid;
+            gap: 1px;
+            min-width: 0;
+        }
+
+        .upload-dropdown-option-body strong {
+            display: block;
+            color: var(--ink);
+            font-size: 13px;
+            font-weight: 600;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .upload-dropdown-option-body span {
+            display: block;
+            color: var(--muted);
+            font-size: 11px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .upload-dropdown-option-check {
+            display: grid;
+            place-items: center;
+            width: 18px;
+            height: 18px;
+            color: var(--primary);
+            opacity: 0;
+            transition: opacity 120ms ease, transform 120ms ease;
+        }
+
+        .upload-dropdown-option-check svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .upload-dropdown-option.is-selected .upload-dropdown-option-check {
+            opacity: 1;
         }
 
         .upload-control-icon {
@@ -4669,64 +4933,7 @@
             white-space: nowrap;
         }
 
-        .upload-control-select {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            border: 0;
-            background: transparent;
-            color: var(--ink);
-            font: inherit;
-            opacity: 0;
-            cursor: pointer;
-            z-index: 2;
-        }
-
-        .upload-control-select:focus {
-            outline: none;
-        }
-
-        .upload-control-select option {
-            padding: 8px 12px;
-            background: var(--surface);
-            color: var(--ink);
-            font-size: 14px;
-            font-weight: 500;
-        }
-
-        .upload-control-select option:checked,
-        .upload-control-select option:hover,
-        .upload-control-select option:focus {
-            background: var(--primary-soft);
-            color: var(--primary-dark);
-        }
-
-        .upload-control-select option[disabled] {
-            color: var(--muted);
-        }
-
-        .upload-control-chevron {
-            display: grid;
-            place-items: center;
-            width: 22px;
-            height: 22px;
-            color: var(--muted);
-            pointer-events: none;
-            transition: color 160ms ease, transform 160ms ease;
-        }
-
-        .upload-control-chevron svg {
-            width: 16px;
-            height: 16px;
-        }
-
-        .upload-control:focus-within .upload-control-chevron {
-            color: var(--primary);
-            transform: translateY(1px);
-        }
+        /* Old .upload-control-select styles removed — replaced by custom dropdown */
 
         .upload-warning {
             padding: 10px 12px;

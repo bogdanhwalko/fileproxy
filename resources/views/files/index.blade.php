@@ -150,60 +150,196 @@
             </div>
 
             <div class="upload-controls">
-                <div class="upload-control upload-control-folder" data-upload-control>
-                    <span class="upload-control-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                        </svg>
-                    </span>
-                    <span class="upload-control-body">
-                        <span class="upload-control-label">Папка</span>
-                        <span class="upload-control-value" data-upload-control-value></span>
-                    </span>
-                    <span class="upload-control-chevron" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="6 9 12 15 18 9"/>
-                        </svg>
-                    </span>
-                    <select class="upload-control-select" id="folder_id" name="folder_id" data-upload-control-select aria-label="Папка">
-                        <option value="">Без папки</option>
-                        @foreach ($folders as $folder)
-                            <option value="{{ $folder->id }}" @selected($activeFolder?->id === $folder->id)>{{ $folder->name }}</option>
+                @php
+                    $folderOptions = collect([
+                        ['value' => '', 'label' => 'Без папки', 'sublabel' => 'У корені сховища', 'is_selected' => $activeFolder === null],
+                    ]);
+
+                    foreach ($folders as $folder) {
+                        $folderOptions->push([
+                            'value' => (string) $folder->id,
+                            'label' => $folder->name,
+                            'sublabel' => ($folder->files_count ?? 0).' '.(($folder->files_count ?? 0) === 1 ? 'файл' : 'файлів'),
+                            'is_selected' => $activeFolder?->id === $folder->id,
+                        ]);
+                    }
+
+                    $folderSelected = $folderOptions->firstWhere('is_selected', true) ?: $folderOptions->first();
+
+                    $storageOptions = collect();
+
+                    if ($canUseLocalStorage) {
+                        $storageOptions->push([
+                            'value' => '',
+                            'label' => 'Локальне сховище',
+                            'sublabel' => 'Файли на сервері',
+                            'icon' => 'server',
+                            'is_selected' => true,
+                        ]);
+                    } elseif ($telegramStorageGroups->isEmpty() && $systemTelegramStorageAvailable) {
+                        $storageOptions->push([
+                            'value' => '',
+                            'label' => 'Системне Telegram-сховище',
+                            'sublabel' => "Залишилось {$systemTelegramRemainingUploads} з {$systemTelegramUploadLimit}",
+                            'icon' => 'tg',
+                            'is_selected' => true,
+                        ]);
+                    } elseif ($telegramStorageGroups->isEmpty()) {
+                        $storageOptions->push([
+                            'value' => '',
+                            'label' => 'Telegram-сховище не налаштоване',
+                            'sublabel' => 'Підключіть бота і групу в налаштуваннях',
+                            'icon' => 'warn',
+                            'is_selected' => true,
+                        ]);
+                    } else {
+                        $oldStorageId = (string) old('telegram_storage_group_id', '');
+                        $hasSelected = false;
+                        foreach ($telegramStorageGroups as $storageGroup) {
+                            $isThisSelected = $oldStorageId !== ''
+                                ? $oldStorageId === (string) $storageGroup->id
+                                : (bool) $storageGroup->is_default;
+
+                            if ($isThisSelected) $hasSelected = true;
+
+                            $storageOptions->push([
+                                'value' => (string) $storageGroup->id,
+                                'label' => $storageGroup->title,
+                                'sublabel' => '@'.($storageGroup->botToken?->username ?: $storageGroup->botToken?->name ?? 'бот'),
+                                'icon' => 'tg',
+                                'is_selected' => $isThisSelected,
+                            ]);
+                        }
+                        if (! $hasSelected && $storageOptions->isNotEmpty()) {
+                            $storageOptions[0]['is_selected'] = true;
+                        }
+                    }
+
+                    $storageSelected = $storageOptions->firstWhere('is_selected', true) ?: $storageOptions->first();
+                @endphp
+
+                {{-- Folder dropdown --}}
+                <div class="upload-control upload-control-folder" data-upload-dropdown>
+                    <button type="button" class="upload-control-trigger" data-upload-dropdown-trigger aria-haspopup="listbox" aria-expanded="false">
+                        <span class="upload-control-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                            </svg>
+                        </span>
+                        <span class="upload-control-body">
+                            <span class="upload-control-label">Папка</span>
+                            <span class="upload-control-value" data-upload-dropdown-value>{{ $folderSelected['label'] ?? 'Без папки' }}</span>
+                        </span>
+                        <span class="upload-control-chevron" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                        </span>
+                    </button>
+
+                    <div class="upload-dropdown-menu" data-upload-dropdown-menu role="listbox" hidden>
+                        @foreach ($folderOptions as $opt)
+                            <button
+                                type="button"
+                                class="upload-dropdown-option {{ $opt['is_selected'] ? 'is-selected' : '' }}"
+                                data-upload-dropdown-option
+                                data-value="{{ $opt['value'] }}"
+                                role="option"
+                                aria-selected="{{ $opt['is_selected'] ? 'true' : 'false' }}"
+                            >
+                                <span class="upload-dropdown-option-icon" aria-hidden="true">
+                                    @if ($opt['value'] === '')
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                            <circle cx="12" cy="12" r="9"/>
+                                            <line x1="6" y1="6" x2="18" y2="18"/>
+                                        </svg>
+                                    @else
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                                        </svg>
+                                    @endif
+                                </span>
+                                <span class="upload-dropdown-option-body">
+                                    <strong>{{ $opt['label'] }}</strong>
+                                    <span>{{ $opt['sublabel'] }}</span>
+                                </span>
+                                <span class="upload-dropdown-option-check" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                </span>
+                            </button>
                         @endforeach
-                    </select>
+                    </div>
+
+                    <input type="hidden" name="folder_id" id="folder_id" data-upload-dropdown-input value="{{ $folderSelected['value'] ?? '' }}">
                 </div>
 
-                <div class="upload-control upload-control-storage" data-upload-control>
-                    <span class="upload-control-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M17.5 19a4.5 4.5 0 0 0 .5-8.97 7 7 0 0 0-13.74 2.05A4 4 0 0 0 5 19z"/>
-                        </svg>
-                    </span>
-                    <span class="upload-control-body">
-                        <span class="upload-control-label">Сховище</span>
-                        <span class="upload-control-value" data-upload-control-value></span>
-                    </span>
-                    <span class="upload-control-chevron" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="6 9 12 15 18 9"/>
-                        </svg>
-                    </span>
-                    <select class="upload-control-select" id="telegram_storage_group_id" name="telegram_storage_group_id" data-upload-control-select aria-label="Сховище">
-                        @if ($canUseLocalStorage)
-                            <option value="">Локальне сховище</option>
-                        @elseif ($telegramStorageGroups->isEmpty() && $systemTelegramStorageAvailable)
-                            <option value="">Системне Telegram-сховище</option>
-                        @elseif ($telegramStorageGroups->isEmpty())
-                            <option value="">Telegram-сховище не налаштоване</option>
-                        @else
-                            <option value="">Оберіть Telegram-групу</option>
-                        @endif
-                        @foreach ($telegramStorageGroups as $storageGroup)
-                            <option value="{{ $storageGroup->id }}" @selected((string) old('telegram_storage_group_id', $storageGroup->is_default ? $storageGroup->id : '') === (string) $storageGroup->id)>
-                                Telegram: {{ $storageGroup->title }} · {{ $storageGroup->botToken?->name ?? 'бот' }}
-                            </option>
-                        @endforeach
-                    </select>
+                {{-- Storage dropdown --}}
+                <div class="upload-control upload-control-storage" data-upload-dropdown>
+                    <button type="button" class="upload-control-trigger" data-upload-dropdown-trigger aria-haspopup="listbox" aria-expanded="false">
+                        <span class="upload-control-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M17.5 19a4.5 4.5 0 0 0 .5-8.97 7 7 0 0 0-13.74 2.05A4 4 0 0 0 5 19z"/>
+                            </svg>
+                        </span>
+                        <span class="upload-control-body">
+                            <span class="upload-control-label">Сховище</span>
+                            <span class="upload-control-value" data-upload-dropdown-value>{{ $storageSelected['label'] ?? 'Не обрано' }}</span>
+                        </span>
+                        <span class="upload-control-chevron" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                        </span>
+                    </button>
+
+                    <div class="upload-dropdown-menu" data-upload-dropdown-menu role="listbox" hidden>
+                        @forelse ($storageOptions as $opt)
+                            <button
+                                type="button"
+                                class="upload-dropdown-option {{ $opt['is_selected'] ? 'is-selected' : '' }}"
+                                data-upload-dropdown-option
+                                data-value="{{ $opt['value'] }}"
+                                role="option"
+                                aria-selected="{{ $opt['is_selected'] ? 'true' : 'false' }}"
+                            >
+                                <span class="upload-dropdown-option-icon upload-dropdown-option-icon-{{ $opt['icon'] ?? 'tg' }}" aria-hidden="true">
+                                    @if (($opt['icon'] ?? '') === 'server')
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                            <rect x="2" y="2" width="20" height="8" rx="2"/>
+                                            <rect x="2" y="14" width="20" height="8" rx="2"/>
+                                            <line x1="6" y1="6" x2="6.01" y2="6"/>
+                                            <line x1="6" y1="18" x2="6.01" y2="18"/>
+                                        </svg>
+                                    @elseif (($opt['icon'] ?? '') === 'warn')
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                            <line x1="12" y1="9" x2="12" y2="13"/>
+                                            <line x1="12" y1="17" x2="12.01" y2="17"/>
+                                        </svg>
+                                    @else
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M22 2 11 13"/>
+                                            <path d="M22 2 15 22l-4-9-9-4z"/>
+                                        </svg>
+                                    @endif
+                                </span>
+                                <span class="upload-dropdown-option-body">
+                                    <strong>{{ $opt['label'] }}</strong>
+                                    <span>{{ $opt['sublabel'] }}</span>
+                                </span>
+                                <span class="upload-dropdown-option-check" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                </span>
+                            </button>
+                        @empty
+                        @endforelse
+                    </div>
+
+                    <input type="hidden" name="telegram_storage_group_id" id="telegram_storage_group_id" data-upload-dropdown-input value="{{ $storageSelected['value'] ?? '' }}">
                 </div>
             </div>
 
@@ -228,19 +364,21 @@
                 <p data-upload-progress-note>Прогрес приблизний: після передачі файлів сервер ще може обробляти Telegram-сховище.</p>
             </div>
 
-            <div class="upload-footer">
-                <div class="upload-meta">
-                    Метадані зберігаються в базі, а файли — у дозволеному сховищі.
-                </div>
-                <div class="upload-actions">
-                    <button class="button" type="submit" data-upload-submit>
-                        <span data-upload-submit-label>Завантажити</span>
-                    </button>
+            <div class="upload-footer upload-footer-v2">
+                <div class="upload-actions upload-actions-v2">
                     @if (! $telegramStorageGroups->count() && ! $systemTelegramStorageAvailable)
                         <a class="button secondary" href="{{ route('telegram-settings.index') }}">Як прив’язати Telegram</a>
                     @elseif (! $telegramStorageGroups->count())
                         <a class="button secondary" href="{{ route('telegram-settings.index') }}">Власне Telegram-сховище</a>
                     @endif
+                    <button class="button upload-submit-btn" type="submit" data-upload-submit>
+                        <svg class="upload-submit-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        <span data-upload-submit-label>Завантажити</span>
+                    </button>
                 </div>
             </div>
         </form>
@@ -998,26 +1136,77 @@
             }
 
             function initUploadControls() {
-                document.querySelectorAll('[data-upload-control]').forEach((control) => {
-                    const select = control.querySelector('[data-upload-control-select]');
-                    const valueSpan = control.querySelector('[data-upload-control-value]');
+                if (! document.body.dataset.uploadDropdownBound) {
+                    document.body.dataset.uploadDropdownBound = '1';
 
-                    if (! select || ! valueSpan) {
-                        return;
-                    }
+                    document.addEventListener('click', (event) => {
+                        const trigger = event.target.closest('[data-upload-dropdown-trigger]');
 
-                    const sync = () => {
-                        const option = select.options[select.selectedIndex];
-                        valueSpan.textContent = option ? option.text : '';
-                    };
+                        if (trigger) {
+                            event.preventDefault();
+                            const dropdown = trigger.closest('[data-upload-dropdown]');
+                            const isOpen = dropdown.classList.contains('is-open');
+                            closeAllUploadDropdowns();
+                            if (! isOpen) openUploadDropdown(dropdown);
+                            return;
+                        }
 
-                    sync();
+                        const option = event.target.closest('[data-upload-dropdown-option]');
 
-                    if (! select.dataset.bound) {
-                        select.dataset.bound = '1';
-                        select.addEventListener('change', sync);
-                    }
+                        if (option) {
+                            event.preventDefault();
+                            selectUploadDropdownOption(option);
+                            return;
+                        }
+
+                        if (! event.target.closest('[data-upload-dropdown]')) {
+                            closeAllUploadDropdowns();
+                        }
+                    });
+
+                    document.addEventListener('keydown', (event) => {
+                        if (event.key === 'Escape') closeAllUploadDropdowns();
+                    });
+                }
+            }
+
+            function openUploadDropdown(dropdown) {
+                dropdown.classList.add('is-open');
+                const trigger = dropdown.querySelector('[data-upload-dropdown-trigger]');
+                const menu = dropdown.querySelector('[data-upload-dropdown-menu]');
+                if (trigger) trigger.setAttribute('aria-expanded', 'true');
+                if (menu) menu.hidden = false;
+            }
+
+            function closeAllUploadDropdowns() {
+                document.querySelectorAll('[data-upload-dropdown].is-open').forEach((dropdown) => {
+                    dropdown.classList.remove('is-open');
+                    const trigger = dropdown.querySelector('[data-upload-dropdown-trigger]');
+                    const menu = dropdown.querySelector('[data-upload-dropdown-menu]');
+                    if (trigger) trigger.setAttribute('aria-expanded', 'false');
+                    if (menu) menu.hidden = true;
                 });
+            }
+
+            function selectUploadDropdownOption(option) {
+                const dropdown = option.closest('[data-upload-dropdown]');
+                if (! dropdown) return;
+
+                const value = option.dataset.value;
+                const label = option.querySelector('strong')?.textContent || '';
+
+                const input = dropdown.querySelector('[data-upload-dropdown-input]');
+                const valueSpan = dropdown.querySelector('[data-upload-dropdown-value]');
+
+                if (input) input.value = value;
+                if (valueSpan) valueSpan.textContent = label;
+
+                dropdown.querySelectorAll('[data-upload-dropdown-option]').forEach((opt) => {
+                    opt.classList.toggle('is-selected', opt === option);
+                    opt.setAttribute('aria-selected', opt === option ? 'true' : 'false');
+                });
+
+                closeAllUploadDropdowns();
             }
 
             function handleSelectedListClick(event) {
@@ -1074,6 +1263,7 @@
                 }
 
                 const files = Array.from(input.files || []);
+                const form = document.querySelector('[data-upload-form]');
 
                 if (files.length === 0) {
                     wrapper.hidden = true;
@@ -1083,8 +1273,12 @@
                         submitLabel.textContent = 'Завантажити';
                     }
 
+                    if (form) form.classList.remove('has-files');
+
                     return;
                 }
+
+                if (form) form.classList.add('has-files');
 
                 wrapper.hidden = false;
                 list.innerHTML = '';
