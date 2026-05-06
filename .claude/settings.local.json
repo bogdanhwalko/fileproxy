@@ -17,7 +17,9 @@
       "Bash(grep -n \"fillable\\\\|guarded\\\\|protected \\\\$\" app/Models/TelegramBotToken.php)",
       "Bash(php -l app/Services/TelegramStorageBotService.php)",
       "Bash(php -l app/Http/Controllers/TelegramStorageWebhookController.php)",
-      "Bash(php -l app/Console/Commands/TelegramStorageRepairCommand.php)"
+      "Bash(php -l app/Console/Commands/TelegramStorageRepairCommand.php)",
+      "Bash(grep -n '$stats\\\\[' resources/views/files/index.blade.php)",
+      "Bash(php -l app/Http/Controllers/StatsController.php)"
     ]
   }
 }

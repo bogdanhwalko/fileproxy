@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\FolderController;
 use App\Http\Controllers\ShareController;
+use App\Http\Controllers\StatsController;
 use App\Http\Controllers\TelegramSetupController;
 use App\Http\Controllers\TelegramStorageSettingsController;
 use Illuminate\Support\Facades\Route;
@@ -34,6 +35,7 @@ Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
     ->name('logout');
 
 Route::middleware(['auth', 'not.blocked'])->group(function () {
+    Route::get('/stats', [StatsController::class, 'index'])->name('stats.index');
     Route::get('/files', [FileController::class, 'index'])->name('files.index');
     Route::get('/files/archive', [FileController::class, 'downloadArchive'])->name('files.archive');
     Route::post('/files', [FileController::class, 'store'])->name('files.store');

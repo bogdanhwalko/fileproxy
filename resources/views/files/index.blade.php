@@ -26,6 +26,14 @@
                     Адмінка
                 </a>
             @endif
+            <a class="button secondary nav-button" href="{{ route('stats.index') }}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="18" y1="20" x2="18" y2="10"/>
+                    <line x1="12" y1="20" x2="12" y2="4"/>
+                    <line x1="6" y1="20" x2="6" y2="14"/>
+                </svg>
+                Статистика
+            </a>
             <a class="button secondary nav-button" href="{{ route('telegram-settings.index') }}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M22 2 11 13"/>
@@ -384,69 +392,6 @@
         </form>
     </section>
 
-    <section class="stats stats-v2" aria-label="Статистика сховища">
-        <div class="stat stat-primary">
-            <span class="stat-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/>
-                </svg>
-            </span>
-            <div class="stat-body">
-                <strong>{{ $stats['total'] }}</strong>
-                <span>Усього файлів</span>
-            </div>
-        </div>
-        <div class="stat stat-accent">
-            <span class="stat-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <ellipse cx="12" cy="5" rx="9" ry="3"/>
-                    <path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
-                    <path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/>
-                </svg>
-            </span>
-            <div class="stat-body">
-                <strong>{{ $stats['storage'] }}</strong>
-                <span>Зайнято місця</span>
-            </div>
-        </div>
-        <div class="stat stat-violet">
-            <span class="stat-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                </svg>
-            </span>
-            <div class="stat-body">
-                <strong>{{ $stats['folders'] }}</strong>
-                <span>Папки</span>
-            </div>
-        </div>
-        <div class="stat stat-telegram">
-            <span class="stat-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M22 2 11 13"/>
-                    <path d="M22 2 15 22l-4-9-9-4z"/>
-                </svg>
-            </span>
-            <div class="stat-body">
-                <strong>{{ $stats['telegram'] }}</strong>
-                <span>У Telegram</span>
-            </div>
-        </div>
-        <div class="stat stat-ink">
-            <span class="stat-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
-                </svg>
-            </span>
-            <div class="stat-body">
-                <strong>{{ $stats['current'] }}</strong>
-                <span>У поточному розділі</span>
-            </div>
-        </div>
-    </section>
-
-
     <section class="workspace">
         <aside class="sidebar-stack">
             <section class="panel folders-panel-v2">
@@ -526,7 +471,7 @@
             </section>
         </aside>
 
-        <section class="panel" aria-label="Список файлів">
+        <section class="panel" aria-label="Список файлів" data-files-region>
             <form class="filters filters-v2" action="{{ route('files.index') }}" method="get" data-ajax-filter>
                 @if ($folderFilter !== 'all')
                     <input type="hidden" name="folder" value="{{ $folderFilter }}">
@@ -839,7 +784,7 @@
                     });
                     url.searchParams.delete('page');
 
-                    refreshFilesPage(url.toString(), true);
+                    refreshFilesPage(url.toString(), true, { region: 'files' });
 
                     return;
                 }
@@ -869,7 +814,7 @@
                         url.searchParams.delete('page');
                     }
 
-                    refreshFilesPage(url.toString(), true);
+                    refreshFilesPage(url.toString(), true, { region: 'files' });
 
                     return;
                 }
@@ -969,7 +914,7 @@
                     event.preventDefault();
 
                     if (paginationLink.getAttribute('href') && paginationLink.getAttribute('href') !== '#') {
-                        refreshFilesPage(paginationLink.href, true);
+                        refreshFilesPage(paginationLink.href, true, { region: 'files' });
                     }
 
                     return;
@@ -979,7 +924,7 @@
 
                 if (navigationLink && ! navigationLink.target) {
                     event.preventDefault();
-                    refreshFilesPage(navigationLink.href, true);
+                    refreshFilesPage(navigationLink.href, true, { region: 'files' });
                 }
             });
 
@@ -1598,7 +1543,14 @@
                 return 'файлів';
             }
 
-            async function refreshFilesPage(url, pushHistory) {
+            async function refreshFilesPage(url, pushHistory, options = {}) {
+                const region = options.region || null;
+                const filesRegion = document.querySelector('[data-files-region]');
+
+                if (region === 'files' && filesRegion) {
+                    filesRegion.classList.add('is-loading');
+                }
+
                 try {
                     const response = await fetch(url, {
                         headers: {
@@ -1612,20 +1564,35 @@
                         throw new Error(extractErrorFromHtml(html) || 'Не вдалося оновити сторінку.');
                     }
 
-                    replaceFilesPageFromHtml(html, response.url || url, pushHistory);
+                    replaceFilesPageFromHtml(html, response.url || url, pushHistory, options);
                 } catch (error) {
                     showPageFlash(error.message || 'Не вдалося оновити сторінку.', true);
+                } finally {
+                    document.querySelector('[data-files-region]')?.classList.remove('is-loading');
                 }
             }
 
-            function replaceFilesPageFromHtml(html, url, pushHistory) {
+            function replaceFilesPageFromHtml(html, url, pushHistory, options = {}) {
                 const doc = new DOMParser().parseFromString(html, 'text/html');
-                const selectors = [
-                    '[data-flash-area]',
-                    '.stats',
-                    '.upload-panel',
-                    '.workspace',
-                ];
+                const region = options.region || null;
+
+                let selectors;
+
+                if (region === 'files') {
+                    // Filter / pagination — only refresh the file list region
+                    selectors = ['[data-flash-area]', '[data-files-region]'];
+
+                    // Sync active state on folder list without re-fetching it
+                    const nextActive = doc.querySelector('.folder-item.is-active');
+                    const nextHref = nextActive?.getAttribute('href');
+                    document.querySelectorAll('.folder-item').forEach((item) => {
+                        const isActive = nextHref && item.getAttribute('href') === nextHref;
+                        item.classList.toggle('is-active', !! isActive);
+                    });
+                } else {
+                    // Full swap (after upload, etc.)
+                    selectors = ['[data-flash-area]', '.upload-panel', '.workspace'];
+                }
 
                 selectors.forEach((selector) => {
                     const current = document.querySelector(selector);
