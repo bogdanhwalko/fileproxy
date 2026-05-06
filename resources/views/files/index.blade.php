@@ -975,7 +975,7 @@
                     return;
                 }
 
-                const navigationLink = event.target.closest('.folder-link, .view-toggle a');
+                const navigationLink = event.target.closest('.folder-item, .folder-link, .view-toggle a, .filter-reset');
 
                 if (navigationLink && ! navigationLink.target) {
                     event.preventDefault();
