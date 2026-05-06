@@ -3544,29 +3544,40 @@
         .dropzone-v2 {
             position: relative;
             display: grid;
-            grid-template-columns: 72px minmax(0, 1fr);
-            gap: 18px;
-            align-items: center;
-            padding: 26px;
-            border: 2px dashed #aab4c5;
-            border-radius: 14px;
+            place-items: center;
+            gap: 14px;
+            min-height: 280px;
+            padding: 36px 28px;
+            border: 2.5px dashed var(--primary);
+            border-radius: 18px;
             background:
-                radial-gradient(80% 120% at 50% 0%, rgb(6 182 212 / 4%) 0%, transparent 60%),
-                var(--surface-subtle);
+                radial-gradient(60% 80% at 50% 0%, rgb(6 182 212 / 12%) 0%, transparent 70%),
+                radial-gradient(70% 90% at 50% 100%, rgb(79 70 229 / 14%) 0%, transparent 70%),
+                #f4f3ff;
             cursor: pointer;
-            transition: border-color 180ms ease, background 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+            text-align: center;
+            transition:
+                border-color 200ms ease,
+                background 200ms ease,
+                transform 200ms ease,
+                box-shadow 200ms ease;
         }
 
         .dropzone-v2:hover {
-            border-color: var(--primary);
-            background: #eaeefc;
+            border-color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 22px 48px rgb(79 70 229 / 18%);
         }
 
         .dropzone-v2.is-dragover {
+            border-style: solid;
             border-color: var(--accent);
-            background: var(--accent-soft);
-            transform: translateY(-1px);
-            box-shadow: 0 14px 36px rgb(6 182 212 / 12%);
+            background:
+                radial-gradient(60% 80% at 50% 0%, rgb(6 182 212 / 28%) 0%, transparent 70%),
+                radial-gradient(70% 90% at 50% 100%, rgb(79 70 229 / 28%) 0%, transparent 70%),
+                #e8e6ff;
+            transform: translateY(-2px) scale(1.005);
+            box-shadow: 0 26px 60px rgb(6 182 212 / 24%);
         }
 
         .dropzone-v2 input[type="file"] {
@@ -3576,17 +3587,45 @@
             height: 100%;
             opacity: 0;
             cursor: pointer;
+            z-index: 3;
+        }
+
+        .dropzone-v2-pulse {
+            position: absolute;
+            inset: 12px;
+            border-radius: 14px;
+            border: 2px solid var(--primary);
+            opacity: 0;
+            pointer-events: none;
+            animation: dropzone-pulse 2.4s ease-out infinite;
+        }
+
+        @keyframes dropzone-pulse {
+            0% { opacity: 0; transform: scale(0.985); }
+            40% { opacity: 0.45; }
+            100% { opacity: 0; transform: scale(1.025); }
+        }
+
+        .dropzone-v2.is-dragover .dropzone-v2-pulse {
+            animation: none;
+            opacity: 0;
         }
 
         .dropzone-v2-graphic {
             display: grid;
             place-items: center;
-            width: 72px;
-            height: 72px;
-            border-radius: 16px;
-            background: #fff;
-            color: var(--primary);
-            box-shadow: var(--shadow-soft);
+            width: 84px;
+            height: 84px;
+            border-radius: 22px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            color: #fff;
+            box-shadow: 0 18px 40px rgb(79 70 229 / 32%);
+            animation: dropzone-bounce 3s ease-in-out infinite;
+        }
+
+        @keyframes dropzone-bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
         }
 
         .dropzone-v2-graphic svg {
@@ -3595,38 +3634,69 @@
         }
 
         .dropzone-v2.is-dragover .dropzone-v2-graphic {
-            color: var(--accent);
+            animation: none;
+            transform: scale(1.08);
         }
 
         .dropzone-v2-body {
             display: grid;
-            gap: 4px;
+            gap: 6px;
             min-width: 0;
+            text-align: center;
         }
 
         .dropzone-v2-body strong {
             color: var(--ink);
-            font-size: 17px;
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.01em;
         }
 
         .dropzone-v2-body span {
             color: var(--muted);
+            font-size: 13px;
+        }
+
+        .dropzone-v2-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            min-height: 48px;
+            padding: 12px 24px;
+            border-radius: 12px;
+            background: var(--surface);
+            color: var(--primary);
             font-size: 14px;
-        }
-
-        .dropzone-v2-body em {
-            color: var(--primary-dark);
-            font-style: normal;
             font-weight: 700;
-            text-decoration: underline;
-            text-underline-offset: 3px;
+            border: 2px solid var(--primary);
+            box-shadow: 0 8px 20px rgb(79 70 229 / 18%);
+            transition: background 180ms ease, color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
         }
 
-        .dropzone-v2-body small {
+        .dropzone-v2:hover .dropzone-v2-cta {
+            background: var(--primary);
+            color: #fff;
+            transform: translateY(-1px);
+            box-shadow: 0 12px 28px rgb(79 70 229 / 32%);
+        }
+
+        .dropzone-v2.is-dragover .dropzone-v2-cta {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+
+        .dropzone-v2-cta svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .dropzone-v2-hint {
             margin-top: 4px;
             color: var(--muted);
             font-size: 12px;
             line-height: 1.45;
+            max-width: 480px;
         }
 
         .upload-selected {
@@ -4062,15 +4132,30 @@
             }
 
             .dropzone-v2 {
-                grid-template-columns: 1fr;
-                justify-items: center;
-                padding: 22px 18px;
-                text-align: center;
+                min-height: 220px;
+                padding: 26px 18px;
+                gap: 10px;
             }
 
-            .dropzone-v2-body {
-                justify-items: center;
-                text-align: center;
+            .dropzone-v2-graphic {
+                width: 64px;
+                height: 64px;
+                border-radius: 18px;
+            }
+
+            .dropzone-v2-graphic svg {
+                width: 30px;
+                height: 30px;
+            }
+
+            .dropzone-v2-body strong {
+                font-size: 18px;
+            }
+
+            .dropzone-v2-cta {
+                min-height: 44px;
+                padding: 10px 18px;
+                font-size: 13px;
             }
 
             .upload-controls {

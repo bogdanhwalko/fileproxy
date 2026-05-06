@@ -90,24 +90,39 @@
 
             <label class="dropzone-v2" data-dropzone>
                 <input type="file" name="files[]" multiple required data-upload-input>
+
+                <span class="dropzone-v2-pulse" aria-hidden="true"></span>
+
                 <div class="dropzone-v2-graphic" aria-hidden="true">
-                    <svg viewBox="0 0 64 64" fill="none">
-                        <rect x="8" y="14" width="48" height="40" rx="6" stroke="currentColor" stroke-width="2.5"/>
-                        <path d="M20 14v-2a4 4 0 0 1 4-4h6l4 4h12a4 4 0 0 1 4 4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-                        <path d="M32 26v18m-7-11 7-7 7 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
                     </svg>
                 </div>
+
                 <div class="dropzone-v2-body">
                     <strong>Перетягніть файли сюди</strong>
-                    <span>або <em>натисніть</em>, щоб обрати з пристрою</span>
-                    <small>
-                        @if ($canUseLocalStorage)
-                            Локально або Telegram — залежно від обраного сховища нижче.
-                        @else
-                            Файли потраплять у Telegram-сховище.
-                        @endif
-                    </small>
+                    <span>підтримується кілька файлів за раз, до {{ $telegramUploadMaxMb }} MB кожен</span>
                 </div>
+
+                <span class="dropzone-v2-cta">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="12" y1="18" x2="12" y2="12"/>
+                        <line x1="9" y1="15" x2="15" y2="15"/>
+                    </svg>
+                    Обрати файли з пристрою
+                </span>
+
+                <small class="dropzone-v2-hint">
+                    @if ($canUseLocalStorage)
+                        Локально або Telegram — залежно від обраного сховища нижче.
+                    @else
+                        Файли потраплять у Telegram-сховище.
+                    @endif
+                </small>
             </label>
 
             <div class="upload-selected" data-upload-selected hidden>
