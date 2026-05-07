@@ -4,7 +4,7 @@
 @section('robots', 'noindex, nofollow')
 
 @section('content')
-    <header class="topbar">
+    <header class="topbar topbar-v2">
         <a class="brand" href="{{ route('admin.users.index') }}">
             <div class="brand-mark">FP</div>
             <div>
@@ -14,8 +14,39 @@
         </a>
 
         <div class="nav-actions">
-            <a class="button secondary" href="{{ route('admin.users.index') }}">До користувачів</a>
-            <a class="button secondary" href="{{ route('files.index') }}">До файлів</a>
+            <span class="user-chip user-chip-v2">
+                @if ($user->is_admin)
+                    <span class="user-chip-avatar" aria-hidden="true">A</span>
+                @else
+                    <span class="user-chip-avatar" aria-hidden="true">{{ mb_strtoupper(mb_substr($user->name, 0, 1)) ?: 'U' }}</span>
+                @endif
+                <span class="user-chip-name">{{ $user->is_blocked ? 'Заблокований' : ($user->is_admin ? 'Адмін' : 'Активний') }}</span>
+            </span>
+            <a class="button secondary nav-button" href="{{ route('admin.users.index') }}" aria-label="До користувачів">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M19 12H5"/>
+                    <polyline points="12 19 5 12 12 5"/>
+                </svg>
+                <span class="nav-button-label">До користувачів</span>
+            </a>
+            <a class="button secondary nav-button" href="{{ route('files.index') }}" aria-label="Кабінет">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                </svg>
+                <span class="nav-button-label">Кабінет</span>
+            </a>
+            <form action="{{ route('logout') }}" method="post">
+                @csrf
+                <button class="button secondary nav-button nav-button-logout" type="submit" aria-label="Вийти">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                        <polyline points="16 17 21 12 16 7"/>
+                        <line x1="21" y1="12" x2="9" y2="12"/>
+                    </svg>
+                    <span class="nav-button-label">Вийти</span>
+                </button>
+            </form>
         </div>
     </header>
 
@@ -23,60 +54,143 @@
         <div class="status">{{ session('status') }}</div>
     @endif
 
-    <section class="stats" aria-label="Користувач">
-        <div class="stat">
-            <span>Файли</span>
-            <strong>{{ $stats['total'] }}</strong>
+    @if ($errors->any())
+        <div class="errors">
+            <strong>Перевірте дані форми.</strong>
+            <ul>
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    <section class="stats stats-v2" aria-label="Статистика користувача">
+        <div class="stat stat-primary">
+            <span class="stat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                </svg>
+            </span>
+            <div class="stat-body">
+                <strong>{{ $stats['total'] }}</strong>
+                <span>Усього файлів</span>
+            </div>
+        </div>
+        <div class="stat stat-accent">
+            <span class="stat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                    <path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                    <path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/>
+                </svg>
+            </span>
+            <div class="stat-body">
+                <strong>{{ $stats['storage'] }}</strong>
+                <span>Зайнято місця</span>
+            </div>
         </div>
         <div class="stat">
-            <span>Зайнято місця</span>
-            <strong>{{ $stats['storage'] }}</strong>
+            <span class="stat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                </svg>
+            </span>
+            <div class="stat-body">
+                <strong>{{ $stats['folders'] }}</strong>
+                <span>Папок</span>
+            </div>
         </div>
         <div class="stat">
-            <span>Папки</span>
-            <strong>{{ $stats['folders'] }}</strong>
+            <span class="stat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 2 11 13"/>
+                    <path d="M22 2 15 22l-4-9-9-4z"/>
+                </svg>
+            </span>
+            <div class="stat-body">
+                <strong>{{ $stats['telegram'] }}</strong>
+                <span>У Telegram</span>
+            </div>
         </div>
         <div class="stat">
-            <span>У Telegram</span>
-            <strong>{{ $stats['telegram'] }}</strong>
-        </div>
-        <div class="stat">
-            <span>У поточному розділі</span>
-            <strong>{{ $stats['current'] }}</strong>
+            <span class="stat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+            </span>
+            <div class="stat-body">
+                <strong>{{ $stats['current'] }}</strong>
+                <span>У поточному розділі</span>
+            </div>
         </div>
     </section>
 
     <section class="workspace">
         <aside class="sidebar-stack">
-            <section class="panel">
-                <div class="panel-header">
-                    <h2>Папки користувача</h2>
-                    <p>Фільтруйте файли за папками користувача.</p>
-                </div>
+            <section class="panel folders-panel-v2">
+                <header class="folders-header-v2">
+                    <div class="folders-header-title">
+                        <span class="folders-header-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                            </svg>
+                        </span>
+                        <h2>Папки</h2>
+                        <span class="folders-header-count">{{ $folders->count() }}</span>
+                    </div>
+                </header>
 
-                <div class="folder-list" aria-label="Папки користувача">
-                    <a class="folder-link {{ $folderFilter === 'all' ? 'active' : '' }}" href="{{ route('admin.users.show', array_merge(['user' => $user], request()->except(['folder', 'page']))) }}">
-                        <span class="folder-name">Усі файли</span>
-                        <span class="folder-count">{{ $stats['total'] }}</span>
+                <nav class="folders-list-v2" aria-label="Папки користувача">
+                    <a class="folder-item folder-item-pinned {{ $folderFilter === 'all' ? 'is-active' : '' }}" href="{{ route('admin.users.show', array_merge(['user' => $user], request()->except(['folder', 'page']))) }}">
+                        <span class="folder-item-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+                                <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+                                <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+                                <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+                            </svg>
+                        </span>
+                        <span class="folder-item-name">Усі файли</span>
+                        <span class="folder-item-count">{{ $stats['total'] }}</span>
                     </a>
-                    <a class="folder-link {{ $folderFilter === 'root' ? 'active' : '' }}" href="{{ route('admin.users.show', array_merge(['user' => $user], request()->except(['folder', 'page']), ['folder' => 'root'])) }}">
-                        <span class="folder-name">Без папки</span>
-                        <span class="folder-count">{{ $stats['root'] }}</span>
+
+                    <a class="folder-item folder-item-pinned {{ $folderFilter === 'root' ? 'is-active' : '' }}" href="{{ route('admin.users.show', array_merge(['user' => $user], request()->except(['folder', 'page']), ['folder' => 'root'])) }}">
+                        <span class="folder-item-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="9"/>
+                                <line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
+                        </span>
+                        <span class="folder-item-name">Без папки</span>
+                        <span class="folder-item-count">{{ $stats['root'] }}</span>
                     </a>
+
+                    @if ($folders->isNotEmpty())
+                        <div class="folders-divider" aria-hidden="true"></div>
+                    @endif
 
                     @foreach ($folders as $folder)
-                        <a class="folder-link {{ $activeFolder?->id === $folder->id ? 'active' : '' }}" href="{{ route('admin.users.show', array_merge(['user' => $user], request()->except(['folder', 'page']), ['folder' => $folder->id])) }}">
-                            <span class="folder-name">{{ $folder->name }}</span>
-                            <span class="folder-count">{{ $folder->files_count }}</span>
+                        <a class="folder-item {{ $activeFolder?->id === $folder->id ? 'is-active' : '' }}" href="{{ route('admin.users.show', array_merge(['user' => $user], request()->except(['folder', 'page']), ['folder' => $folder->id])) }}">
+                            <span class="folder-item-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                                </svg>
+                            </span>
+                            <span class="folder-item-name">{{ $folder->name }}</span>
+                            <span class="folder-item-count">{{ $folder->files_count }}</span>
                         </a>
                     @endforeach
-                </div>
+                </nav>
             </section>
 
             <section class="panel">
                 <div class="panel-header">
                     <h2>Доступ</h2>
-                    <p>Поточний статус користувача і швидкі дії.</p>
+                    <p>Поточний статус і швидкі дії над акаунтом.</p>
                 </div>
 
                 <div class="settings-list">
@@ -101,48 +215,105 @@
             </section>
         </aside>
 
-        <section class="panel" aria-label="Файли користувача">
-            <form class="filters" action="{{ route('admin.users.show', $user) }}" method="get">
+        <section class="panel" aria-label="Файли користувача" data-files-region>
+            <form class="filters filters-v2" action="{{ route('admin.users.show', $user) }}" method="get">
                 @if ($folderFilter !== 'all')
                     <input type="hidden" name="folder" value="{{ $folderFilter }}">
                 @endif
                 <input type="hidden" name="view" value="{{ $display }}">
-                @if ($imagePreviews)
-                    <input type="hidden" name="image_previews" value="1">
-                @endif
-                <input class="field" type="search" name="search" value="{{ $search }}" placeholder="Пошук за назвою, MIME або розширенням">
-                <select class="field" name="type">
-                    <option value="all" @selected($type === 'all')>Усі типи</option>
-                    <option value="images" @selected($type === 'images')>Зображення</option>
-                    <option value="documents" @selected($type === 'documents')>Документи</option>
-                    <option value="archives" @selected($type === 'archives')>Архіви</option>
-                </select>
-                <button class="button secondary" type="submit">Фільтрувати</button>
+
+                <div class="filter-field filter-field-search">
+                    <label for="filter-search">Пошук</label>
+                    <input id="filter-search" class="field" type="search" name="search" value="{{ $search }}" placeholder="Назва, MIME або розширення">
+                </div>
+
+                <div class="filter-field filter-field-type">
+                    <label for="filter-type">Тип</label>
+                    <select id="filter-type" class="field" name="type">
+                        <option value="all" @selected($type === 'all')>Усі типи</option>
+                        <option value="images" @selected($type === 'images')>Зображення</option>
+                        <option value="videos" @selected($type === 'videos')>Відео</option>
+                        <option value="audio" @selected($type === 'audio')>Аудіо</option>
+                        <option value="documents" @selected($type === 'documents')>Документи</option>
+                        <option value="spreadsheets" @selected($type === 'spreadsheets')>Таблиці</option>
+                        <option value="presentations" @selected($type === 'presentations')>Презентації</option>
+                        <option value="archives" @selected($type === 'archives')>Архіви</option>
+                        <option value="code" @selected($type === 'code')>Код</option>
+                        <option value="design" @selected($type === 'design')>Дизайн</option>
+                        <option value="ebooks" @selected($type === 'ebooks')>Книги</option>
+                        <option value="fonts" @selected($type === 'fonts')>Шрифти</option>
+                    </select>
+                </div>
+
+                <div class="filter-field filter-field-daterange filter-daterange">
+                    <label for="filter-daterange">Період</label>
+                    <input
+                        id="filter-daterange"
+                        type="text"
+                        class="field"
+                        data-flatpickr-range
+                        data-initial-from="{{ $dateFrom }}"
+                        data-initial-to="{{ $dateTo }}"
+                        placeholder="Оберіть діапазон"
+                        readonly
+                    >
+                    <input type="hidden" name="date_from" value="{{ $dateFrom }}" data-flatpickr-from>
+                    <input type="hidden" name="date_to" value="{{ $dateTo }}" data-flatpickr-to>
+                </div>
+
+                <div class="filter-actions">
+                    <button class="button filter-submit" type="submit">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+                        </svg>
+                        Фільтрувати
+                    </button>
+                    @php
+                        $hasActiveFilter = $search !== '' || $type !== 'all' || $dateFrom !== '' || $dateTo !== '';
+                        $resetUrl = route('admin.users.show', $folderFilter !== 'all'
+                            ? ['user' => $user, 'folder' => $folderFilter, 'view' => $display]
+                            : ['user' => $user, 'view' => $display]);
+                    @endphp
+                    <a
+                        class="button secondary filter-reset {{ $hasActiveFilter ? '' : 'is-disabled' }}"
+                        href="{{ $hasActiveFilter ? $resetUrl : '#' }}"
+                        @if (! $hasActiveFilter) aria-disabled="true" tabindex="-1" @endif
+                        title="{{ $hasActiveFilter ? 'Скинути всі фільтри' : 'Зараз немає активних фільтрів' }}"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M3 12a9 9 0 1 0 3-6.7"/>
+                            <polyline points="3 4 3 10 9 10"/>
+                        </svg>
+                        Скинути
+                    </a>
+                </div>
             </form>
 
             <div class="file-view-bar">
-                <span>Показано {{ $files->count() }} з {{ $files->total() }}</span>
-                <div class="view-toggle" aria-label="Вигляд файлів користувача">
-                    <a class="button secondary {{ $display === 'table' ? 'active' : '' }}" href="{{ route('admin.users.show', array_merge(['user' => $user], request()->except(['page', 'view', 'image_previews']), ['view' => 'table'])) }}">Таблиця</a>
-                    <a class="button secondary {{ $display === 'grid' ? 'active' : '' }}" href="{{ route('admin.users.show', array_merge(['user' => $user], request()->except(['page', 'view']), ['view' => 'grid'])) }}">Плитки</a>
-                    @if ($display === 'grid')
-                        <a
-                            class="button secondary {{ $imagePreviews ? 'active' : '' }}"
-                            href="{{ route('admin.users.show', $imagePreviews
-                                ? array_merge(['user' => $user], request()->except(['page', 'image_previews']), ['view' => 'grid'])
-                                : array_merge(['user' => $user], request()->except(['page']), ['view' => 'grid', 'image_previews' => 1])) }}"
-                        >
-                            {{ $imagePreviews ? 'Фото увімкнено' : 'Передзавантажити фото' }}
-                        </a>
-                    @endif
+                <span data-file-summary data-total="{{ $files->total() }}">Показано {{ $files->count() }} з {{ $files->total() }}</span>
+                <div class="file-view-bar-actions">
+                    <div class="view-toggle" aria-label="Вигляд списку файлів">
+                        <a class="button secondary {{ $display === 'table' ? 'active' : '' }}" href="{{ route('admin.users.show', array_merge(['user' => $user], request()->except(['page', 'view', 'image_previews']), ['view' => 'table'])) }}">Таблиця</a>
+                        <a class="button secondary {{ $display === 'grid' ? 'active' : '' }}" href="{{ route('admin.users.show', array_merge(['user' => $user], request()->except(['page', 'view']), ['view' => 'grid'])) }}">Плитки</a>
+                        @if ($display === 'grid')
+                            <a
+                                class="button secondary {{ $imagePreviews ? 'active' : '' }}"
+                                href="{{ route('admin.users.show', $imagePreviews
+                                    ? array_merge(['user' => $user], request()->except(['page', 'image_previews']), ['view' => 'grid'])
+                                    : array_merge(['user' => $user], request()->except(['page']), ['view' => 'grid', 'image_previews' => 1])) }}"
+                            >
+                                {{ $imagePreviews ? 'Фото увімкнено' : 'Передзавантажити фото' }}
+                            </a>
+                        @endif
+                    </div>
                 </div>
             </div>
 
             @if ($display === 'grid')
-                <div class="file-grid {{ $imagePreviews ? 'with-previews' : '' }}">
+                <div class="file-grid {{ $imagePreviews ? 'with-previews' : '' }}" data-file-items>
                     @forelse ($files as $file)
-                        <article class="file-tile">
-                            @if ($imagePreviews && $file->is_image)
+                        <article class="file-tile file-tile-status-{{ $file->status }}" data-file-item>
+                            @if ($imagePreviews && $file->is_uploaded && $file->is_image)
                                 <a class="file-tile-preview" href="{{ route('admin.users.files.preview', [$user, $file]) }}" aria-label="Відкрити {{ $file->original_name }}">
                                     <img src="{{ route('admin.users.files.inline', [$user, $file]) }}" alt="{{ $file->original_name }}" loading="eager" decoding="async">
                                 </a>
@@ -158,24 +329,16 @@
                                     <span>{{ $file->mime_type ?? 'unknown' }}</span>
                                 </div>
                             </div>
+                            @if (! $file->is_uploaded)
+                                <span class="file-status-badge file-status-badge-{{ $file->status }}">{{ $file->status_label }}</span>
+                            @endif
                             <div class="file-tile-meta">
                                 <span>{{ $file->folder?->name ?? 'Без папки' }}</span>
                                 <span>{{ $file->storage_label }}</span>
                                 <span>{{ $file->human_size }} · {{ $file->created_at->format('d.m.Y H:i') }}</span>
-                                @if ($file->is_telegram)
-                                    <span>Chat: {{ $file->telegram_chat_id }} · Message: {{ $file->telegram_message_id }}</span>
-                                @endif
                             </div>
                             <div class="file-tile-actions">
-                                @if ($file->is_previewable)
-                                    <a class="button accent" href="{{ route('admin.users.files.preview', [$user, $file]) }}">Переглянути</a>
-                                @endif
-                                <a class="button secondary" href="{{ route('admin.users.files.download', [$user, $file]) }}">Скачати</a>
-                                <form action="{{ route('admin.users.files.destroy', [$user, $file]) }}" method="post">
-                                    @csrf
-                                    @method('delete')
-                                    <button class="button danger" type="submit">Видалити</button>
-                                </form>
+                                @include('admin.partials.file-actions', ['user' => $user, 'file' => $file])
                             </div>
                         </article>
                     @empty
@@ -191,45 +354,38 @@
                                 <th>Папка</th>
                                 <th>Сховище</th>
                                 <th>Розмір</th>
-                                <th>Telegram</th>
                                 <th>Дата</th>
                                 <th></th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody data-file-items>
                             @forelse ($files as $file)
-                                <tr>
+                                <tr class="file-row-status-{{ $file->status }}" data-file-item>
                                     <td>
                                         <div class="file-table-name">
                                             <span class="file-icon">{{ $file->type_label }}</span>
                                             <div class="file-table-title">
                                                 <strong title="{{ $file->original_name }}">{{ $file->original_name }}</strong>
                                                 <span>{{ $file->mime_type ?? 'unknown' }}</span>
+                                                @if (! $file->is_uploaded)
+                                                    <span class="file-status-badge file-status-badge-{{ $file->status }}">{{ $file->status_label }}</span>
+                                                @endif
                                             </div>
                                         </div>
                                     </td>
                                     <td class="muted">{{ $file->folder?->name ?? 'Без папки' }}</td>
                                     <td class="muted">{{ $file->storage_label }}</td>
                                     <td>{{ $file->human_size }}</td>
-                                    <td class="muted">{{ $file->is_telegram ? (($file->telegram_chat_id ?? '—').' / '.($file->telegram_message_id ?? '—')) : '—' }}</td>
                                     <td class="muted">{{ $file->created_at->format('d.m.Y H:i') }}</td>
                                     <td>
                                         <div class="file-row-actions">
-                                            @if ($file->is_previewable)
-                                                <a class="button accent" href="{{ route('admin.users.files.preview', [$user, $file]) }}">Переглянути</a>
-                                            @endif
-                                            <a class="button secondary" href="{{ route('admin.users.files.download', [$user, $file]) }}">Скачати</a>
-                                            <form action="{{ route('admin.users.files.destroy', [$user, $file]) }}" method="post">
-                                                @csrf
-                                                @method('delete')
-                                                <button class="button danger" type="submit">Видалити</button>
-                                            </form>
+                                            @include('admin.partials.file-actions', ['user' => $user, 'file' => $file])
                                         </div>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7">
+                                    <td colspan="6">
                                         <div class="empty">У користувача ще немає файлів.</div>
                                     </td>
                                 </tr>
@@ -239,20 +395,55 @@
                 </div>
             @endif
 
-            @if ($files->hasPages())
-                <nav class="pagination" aria-label="Навігація файлами користувача">
-                    <span>Сторінка {{ $files->currentPage() }} з {{ $files->lastPage() }}</span>
-                    <div class="pagination-actions">
+            @if ($files->lastPage() > 1)
+                @php
+                    $current = $files->currentPage();
+                    $last = $files->lastPage();
+                    $window = 1;
+                    $pages = [];
+                    $pages[] = 1;
+                    if ($current - $window > 2) {
+                        $pages[] = '...';
+                    }
+                    for ($i = max(2, $current - $window); $i <= min($last - 1, $current + $window); $i++) {
+                        $pages[] = $i;
+                    }
+                    if ($current + $window < $last - 1) {
+                        $pages[] = '...';
+                    }
+                    if ($last > 1) {
+                        $pages[] = $last;
+                    }
+                    $from = ($current - 1) * $files->perPage() + 1;
+                    $to = min($current * $files->perPage(), $files->total());
+                @endphp
+
+                <nav class="pagination-v2" aria-label="Навігація сторінок">
+                    <span class="pagination-summary">
+                        {{ $from }}–{{ $to }} з {{ $files->total() }}
+                    </span>
+                    <div class="pagination-pages">
                         @if ($files->onFirstPage())
-                            <span class="button secondary disabled">Назад</span>
+                            <span class="button secondary disabled" aria-disabled="true">Назад</span>
                         @else
-                            <a class="button secondary" href="{{ $files->previousPageUrl() }}">Назад</a>
+                            <a class="button secondary" href="{{ $files->previousPageUrl() }}" rel="prev">Назад</a>
                         @endif
 
+                        @foreach ($pages as $p)
+                            @if ($p === '...')
+                                <span class="pagination-ellipsis">…</span>
+                            @else
+                                <a
+                                    class="button secondary {{ $p === $current ? 'active' : '' }}"
+                                    href="{{ $files->url($p) }}"
+                                >{{ $p }}</a>
+                            @endif
+                        @endforeach
+
                         @if ($files->hasMorePages())
-                            <a class="button secondary" href="{{ $files->nextPageUrl() }}">Далі</a>
+                            <a class="button secondary" href="{{ $files->nextPageUrl() }}" rel="next">Далі</a>
                         @else
-                            <span class="button secondary disabled">Далі</span>
+                            <span class="button secondary disabled" aria-disabled="true">Далі</span>
                         @endif
                     </div>
                 </nav>
