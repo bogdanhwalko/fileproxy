@@ -4639,7 +4639,6 @@
         /* === Upload v2 === */
         .upload-panel-v2 {
             position: relative;
-            overflow: hidden;
             margin-bottom: 20px;
             border: 1px solid var(--line);
             border-radius: 16px;
@@ -5020,23 +5019,24 @@
 
         .upload-selected-list {
             display: grid;
-            gap: 6px;
+            gap: 4px;
             margin: 0;
             padding: 0;
             list-style: none;
-            max-height: 280px;
+            max-height: 320px;
             overflow-y: auto;
         }
 
         .upload-selected-item {
             position: relative;
             display: grid;
-            grid-template-columns: 36px minmax(0, 1fr) auto auto auto;
-            gap: 10px;
+            grid-template-columns: 28px minmax(0, 1fr) auto auto auto;
+            gap: 8px;
             align-items: center;
-            padding: 10px 12px 14px;
+            min-height: 36px;
+            padding: 4px 8px 6px;
             border: 1px solid var(--line);
-            border-radius: 10px;
+            border-radius: 8px;
             background: var(--surface-subtle);
             overflow: hidden;
             transition: border-color 200ms ease, background 200ms ease, box-shadow 200ms ease;
@@ -5066,13 +5066,13 @@
         .upload-selected-state {
             display: none;
             place-items: center;
-            width: 24px;
-            height: 24px;
+            width: 20px;
+            height: 20px;
         }
 
         .upload-selected-state svg {
-            width: 18px;
-            height: 18px;
+            width: 16px;
+            height: 16px;
             display: none;
         }
 
@@ -5190,20 +5190,21 @@
         .upload-selected-icon {
             display: grid;
             place-items: center;
-            width: 36px;
-            height: 36px;
-            border-radius: 8px;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
             background: #fff;
             color: var(--primary-dark);
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 700;
-            letter-spacing: 0.04em;
+            letter-spacing: 0.03em;
             text-transform: uppercase;
         }
 
         .upload-selected-name {
-            display: grid;
-            gap: 2px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
             min-width: 0;
         }
 
@@ -5214,11 +5215,21 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            min-width: 0;
         }
 
-        .upload-selected-name span {
+        .upload-selected-status {
+            display: none;
             color: var(--muted);
             font-size: 11px;
+            white-space: nowrap;
+        }
+
+        .upload-selected-item[data-state="uploading"] .upload-selected-status,
+        .upload-selected-item[data-state="processing"] .upload-selected-status,
+        .upload-selected-item[data-state="done"] .upload-selected-status,
+        .upload-selected-item[data-state="error"] .upload-selected-status {
+            display: inline;
         }
 
         .upload-selected-size {
@@ -5226,17 +5237,20 @@
             font-size: 12px;
             font-variant-numeric: tabular-nums;
             white-space: nowrap;
+            padding-left: 4px;
         }
 
         .upload-selected-remove {
             display: grid;
             place-items: center;
-            width: 28px;
-            height: 28px;
+            width: 22px;
+            height: 22px;
             border: 1px solid var(--line);
-            border-radius: 8px;
+            border-radius: 6px;
             background: #fff;
             color: var(--muted);
+            font-size: 14px;
+            line-height: 1;
             cursor: pointer;
             transition: color 140ms ease, border-color 140ms ease, background 140ms ease;
         }
