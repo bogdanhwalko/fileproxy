@@ -19,37 +19,37 @@
                 <span class="user-chip-name">{{ auth()->user()->name }}</span>
             </span>
             @if (auth()->user()->is_admin)
-                <a class="button secondary nav-button" href="{{ route('admin.users.index') }}">
+                <a class="button secondary nav-button" href="{{ route('admin.users.index') }}" aria-label="Адмінка">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5z"/>
                     </svg>
-                    Адмінка
+                    <span class="nav-button-label">Адмінка</span>
                 </a>
             @endif
-            <a class="button secondary nav-button" href="{{ route('stats.index') }}">
+            <a class="button secondary nav-button" href="{{ route('stats.index') }}" aria-label="Статистика">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <line x1="18" y1="20" x2="18" y2="10"/>
                     <line x1="12" y1="20" x2="12" y2="4"/>
                     <line x1="6" y1="20" x2="6" y2="14"/>
                 </svg>
-                Статистика
+                <span class="nav-button-label">Статистика</span>
             </a>
-            <a class="button secondary nav-button" href="{{ route('telegram-settings.index') }}">
+            <a class="button secondary nav-button" href="{{ route('telegram-settings.index') }}" aria-label="Telegram-сховище">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M22 2 11 13"/>
                     <path d="M22 2 15 22l-4-9-9-4z"/>
                 </svg>
-                Telegram-сховище
+                <span class="nav-button-label">Telegram-сховище</span>
             </a>
             <form action="{{ route('logout') }}" method="post">
                 @csrf
-                <button class="button secondary nav-button nav-button-logout" type="submit">
+                <button class="button secondary nav-button nav-button-logout" type="submit" aria-label="Вийти">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
                         <polyline points="16 17 21 12 16 7"/>
                         <line x1="21" y1="12" x2="9" y2="12"/>
                     </svg>
-                    Вийти
+                    <span class="nav-button-label">Вийти</span>
                 </button>
             </form>
         </div>

@@ -4483,19 +4483,28 @@
                 flex-wrap: nowrap;
             }
 
-            .topbar-v2 .nav-button-logout {
-                min-height: 38px;
-                padding: 8px 14px;
-                white-space: nowrap;
-            }
-
             .topbar-v2 form {
                 display: inline-flex;
                 flex: 0 0 auto;
+                margin: 0;
             }
 
-            .topbar-v2 .nav-actions .nav-button:not(.nav-button-logout) {
+            .topbar-v2 .nav-actions .nav-button {
+                min-height: 38px;
+                width: 38px;
+                padding: 0;
+                gap: 0;
+                flex: 0 0 auto;
+                justify-content: center;
+            }
+
+            .topbar-v2 .nav-actions .nav-button .nav-button-label {
                 display: none;
+            }
+
+            .topbar-v2 .nav-actions .nav-button svg {
+                width: 18px;
+                height: 18px;
             }
 
             .topbar-v2 .user-chip-v2 {
