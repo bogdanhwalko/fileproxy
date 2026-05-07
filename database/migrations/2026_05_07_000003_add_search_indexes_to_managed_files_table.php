@@ -1,9 +1,7 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -12,24 +10,38 @@ return new class extends Migration
         $driver = DB::connection()->getDriverName();
 
         if (in_array($driver, ['mysql', 'mariadb'], true)) {
-            DB::statement('ALTER TABLE managed_files ADD FULLTEXT INDEX managed_files_original_name_fulltext (original_name)');
+            if (! $this->indexExists('managed_files', 'managed_files_original_name_fulltext')) {
+                DB::statement('ALTER TABLE managed_files ADD FULLTEXT INDEX managed_files_original_name_fulltext (original_name)');
+            }
         }
 
-        Schema::table('managed_files', function (Blueprint $table) {
-            $table->index('storage_driver', 'managed_files_storage_driver_index');
-        });
+        if (! $this->indexExists('managed_files', 'managed_files_storage_driver_index')) {
+            DB::statement('ALTER TABLE managed_files ADD INDEX managed_files_storage_driver_index (storage_driver)');
+        }
     }
 
     public function down(): void
     {
-        $driver = DB::connection()->getDriverName();
-
-        if (in_array($driver, ['mysql', 'mariadb'], true)) {
+        if ($this->indexExists('managed_files', 'managed_files_original_name_fulltext')) {
             DB::statement('ALTER TABLE managed_files DROP INDEX managed_files_original_name_fulltext');
         }
 
-        Schema::table('managed_files', function (Blueprint $table) {
-            $table->dropIndex('managed_files_storage_driver_index');
-        });
+        if ($this->indexExists('managed_files', 'managed_files_storage_driver_index')) {
+            DB::statement('ALTER TABLE managed_files DROP INDEX managed_files_storage_driver_index');
+        }
+    }
+
+    private function indexExists(string $table, string $index): bool
+    {
+        try {
+            $rows = DB::select(
+                'SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ? LIMIT 1',
+                [$table, $index]
+            );
+        } catch (\Throwable) {
+            return false;
+        }
+
+        return ! empty($rows);
     }
 };
