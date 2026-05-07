@@ -1490,7 +1490,6 @@
 
         .upload-panel {
             margin-bottom: 16px;
-            overflow: hidden;
         }
 
         .upload-panel-head {
