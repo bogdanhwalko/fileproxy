@@ -581,8 +581,8 @@
             @if ($display === 'grid')
                 <div class="file-grid {{ $imagePreviews ? 'with-previews' : '' }}" data-file-items>
                     @forelse ($files as $file)
-                        <article class="file-tile" data-file-item>
-                            @if ($imagePreviews && $file->is_image)
+                        <article class="file-tile file-tile-status-{{ $file->status }}" data-file-item>
+                            @if ($imagePreviews && $file->is_uploaded && $file->is_image)
                                 <a class="file-tile-preview" href="{{ route('files.preview', $file) }}" aria-label="Відкрити {{ $file->original_name }}">
                                     <img src="{{ route('files.inline', $file) }}" alt="{{ $file->original_name }}" loading="eager" decoding="async">
                                 </a>
@@ -598,6 +598,9 @@
                                     <span>{{ $file->mime_type ?? 'unknown' }}</span>
                                 </div>
                             </div>
+                            @if (! $file->is_uploaded)
+                                <span class="file-status-badge file-status-badge-{{ $file->status }}">{{ $file->status_label }}</span>
+                            @endif
                             <div class="file-tile-meta">
                                 <span>{{ $file->folder?->name ?? 'Без папки' }}</span>
                                 <span>{{ $file->storage_label }}</span>
@@ -626,13 +629,16 @@
                         </thead>
                         <tbody data-file-items>
                             @forelse ($files as $file)
-                                <tr data-file-item>
+                                <tr class="file-row-status-{{ $file->status }}" data-file-item>
                                     <td>
                                         <div class="file-table-name">
                                             <span class="file-icon">{{ $file->type_label }}</span>
                                             <div class="file-table-title">
                                                 <strong title="{{ $file->original_name }}">{{ $file->original_name }}</strong>
                                                 <span>{{ $file->mime_type ?? 'unknown' }}</span>
+                                                @if (! $file->is_uploaded)
+                                                    <span class="file-status-badge file-status-badge-{{ $file->status }}">{{ $file->status_label }}</span>
+                                                @endif
                                             </div>
                                         </div>
                                     </td>

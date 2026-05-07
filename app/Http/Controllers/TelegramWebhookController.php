@@ -7,6 +7,7 @@ use App\Services\PhoneAuthService;
 use App\Services\TelegramBotService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 
 class TelegramWebhookController extends Controller
@@ -55,7 +56,12 @@ class TelegramWebhookController extends Controller
 
         if ($payload === '') {
             $telegramUserId = data_get($message, 'from.id');
-            $knownContact = $telegramUserId && Schema::hasTable('telegram_auth_contacts')
+            $contactsTableExists = Cache::remember(
+                'fileproxy:has-telegram-auth-contacts',
+                now()->addMinutes(10),
+                fn (): bool => Schema::hasTable('telegram_auth_contacts')
+            );
+            $knownContact = $telegramUserId && $contactsTableExists
                 ? TelegramAuthContact::where('telegram_user_id', (string) $telegramUserId)->first()
                 : null;
 
@@ -117,7 +123,13 @@ class TelegramWebhookController extends Controller
             return;
         }
 
-        if ($senderId && Schema::hasTable('telegram_auth_contacts')) {
+        $contactsTableExists = Cache::remember(
+            'fileproxy:has-telegram-auth-contacts',
+            now()->addMinutes(10),
+            fn (): bool => Schema::hasTable('telegram_auth_contacts')
+        );
+
+        if ($senderId && $contactsTableExists) {
             TelegramAuthContact::updateOrCreate(
                 ['telegram_user_id' => (string) $senderId],
                 [

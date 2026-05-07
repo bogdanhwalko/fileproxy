@@ -12,7 +12,31 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        // $schedule->command('inspire')->hourly();
+        $schedule->call(function (): void {
+            $this->cleanupTempDirectory(storage_path('app/file-archives'), 3600);
+            $this->cleanupTempDirectory(storage_path('app/share-zips'), 3600);
+            $this->cleanupTempDirectory(storage_path('app/telegram-temp'), 3600);
+            $this->cleanupTempDirectory(storage_path('app/uploads-pending'), 86400);
+        })->name('fileproxy:cleanup-temp')->hourly()->withoutOverlapping();
+    }
+
+    private function cleanupTempDirectory(string $directory, int $olderThanSeconds): void
+    {
+        if (! is_dir($directory)) {
+            return;
+        }
+
+        $threshold = time() - $olderThanSeconds;
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST
+        );
+
+        foreach ($iterator as $entry) {
+            if ($entry->isFile() && $entry->getMTime() < $threshold) {
+                @unlink($entry->getPathname());
+            }
+        }
     }
 
     /**

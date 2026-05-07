@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Jobs\UploadManagedFileToTelegram;
 use App\Models\ManagedFile;
 use App\Models\TelegramStorageGroup;
 use App\Models\User;
+use Illuminate\Http\Response;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -30,26 +32,27 @@ class ManagedFileStorageService
         }
 
         if ($telegramGroup) {
-            $telegram = $this->telegram->sendDocument($uploadedFile, $telegramGroup);
+            $pendingDirectory = 'uploads-pending/'.$user->id;
+            $pendingPath = $uploadedFile->storeAs($pendingDirectory, $storedName, 'local');
 
-            return ManagedFile::create([
+            $file = ManagedFile::create([
                 'user_id' => $user->id,
                 'folder_id' => $folderId,
                 'storage_driver' => 'telegram',
                 'telegram_bot_token_id' => $telegramGroup->telegram_bot_token_id,
                 'telegram_storage_group_id' => $telegramGroup->id,
-                'telegram_chat_id' => $telegram['chat_id'],
-                'telegram_message_id' => $telegram['message_id'],
-                'telegram_file_id' => $telegram['file_id'],
-                'telegram_file_unique_id' => $telegram['file_unique_id'],
-                'telegram_response' => $telegram['payload'],
                 'original_name' => $uploadedFile->getClientOriginalName(),
                 'stored_name' => $storedName,
-                'path' => 'telegram/'.$user->id.'/'.$storedName,
-                'mime_type' => $telegram['mime_type'],
+                'path' => $pendingPath,
+                'mime_type' => $uploadedFile->getMimeType() ?: 'application/octet-stream',
                 'extension' => $extension ?: null,
-                'size' => $telegram['file_size'],
+                'size' => $uploadedFile->getSize() ?: 0,
+                'status' => ManagedFile::STATUS_PENDING,
             ]);
+
+            UploadManagedFileToTelegram::dispatch($file);
+
+            return $file;
         }
 
         $storageDirectory = 'uploads/'.$user->id.'/'.($folderId ? "folders/{$folderId}" : 'root');
@@ -70,6 +73,10 @@ class ManagedFileStorageService
 
     public function exists(ManagedFile $file): bool
     {
+        if ($file->is_pending || $file->is_failed) {
+            return false;
+        }
+
         if ($file->is_telegram) {
             return (bool) ($file->telegramBotToken && $file->telegram_file_id);
         }
@@ -77,9 +84,13 @@ class ManagedFileStorageService
         return Storage::disk('local')->exists($file->path);
     }
 
-    public function downloadResponse(ManagedFile $file): StreamedResponse|BinaryFileResponse
+    public function downloadResponse(ManagedFile $file): StreamedResponse|BinaryFileResponse|Response
     {
         if (! $file->is_telegram) {
+            if ($accel = $this->xAccelResponse($file, HeaderUtils::DISPOSITION_ATTACHMENT)) {
+                return $accel;
+            }
+
             return Storage::disk('local')->download($file->path, $file->original_name, [
                 'Content-Type' => $file->mime_type ?: 'application/octet-stream',
             ]);
@@ -94,9 +105,13 @@ class ManagedFileStorageService
             ->deleteFileAfterSend();
     }
 
-    public function inlineResponse(ManagedFile $file): StreamedResponse|BinaryFileResponse
+    public function inlineResponse(ManagedFile $file): StreamedResponse|BinaryFileResponse|Response
     {
         if (! $file->is_telegram) {
+            if ($accel = $this->xAccelResponse($file, HeaderUtils::DISPOSITION_INLINE)) {
+                return $accel;
+            }
+
             return Storage::disk('local')->response($file->path, $file->original_name, [
                 'Content-Type' => $file->mime_type ?: 'application/octet-stream',
             ]);
@@ -126,6 +141,77 @@ class ManagedFileStorageService
                 $this->asciiDownloadFallback($file->original_name)
             ),
         ]);
+    }
+
+    public function downloadLocalPathResponse(string $absolutePath, string $downloadName, string $contentType = 'application/zip'): Response|BinaryFileResponse
+    {
+        if ($accel = $this->xAccelResponseForAbsolutePath($absolutePath, $downloadName, $contentType, HeaderUtils::DISPOSITION_ATTACHMENT)) {
+            return $accel;
+        }
+
+        return response()
+            ->download($absolutePath, $downloadName, ['Content-Type' => $contentType])
+            ->deleteFileAfterSend();
+    }
+
+    private function xAccelResponse(ManagedFile $file, string $disposition): ?Response
+    {
+        return $this->xAccelResponseForAbsolutePath(
+            Storage::disk('local')->path($file->path),
+            $file->original_name,
+            $file->mime_type ?: 'application/octet-stream',
+            $disposition
+        );
+    }
+
+    private function xAccelResponseForAbsolutePath(
+        string $absolutePath,
+        string $downloadName,
+        string $contentType,
+        string $disposition
+    ): ?Response {
+        if (! $this->xAccelEnabled()) {
+            return null;
+        }
+
+        $internalPath = $this->mapToInternalPath($absolutePath);
+
+        if ($internalPath === null) {
+            return null;
+        }
+
+        $headers = [
+            'Content-Type' => $contentType,
+            'X-Accel-Redirect' => $internalPath,
+            'Content-Disposition' => HeaderUtils::makeDisposition(
+                $disposition,
+                $this->safeDownloadName($downloadName),
+                $this->asciiDownloadFallback($downloadName)
+            ),
+        ];
+
+        return response('', 200, $headers);
+    }
+
+    private function xAccelEnabled(): bool
+    {
+        return strtolower((string) config('filesystems.sendfile_driver', env('SENDFILE_DRIVER', 'none'))) === 'nginx';
+    }
+
+    private function mapToInternalPath(string $absolutePath): ?string
+    {
+        $storageRoot = rtrim(Storage::disk('local')->path(''), DIRECTORY_SEPARATOR.'/');
+        $absolutePath = str_replace('\\', '/', $absolutePath);
+        $storageRoot = str_replace('\\', '/', $storageRoot);
+
+        if (! str_starts_with($absolutePath, $storageRoot.'/')) {
+            return null;
+        }
+
+        $relative = ltrim(substr($absolutePath, strlen($storageRoot)), '/');
+        $prefix = (string) config('filesystems.x_accel_prefix', env('X_ACCEL_PREFIX', '/internal-storage/'));
+
+        return rtrim($prefix, '/').'/'.$relative;
     }
 
     public function readTextPreview(ManagedFile $file): array
@@ -172,7 +258,11 @@ class ManagedFileStorageService
 
     public function delete(ManagedFile $file): void
     {
-        if ($file->is_telegram) {
+        if ($file->is_pending || $file->is_failed) {
+            if ($file->path) {
+                Storage::disk('local')->delete($file->path);
+            }
+        } elseif ($file->is_telegram) {
             $this->telegram->deleteMessage($file);
         } else {
             Storage::disk('local')->delete($file->path);

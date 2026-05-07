@@ -16,6 +16,8 @@ use ZipArchive;
 
 class ShareController extends Controller
 {
+    private const SHARE_FOLDER_ARCHIVE_FILE_LIMIT = 200;
+
     public function shareFile(Request $request, ManagedFile $file): RedirectResponse|JsonResponse
     {
         $this->authorizeFileOwner($file);
@@ -216,9 +218,18 @@ class ShareController extends Controller
     public function downloadFolder(string $token, ManagedFileStorageService $fileStorage)
     {
         $folder = $this->sharedFolder($token);
-        $this->consumeFolderShareView($folder);
 
         abort_unless(class_exists(ZipArchive::class), 503);
+
+        $totalFiles = $folder->files()->count();
+
+        abort_if(
+            $totalFiles > self::SHARE_FOLDER_ARCHIVE_FILE_LIMIT,
+            413,
+            'Архів папки обмежений до '.self::SHARE_FOLDER_ARCHIVE_FILE_LIMIT.' файлів. Власник папки має завантажити архів вручну.'
+        );
+
+        $this->consumeFolderShareView($folder);
 
         $directory = storage_path('app/share-zips');
         File::ensureDirectoryExists($directory);
@@ -236,13 +247,20 @@ class ShareController extends Controller
             $folder->files()
                 ->with(['telegramBotToken', 'telegramStorageGroup.botToken'])
                 ->oldest()
+                ->limit(self::SHARE_FOLDER_ARCHIVE_FILE_LIMIT)
                 ->get()
                 ->each(function (ManagedFile $file) use ($fileStorage, $zip, &$addedFiles, &$temporaryPaths, &$usedNames): void {
                     if (! $fileStorage->exists($file)) {
                         return;
                     }
 
-                    [$sourcePath, $deleteAfter] = $fileStorage->temporaryPathForArchive($file);
+                    try {
+                        [$sourcePath, $deleteAfter] = $fileStorage->temporaryPathForArchive($file);
+                    } catch (\Throwable $exception) {
+                        report($exception);
+
+                        return;
+                    }
 
                     if ($zip->addFile($sourcePath, $this->uniqueArchiveName($usedNames, $file->original_name))) {
                         $addedFiles++;
@@ -264,11 +282,9 @@ class ShareController extends Controller
             }
         }
 
-        $downloadName = Str::slug($folder->name) ?: 'folder-'.$folder->id;
+        $downloadName = (Str::slug($folder->name) ?: 'folder-'.$folder->id).'.zip';
 
-        return response()
-            ->download($zipPath, $downloadName.'.zip', ['Content-Type' => 'application/zip'])
-            ->deleteFileAfterSend();
+        return $fileStorage->downloadLocalPathResponse($zipPath, $downloadName);
     }
 
     public function showFolderFile(string $token, ManagedFile $file, ManagedFileStorageService $fileStorage): View

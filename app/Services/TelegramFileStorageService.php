@@ -21,13 +21,33 @@ class TelegramFileStorageService
 
     public function sendDocument(UploadedFile $file, TelegramStorageGroup $group): array
     {
+        return $this->sendDocumentFromPath(
+            $file->getRealPath(),
+            $file->getClientOriginalName(),
+            $group,
+            $file->getSize() ?: 0,
+            $file->getMimeType() ?: 'application/octet-stream'
+        );
+    }
+
+    public function sendDocumentFromPath(
+        string $absolutePath,
+        string $originalName,
+        TelegramStorageGroup $group,
+        int $fallbackSize = 0,
+        string $fallbackMimeType = 'application/octet-stream'
+    ): array {
         $bot = $group->botToken;
 
         if (! $bot) {
             throw new RuntimeException('Для Telegram-групи не знайдено бота.');
         }
 
-        $response = $this->sendDocumentRequest($file, $group, $bot);
+        if (! is_file($absolutePath)) {
+            throw new RuntimeException('Файл для відправки в Telegram не знайдено на сервері.');
+        }
+
+        $response = $this->sendDocumentRequest($absolutePath, $originalName, $group, $bot);
 
         if (! $response->successful() || ! $response->json('ok')) {
             throw new RuntimeException('Telegram не прийняв файл. Перевірте токен бота, group chat_id і права бота в групі.');
@@ -40,14 +60,18 @@ class TelegramFileStorageService
             throw new RuntimeException('Telegram не повернув file_id для завантаженого файла.');
         }
 
+        $resolvedSize = (int) data_get($media, 'file_size');
+        if ($resolvedSize === 0) {
+            $resolvedSize = $fallbackSize > 0 ? $fallbackSize : (int) (@filesize($absolutePath) ?: 0);
+        }
+
         return [
             'chat_id' => (string) data_get($payload, 'result.chat.id', $group->chat_id),
             'message_id' => (int) data_get($payload, 'result.message_id'),
             'file_id' => (string) data_get($media, 'file_id'),
             'file_unique_id' => data_get($media, 'file_unique_id'),
-            'file_size' => (int) (data_get($media, 'file_size') ?: ($file->getSize() ?: 0)),
-            'mime_type' => data_get($media, 'mime_type') ?: ($file->getMimeType() ?: 'application/octet-stream'),
-            'payload' => $payload,
+            'file_size' => $resolvedSize,
+            'mime_type' => data_get($media, 'mime_type') ?: $fallbackMimeType,
         ];
     }
 
@@ -60,19 +84,23 @@ class TelegramFileStorageService
         }
 
         $filePath = $this->getTelegramFilePath($bot, $file->telegram_file_id);
-        $response = $this->telegramGet($this->fileUrl($bot->token, $filePath));
+
+        $directory = 'telegram-temp/'.$file->user_id;
+        Storage::disk('local')->makeDirectory($directory);
+
+        $filename = Str::uuid().'_'.$this->safeFilename($file->stored_name ?: basename($filePath));
+        $storagePath = $directory.'/'.$filename;
+        $absolutePath = Storage::disk('local')->path($storagePath);
+
+        $response = $this->telegramGet($this->fileUrl($bot->token, $filePath), ['sink' => $absolutePath]);
 
         if (! $response->successful()) {
+            @unlink($absolutePath);
+
             throw new RuntimeException('Не вдалося тимчасово завантажити файл із Telegram.');
         }
 
-        $directory = 'telegram-temp/'.$file->user_id;
-        $filename = Str::uuid().'_'.$this->safeFilename($file->stored_name ?: basename($filePath));
-        $storagePath = $directory.'/'.$filename;
-
-        Storage::disk('local')->put($storagePath, $response->body());
-
-        return Storage::disk('local')->path($storagePath);
+        return $absolutePath;
     }
 
     public function downloadStream(ManagedFile $file): StreamInterface
@@ -128,12 +156,12 @@ class TelegramFileStorageService
         return (string) $filePath;
     }
 
-    private function sendDocumentRequest(UploadedFile $file, TelegramStorageGroup $group, TelegramBotToken $bot): Response
+    private function sendDocumentRequest(string $absolutePath, string $originalName, TelegramStorageGroup $group, TelegramBotToken $bot): Response
     {
         $response = null;
 
         for ($attempt = 1; $attempt <= self::TELEGRAM_API_ATTEMPTS; $attempt++) {
-            $stream = fopen($file->getRealPath(), 'r');
+            $stream = fopen($absolutePath, 'r');
 
             if ($stream === false) {
                 throw new RuntimeException('Не вдалося прочитати файл перед відправкою в Telegram.');
@@ -141,14 +169,16 @@ class TelegramFileStorageService
 
             try {
                 $response = Http::timeout(120)
-                    ->attach('document', $stream, $file->getClientOriginalName())
+                    ->attach('document', $stream, $originalName)
                     ->post($this->apiUrl($bot->token, 'sendDocument'), [
                         'chat_id' => $group->chat_id,
-                        'caption' => $file->getClientOriginalName(),
+                        'caption' => $originalName,
                         'disable_content_type_detection' => true,
                     ]);
             } finally {
-                fclose($stream);
+                if (is_resource($stream)) {
+                    fclose($stream);
+                }
             }
 
             if (! $this->shouldRetryTelegramRequest($response, $attempt)) {

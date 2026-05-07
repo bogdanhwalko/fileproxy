@@ -13,21 +13,27 @@ use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'home')->name('home');
 
-Route::get('/share/files/{token}', [ShareController::class, 'showFile'])->name('share.files.show');
-Route::get('/share/files/{token}/inline', [ShareController::class, 'inlineFile'])->name('share.files.inline');
-Route::get('/share/files/{token}/download', [ShareController::class, 'downloadFile'])->name('share.files.download');
-Route::get('/share/folders/{token}', [ShareController::class, 'showFolder'])->name('share.folders.show');
-Route::get('/share/folders/{token}/download', [ShareController::class, 'downloadFolder'])->name('share.folders.download');
-Route::get('/share/folders/{token}/files/{file}', [ShareController::class, 'showFolderFile'])->name('share.folders.files.show');
-Route::get('/share/folders/{token}/files/{file}/inline', [ShareController::class, 'inlineFolderFile'])->name('share.folders.files.inline');
-Route::get('/share/folders/{token}/files/{file}/download', [ShareController::class, 'downloadFolderFile'])->name('share.folders.files.download');
+Route::middleware('throttle:share-download')->group(function () {
+    Route::get('/share/files/{token}', [ShareController::class, 'showFile'])->name('share.files.show');
+    Route::get('/share/files/{token}/inline', [ShareController::class, 'inlineFile'])->name('share.files.inline');
+    Route::get('/share/files/{token}/download', [ShareController::class, 'downloadFile'])->name('share.files.download');
+    Route::get('/share/folders/{token}', [ShareController::class, 'showFolder'])->name('share.folders.show');
+    Route::get('/share/folders/{token}/download', [ShareController::class, 'downloadFolder'])->name('share.folders.download');
+    Route::get('/share/folders/{token}/files/{file}', [ShareController::class, 'showFolderFile'])->name('share.folders.files.show');
+    Route::get('/share/folders/{token}/files/{file}/inline', [ShareController::class, 'inlineFolderFile'])->name('share.folders.files.inline');
+    Route::get('/share/folders/{token}/files/{file}/download', [ShareController::class, 'downloadFolderFile'])->name('share.folders.files.download');
+});
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
-    Route::post('/login', [AuthenticatedSessionController::class, 'store'])->name('login.store');
+    Route::post('/login', [AuthenticatedSessionController::class, 'store'])
+        ->middleware('throttle:auth-phone')
+        ->name('login.store');
 
     Route::get('/register', [RegisteredUserController::class, 'create'])->name('register');
-    Route::post('/register', [RegisteredUserController::class, 'store'])->name('register.store');
+    Route::post('/register', [RegisteredUserController::class, 'store'])
+        ->middleware('throttle:auth-phone')
+        ->name('register.store');
 });
 
 Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
@@ -38,7 +44,9 @@ Route::middleware(['auth', 'not.blocked'])->group(function () {
     Route::get('/stats', [StatsController::class, 'index'])->name('stats.index');
     Route::get('/files', [FileController::class, 'index'])->name('files.index');
     Route::get('/files/archive', [FileController::class, 'downloadArchive'])->name('files.archive');
-    Route::post('/files', [FileController::class, 'store'])->name('files.store');
+    Route::post('/files', [FileController::class, 'store'])
+        ->middleware('throttle:uploads')
+        ->name('files.store');
     Route::get('/files/{file}/preview', [FileController::class, 'preview'])->name('files.preview');
     Route::get('/files/{file}/inline', [FileController::class, 'inline'])->name('files.inline');
     Route::get('/files/{file}/download', [FileController::class, 'download'])->name('files.download');

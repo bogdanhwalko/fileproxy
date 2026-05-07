@@ -28,6 +28,23 @@ class RouteServiceProvider extends ServiceProvider
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
         });
 
+        RateLimiter::for('auth-phone', function (Request $request) {
+            $phone = preg_replace('/\D+/', '', (string) $request->input('phone')) ?: 'unknown';
+
+            return [
+                Limit::perMinute(5)->by('auth-phone-ip:'.$request->ip()),
+                Limit::perMinute(5)->by('auth-phone:'.$phone),
+            ];
+        });
+
+        RateLimiter::for('uploads', function (Request $request) {
+            return Limit::perMinute(30)->by('uploads:'.($request->user()?->id ?: $request->ip()));
+        });
+
+        RateLimiter::for('share-download', function (Request $request) {
+            return Limit::perMinute(20)->by('share-download:'.$request->ip());
+        });
+
         $this->routes(function () {
             Route::middleware('api')
                 ->prefix('api')

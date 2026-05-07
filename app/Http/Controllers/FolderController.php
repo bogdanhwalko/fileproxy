@@ -63,19 +63,18 @@ class FolderController extends Controller
     {
         abort_unless((int) $folder->user_id === (int) auth()->id(), 404);
 
-        $files = $folder->files()
+        $folder->files()
             ->with(['telegramBotToken', 'telegramStorageGroup.botToken'])
-            ->get();
-
-        foreach ($files as $file) {
-            if ($file->is_telegram) {
-                $file->delete();
-
-                continue;
-            }
-
-            $fileStorage->delete($file);
-        }
+            ->chunkById(100, function ($files) use ($fileStorage): void {
+                foreach ($files as $file) {
+                    try {
+                        $fileStorage->delete($file);
+                    } catch (\Throwable $exception) {
+                        report($exception);
+                        $file->delete();
+                    }
+                }
+            });
 
         Storage::disk('local')->deleteDirectory('uploads/'.$folder->user_id.'/folders/'.$folder->id);
 

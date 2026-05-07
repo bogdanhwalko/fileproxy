@@ -10,6 +10,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -56,7 +57,10 @@ class RegisteredUserController extends Controller
             'password' => Hash::make(Str::random(48)),
         ];
 
-        if (Schema::hasColumn('users', 'is_admin')) {
+        $hasIsAdmin = Cache::remember('fileproxy:users-has-is-admin', now()->addMinutes(10),
+            fn (): bool => Schema::hasColumn('users', 'is_admin'));
+
+        if ($hasIsAdmin) {
             $attributes['is_admin'] = ! User::where('is_admin', true)->exists();
         }
 
@@ -121,20 +125,24 @@ class RegisteredUserController extends Controller
 
     private function ensureRegistrationSchemaIsReady(): void
     {
-        $requiredColumns = ['name', 'phone', 'email', 'password'];
-
-        if (! Schema::hasTable('users')) {
-            throw ValidationException::withMessages([
-                'phone' => 'База даних не підготовлена: таблиця users відсутня. Виконайте php artisan migrate --force.',
-            ]);
-        }
-
-        foreach ($requiredColumns as $column) {
-            if (! Schema::hasColumn('users', $column)) {
-                throw ValidationException::withMessages([
-                    'phone' => "База даних не підготовлена: у таблиці users відсутня колонка {$column}. Виконайте php artisan migrate --force.",
-                ]);
+        $missing = Cache::remember('fileproxy:users-schema-missing', now()->addMinutes(10), function (): ?string {
+            if (! Schema::hasTable('users')) {
+                return 'таблиця users відсутня';
             }
+
+            foreach (['name', 'phone', 'email', 'password'] as $column) {
+                if (! Schema::hasColumn('users', $column)) {
+                    return "у таблиці users відсутня колонка {$column}";
+                }
+            }
+
+            return null;
+        });
+
+        if ($missing) {
+            throw ValidationException::withMessages([
+                'phone' => "База даних не підготовлена: {$missing}. Виконайте php artisan migrate --force.",
+            ]);
         }
     }
 }

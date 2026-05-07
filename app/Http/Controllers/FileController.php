@@ -7,9 +7,11 @@ use App\Models\TelegramStorageGroup;
 use App\Models\User;
 use App\Services\ManagedFileStorageService;
 use Carbon\Carbon;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -27,6 +29,8 @@ class FileController extends Controller
     private const SYSTEM_TELEGRAM_UPLOAD_LIMIT = 100;
 
     private const ARCHIVE_FILE_LIMIT = 500;
+
+    private const UPLOAD_FILES_PER_REQUEST_LIMIT = 25;
 
     public function index(Request $request): View
     {
@@ -66,14 +70,7 @@ class FileController extends Controller
 
         $applyContentFilters = function ($query) use ($search, $type, $dateFromCarbon, $dateToCarbon) {
             return $query
-                ->when($search !== '', function ($query) use ($search) {
-                    $query->where(function ($query) use ($search) {
-                        $query
-                            ->where('original_name', 'like', "%{$search}%")
-                            ->orWhere('mime_type', 'like', "%{$search}%")
-                            ->orWhere('extension', 'like', "%{$search}%");
-                    });
-                })
+                ->when($search !== '', fn ($query) => $this->applySearchFilter($query, $search))
                 ->when($type !== 'all', fn ($query) => $this->applyTypeFilter($query, $type))
                 ->when($dateFromCarbon !== null, fn ($query) => $query->where('created_at', '>=', $dateFromCarbon))
                 ->when($dateToCarbon !== null, fn ($query) => $query->where('created_at', '<=', $dateToCarbon));
@@ -96,13 +93,20 @@ class FileController extends Controller
         $systemTelegramUsedUploads = $this->systemTelegramUploadCount($user, $systemTelegramStorageGroups);
         $systemTelegramRemainingUploads = max(0, self::SYSTEM_TELEGRAM_UPLOAD_LIMIT - $systemTelegramUsedUploads);
 
+        $aggregates = $user->files()
+            ->selectRaw('COUNT(*) AS total')
+            ->selectRaw('COALESCE(SUM(size), 0) AS storage_bytes')
+            ->selectRaw("SUM(CASE WHEN storage_driver = 'telegram' THEN 1 ELSE 0 END) AS telegram")
+            ->selectRaw('SUM(CASE WHEN folder_id IS NULL THEN 1 ELSE 0 END) AS root')
+            ->first();
+
         $stats = [
-            'total' => $user->files()->count(),
-            'storage' => ManagedFile::formatBytes((int) $user->files()->sum('size')),
+            'total' => (int) ($aggregates->total ?? 0),
+            'storage' => ManagedFile::formatBytes((int) ($aggregates->storage_bytes ?? 0)),
             'folders' => $folders->count(),
-            'telegram' => $user->files()->where('storage_driver', 'telegram')->count(),
+            'telegram' => (int) ($aggregates->telegram ?? 0),
             'current' => (clone $baseQuery)->count(),
-            'root' => $user->files()->whereNull('folder_id')->count(),
+            'root' => (int) ($aggregates->root ?? 0),
         ];
 
         return view('files.index', [
@@ -146,10 +150,11 @@ class FileController extends Controller
                 'integer',
                 Rule::exists('telegram_storage_groups', 'id')->where('user_id', $user->id),
             ],
-            'files' => ['required', 'array', 'min:1'],
+            'files' => ['required', 'array', 'min:1', 'max:'.self::UPLOAD_FILES_PER_REQUEST_LIMIT],
             'files.*' => ['file', 'max:'.self::TELEGRAM_UPLOAD_MAX_KB],
         ], [
             'files.required' => 'Оберіть хоча б один файл для завантаження.',
+            'files.max' => 'За один раз можна завантажити не більше '.self::UPLOAD_FILES_PER_REQUEST_LIMIT.' файлів.',
             'files.*.max' => 'Максимальний розмір одного файлу для Telegram Bot API - 50 MB.',
             'folder_id.exists' => 'Обрана папка недоступна.',
             'telegram_storage_group_id.exists' => 'Обрана Telegram-група недоступна.',
@@ -182,26 +187,34 @@ class FileController extends Controller
                     ->withErrors(['telegram_storage_group_id' => 'Адміністратор ще не налаштував системну Telegram-групу для завантажень.']);
             }
 
-            $systemTelegramUsedUploads = $this->systemTelegramUploadCount($user, $systemTelegramStorageGroups);
-            $systemTelegramRemainingUploads = self::SYSTEM_TELEGRAM_UPLOAD_LIMIT - $systemTelegramUsedUploads;
-            $requestedUploads = count($validated['files']);
-
-            if ($systemTelegramRemainingUploads <= 0) {
-                return back()
-                    ->withInput($request->except('files'))
-                    ->withErrors(['telegram_storage_group_id' => 'Ви вже використали системний ліміт 100 файлів. Підключіть власну Telegram-групу.']);
-            }
-
-            if ($requestedUploads > $systemTelegramRemainingUploads) {
-                return back()
-                    ->withInput($request->except('files'))
-                    ->withErrors(['files' => "Системне Telegram-сховище дозволяє завантажити ще {$systemTelegramRemainingUploads} файлів."]);
-            }
-
             $useSystemTelegramStorage = true;
         }
 
+        $lock = $useSystemTelegramStorage
+            ? Cache::lock('fileproxy:system-tg-upload:'.$user->id, 10)
+            : null;
+
         try {
+            $lock?->block(5);
+
+            if ($useSystemTelegramStorage) {
+                $systemTelegramUsedUploads = $this->systemTelegramUploadCount($user, $systemTelegramStorageGroups);
+                $systemTelegramRemainingUploads = self::SYSTEM_TELEGRAM_UPLOAD_LIMIT - $systemTelegramUsedUploads;
+                $requestedUploads = count($validated['files']);
+
+                if ($systemTelegramRemainingUploads <= 0) {
+                    return back()
+                        ->withInput($request->except('files'))
+                        ->withErrors(['telegram_storage_group_id' => 'Ви вже використали системний ліміт 100 файлів. Підключіть власну Telegram-групу.']);
+                }
+
+                if ($requestedUploads > $systemTelegramRemainingUploads) {
+                    return back()
+                        ->withInput($request->except('files'))
+                        ->withErrors(['files' => "Системне Telegram-сховище дозволяє завантажити ще {$systemTelegramRemainingUploads} файлів."]);
+                }
+            }
+
             foreach ($validated['files'] as $index => $uploadedFile) {
                 $targetTelegramGroup = $telegramGroup;
 
@@ -213,6 +226,10 @@ class FileController extends Controller
 
                 $fileStorage->storeUploadedFile($user, $uploadedFile, $folderId, $targetTelegramGroup);
             }
+        } catch (LockTimeoutException $exception) {
+            return back()
+                ->withInput($request->except('files'))
+                ->withErrors(['files' => 'Уже триває інше завантаження від цього акаунта. Повторіть через кілька секунд.']);
         } catch (Throwable $exception) {
             report($exception);
 
@@ -221,6 +238,8 @@ class FileController extends Controller
                 ->withErrors(['files' => $exception instanceof RuntimeException
                     ? $exception->getMessage()
                     : 'Не вдалося завантажити файли. Перевірте сховище та повторіть спробу.']);
+        } finally {
+            $lock?->release();
         }
 
         $count = count($validated['files']);
@@ -231,9 +250,14 @@ class FileController extends Controller
         };
         $routeParameters = $folderId ? ['folder' => $folderId] : [];
 
+        $useTelegram = (bool) $telegramGroup || $useSystemTelegramStorage;
+        $statusMessage = $useTelegram
+            ? "Поставлено в чергу обробки{$storageLabel}: {$count}. Файли зʼявляться в списку після завантаження в Telegram."
+            : "Завантажено файлів{$storageLabel}: {$count}.";
+
         return redirect()
             ->route('files.index', $routeParameters)
-            ->with('status', "Завантажено файлів{$storageLabel}: {$count}.");
+            ->with('status', $statusMessage);
     }
 
     public function download(ManagedFile $file, ManagedFileStorageService $fileStorage)
@@ -313,14 +337,7 @@ class FileController extends Controller
         }
 
         $query
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($query) use ($search) {
-                    $query
-                        ->where('original_name', 'like', "%{$search}%")
-                        ->orWhere('mime_type', 'like', "%{$search}%")
-                        ->orWhere('extension', 'like', "%{$search}%");
-                });
-            })
+            ->when($search !== '', fn ($query) => $this->applySearchFilter($query, $search))
             ->when($type !== 'all', fn ($query) => $this->applyTypeFilter($query, $type))
             ->when($dateFromCarbon !== null, fn ($query) => $query->where('created_at', '>=', $dateFromCarbon))
             ->when($dateToCarbon !== null, fn ($query) => $query->where('created_at', '<=', $dateToCarbon));
@@ -384,9 +401,7 @@ class FileController extends Controller
 
         $downloadName = 'fileproxy-'.($folderName ?: 'export').'-'.now()->format('Y-m-d').'.zip';
 
-        return response()
-            ->download($zipPath, $downloadName, ['Content-Type' => 'application/zip'])
-            ->deleteFileAfterSend();
+        return $fileStorage->downloadLocalPathResponse($zipPath, $downloadName);
     }
 
     private function parseDateRange(string $from, string $to): array
@@ -438,6 +453,59 @@ class FileController extends Controller
         $usedNames[strtolower($candidate)] = true;
 
         return $candidate;
+    }
+
+    private function applySearchFilter($query, string $search)
+    {
+        $search = trim($search);
+
+        if ($search === '') {
+            return $query;
+        }
+
+        $driver = $query->getModel()->getConnection()->getDriverName();
+        $useFulltext = in_array($driver, ['mysql', 'mariadb'], true)
+            && mb_strlen($search) >= 3
+            && ! preg_match('/[%_]/', $search);
+
+        if ($useFulltext) {
+            $boolean = $this->buildFulltextBooleanQuery($search);
+            $likeFallback = '%'.str_replace(['%', '_'], ['\\%', '\\_'], $search).'%';
+
+            return $query->where(function ($query) use ($boolean, $likeFallback, $search) {
+                $query->whereRaw('MATCH(original_name) AGAINST (? IN BOOLEAN MODE)', [$boolean])
+                    ->orWhere('original_name', 'like', $likeFallback)
+                    ->orWhere('mime_type', 'like', '%'.$search.'%')
+                    ->orWhere('extension', '=', strtolower($search));
+            });
+        }
+
+        $like = '%'.str_replace(['%', '_'], ['\\%', '\\_'], $search).'%';
+
+        return $query->where(function ($query) use ($like, $search) {
+            $query
+                ->where('original_name', 'like', $like)
+                ->orWhere('mime_type', 'like', $like)
+                ->orWhere('extension', 'like', '%'.strtolower($search).'%');
+        });
+    }
+
+    private function buildFulltextBooleanQuery(string $search): string
+    {
+        $tokens = preg_split('/\s+/u', $search) ?: [];
+        $parts = [];
+
+        foreach ($tokens as $token) {
+            $token = preg_replace('/[+\-><()~*"@]+/u', '', $token);
+
+            if ($token === null || mb_strlen($token) < 2) {
+                continue;
+            }
+
+            $parts[] = '+'.$token.'*';
+        }
+
+        return $parts === [] ? $search : implode(' ', $parts);
     }
 
     private function applyTypeFilter($query, string $type)
@@ -500,46 +568,66 @@ class FileController extends Controller
 
         return (int) $user->files()
             ->where('storage_driver', 'telegram')
+            ->where('status', '!=', ManagedFile::STATUS_FAILED)
             ->whereIn('telegram_storage_group_id', $groups->pluck('id'))
             ->count();
     }
 
     private function schemaProblems(): array
     {
+        $cacheKey = 'fileproxy:schema-problems';
+
+        if (Cache::get($cacheKey.':ok') === true) {
+            return [];
+        }
+
+        $problems = $this->detectSchemaProblems();
+
+        if ($problems === []) {
+            Cache::put($cacheKey.':ok', true, now()->addMinutes(10));
+        }
+
+        return $problems;
+    }
+
+    private function detectSchemaProblems(): array
+    {
         $requirements = [
-            'managed_files' => [
-                'user_id',
-                'folder_id',
-                'storage_driver',
-                'telegram_storage_group_id',
-                'telegram_bot_token_id',
-                'telegram_chat_id',
-                'telegram_message_id',
-                'telegram_file_id',
-                'telegram_file_unique_id',
-                'share_token',
-                'share_max_views',
-                'share_views_count',
-                'share_expires_at',
-            ],
-            'file_folders' => [
-                'user_id',
-                'share_token',
-                'share_max_views',
-                'share_views_count',
-                'share_expires_at',
-            ],
-            'telegram_bot_tokens' => [
-                'user_id',
-                'token',
-                'webhook_secret',
-            ],
-            'telegram_storage_groups' => [
-                'user_id',
-                'telegram_bot_token_id',
-                'chat_id',
-                'is_global_default',
-            ],
+                'managed_files' => [
+                    'user_id',
+                    'folder_id',
+                    'storage_driver',
+                    'telegram_storage_group_id',
+                    'telegram_bot_token_id',
+                    'telegram_chat_id',
+                    'telegram_message_id',
+                    'telegram_file_id',
+                    'telegram_file_unique_id',
+                    'status',
+                    'upload_failure_reason',
+                    'share_token',
+                    'share_max_views',
+                    'share_views_count',
+                    'share_expires_at',
+                ],
+                'file_folders' => [
+                    'user_id',
+                    'share_token',
+                    'share_max_views',
+                    'share_views_count',
+                    'share_expires_at',
+                ],
+                'telegram_bot_tokens' => [
+                    'user_id',
+                    'token',
+                    'webhook_secret',
+                ],
+                'telegram_storage_groups' => [
+                    'user_id',
+                    'telegram_bot_token_id',
+                    'chat_id',
+                    'is_global_default',
+                ],
         ];
 
         $problems = [];

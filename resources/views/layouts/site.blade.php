@@ -5651,6 +5651,73 @@
             font-size: 11px;
         }
 
+        .file-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 4px;
+            padding: 3px 8px;
+            border: 1px solid transparent;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+            line-height: 1.2;
+        }
+
+        .file-status-badge-pending {
+            border-color: #c7d2fe;
+            background: var(--primary-soft);
+            color: var(--primary-dark);
+        }
+
+        .file-status-badge-failed {
+            border-color: #fbb9c4;
+            background: var(--danger-soft);
+            color: var(--danger);
+        }
+
+        .file-row-status-pending,
+        .file-tile-status-pending {
+            opacity: 0.85;
+        }
+
+        .file-row-status-failed,
+        .file-tile-status-failed {
+            background: rgb(255 228 234 / 35%);
+        }
+
+        .file-status-note {
+            margin-top: 6px;
+            padding: 8px 10px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .file-status-note strong {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .file-status-note p {
+            margin: 4px 0 0;
+            color: var(--muted);
+        }
+
+        .file-status-pending {
+            border-color: #c7d2fe;
+            background: var(--primary-soft);
+            color: var(--primary-dark);
+        }
+
+        .file-status-failed {
+            border-color: #fbb9c4;
+            background: var(--danger-soft);
+            color: var(--danger);
+        }
+
         .file-row-actions {
             display: flex;
             justify-content: flex-end;

@@ -25,17 +25,31 @@
         </div>
 
         <div class="action-menu-links">
-            @if ($file->is_previewable)
-                <a class="action-line accent" href="{{ route('files.preview', $file) }}">Переглянути</a>
+            @if ($file->is_uploaded)
+                @if ($file->is_previewable)
+                    <a class="action-line accent" href="{{ route('files.preview', $file) }}">Переглянути</a>
+                @endif
+                <a class="action-line" href="{{ route('files.download', $file) }}">Скачати</a>
             @endif
-            <a class="action-line" href="{{ route('files.download', $file) }}">Скачати</a>
             <form action="{{ route('files.destroy', $file) }}" method="post" data-ajax-form>
                 @csrf
                 @method('delete')
-                <button class="action-line danger" type="submit">Видалити</button>
+                <button class="action-line danger" type="submit">{{ $file->is_uploaded ? 'Видалити' : 'Скасувати' }}</button>
             </form>
         </div>
 
+        @if (! $file->is_uploaded)
+            <div class="file-status-note file-status-{{ $file->status }}">
+                <strong>{{ $file->status_label }}</strong>
+                @if ($file->is_failed && $file->upload_failure_reason)
+                    <p>{{ $file->upload_failure_reason }}</p>
+                @elseif ($file->is_pending)
+                    <p>Файл переноситься в Telegram у фоновому режимі. Оновіть сторінку через хвилину.</p>
+                @endif
+            </div>
+        @endif
+
+        @if ($file->is_uploaded)
         <div class="share-settings {{ $file->share_token ? 'is-enabled' : '' }}">
             <div class="share-settings-head">
                 <strong>Публічний лінк</strong>
@@ -78,5 +92,6 @@
 
             <p class="share-message" data-share-message></p>
         </div>
+        @endif
     </div>
 </details>

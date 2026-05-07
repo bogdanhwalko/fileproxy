@@ -10,6 +10,38 @@ services:
       db:
         condition: service_healthy
 
+  queue:
+    build:
+      context: .
+    container_name: fileproxy-queue
+    restart: unless-stopped
+    environment:
+      RUN_MIGRATIONS: "false"
+    command: ["php", "artisan", "queue:work", "--queue=default", "--tries=3", "--timeout=300", "--sleep=3"]
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      app:
+        condition: service_started
+      db:
+        condition: service_healthy
+
+  scheduler:
+    build:
+      context: .
+    container_name: fileproxy-scheduler
+    restart: unless-stopped
+    environment:
+      RUN_MIGRATIONS: "false"
+    command: ["php", "artisan", "schedule:work"]
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      app:
+        condition: service_started
+      db:
+        condition: service_healthy
+
   web:
     image: nginx:1.27-alpine
     container_name: fileproxy-web

@@ -17,6 +17,8 @@ fi
 
 chown -R www-data:www-data storage bootstrap/cache
 
-php artisan migrate --force --no-interaction
+if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
+    php artisan migrate --force --no-interaction
+fi
 
 exec "$@"

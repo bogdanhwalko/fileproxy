@@ -15,6 +15,10 @@ return [
 
     'default' => env('FILESYSTEM_DISK', 'local'),
 
+    'sendfile_driver' => env('SENDFILE_DRIVER', 'none'),
+
+    'x_accel_prefix' => env('X_ACCEL_PREFIX', '/internal-storage/'),
+
     /*
     |--------------------------------------------------------------------------
     | Filesystem Disks

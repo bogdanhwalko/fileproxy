@@ -37,9 +37,11 @@ class PhoneAuthService
     public function createChallenge(string $phone): PhoneAuthChallenge
     {
         PhoneAuthChallenge::where('phone', $phone)
-            ->where(function ($query) {
-                $query->whereNull('consumed_at')->orWhere('expires_at', '<', now());
-            })
+            ->whereNull('consumed_at')
+            ->update(['consumed_at' => now()]);
+
+        PhoneAuthChallenge::where('phone', $phone)
+            ->where('expires_at', '<', now()->subDay())
             ->delete();
 
         return PhoneAuthChallenge::create([

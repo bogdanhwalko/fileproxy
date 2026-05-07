@@ -10,6 +10,12 @@ class ManagedFile extends Model
 {
     use HasFactory;
 
+    public const STATUS_UPLOADED = 'uploaded';
+
+    public const STATUS_PENDING = 'pending';
+
+    public const STATUS_FAILED = 'failed';
+
     protected $fillable = [
         'user_id',
         'folder_id',
@@ -20,13 +26,14 @@ class ManagedFile extends Model
         'telegram_message_id',
         'telegram_file_id',
         'telegram_file_unique_id',
-        'telegram_response',
         'original_name',
         'stored_name',
         'path',
         'mime_type',
         'extension',
         'size',
+        'status',
+        'upload_failure_reason',
         'share_token',
         'share_max_views',
         'share_views_count',
@@ -39,7 +46,10 @@ class ManagedFile extends Model
         'share_views_count' => 'integer',
         'share_expires_at' => 'datetime',
         'telegram_message_id' => 'integer',
-        'telegram_response' => 'array',
+    ];
+
+    protected $attributes = [
+        'status' => self::STATUS_UPLOADED,
     ];
 
     public function user(): BelongsTo
@@ -112,6 +122,30 @@ class ManagedFile extends Model
     public function getIsTelegramAttribute(): bool
     {
         return $this->storage_driver === 'telegram';
+    }
+
+    public function getIsPendingAttribute(): bool
+    {
+        return $this->status === self::STATUS_PENDING;
+    }
+
+    public function getIsFailedAttribute(): bool
+    {
+        return $this->status === self::STATUS_FAILED;
+    }
+
+    public function getIsUploadedAttribute(): bool
+    {
+        return $this->status === self::STATUS_UPLOADED;
+    }
+
+    public function getStatusLabelAttribute(): ?string
+    {
+        return match ($this->status) {
+            self::STATUS_PENDING => 'Очікує завантаження в Telegram',
+            self::STATUS_FAILED => 'Помилка завантаження',
+            default => null,
+        };
     }
 
     public function getStorageLabelAttribute(): string
