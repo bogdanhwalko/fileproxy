@@ -4,40 +4,7 @@
 @section('robots', 'noindex, nofollow')
 
 @section('content')
-    <header class="topbar topbar-v2">
-        <a class="brand" href="{{ route('files.index') }}">
-            <div class="brand-mark">FP</div>
-            <div>
-                <strong>FileProxy</strong>
-                <p>Статистика вашого сховища</p>
-            </div>
-        </a>
-
-        <div class="nav-actions">
-            <span class="user-chip user-chip-v2">
-                <span class="user-chip-avatar" aria-hidden="true">{{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 1)) ?: 'U' }}</span>
-                <span class="user-chip-name">{{ auth()->user()->name }}</span>
-            </span>
-            <a class="button secondary nav-button" href="{{ route('files.index') }}" aria-label="До файлів">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/>
-                </svg>
-                <span class="nav-button-label">До файлів</span>
-            </a>
-            <form action="{{ route('logout') }}" method="post">
-                @csrf
-                <button class="button secondary nav-button nav-button-logout" type="submit" aria-label="Вийти">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                        <polyline points="16 17 21 12 16 7"/>
-                        <line x1="21" y1="12" x2="9" y2="12"/>
-                    </svg>
-                    <span class="nav-button-label">Вийти</span>
-                </button>
-            </form>
-        </div>
-    </header>
+    <x-app-topbar title="FileProxy" subtitle="Статистика вашого сховища" />
 
     <section class="stats-page-hero">
         <span class="section-kicker">Огляд</span>

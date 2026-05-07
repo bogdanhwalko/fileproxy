@@ -4,26 +4,7 @@
 @section('robots', 'noindex, nofollow')
 
 @section('content')
-    <header class="topbar">
-        <a class="brand" href="{{ route('files.index') }}">
-            <div class="brand-mark">FP</div>
-            <div>
-                <strong>FileProxy</strong>
-                <p>Боти і групи для зберігання файлів</p>
-            </div>
-        </a>
-
-        <div class="nav-actions">
-            @if (auth()->user()->is_admin)
-                <a class="button secondary" href="{{ route('admin.users.index') }}">Адмінка</a>
-            @endif
-            <a class="button secondary" href="{{ route('files.index') }}">До файлів</a>
-            <form action="{{ route('logout') }}" method="post">
-                @csrf
-                <button class="button secondary" type="submit">Вийти</button>
-            </form>
-        </div>
-    </header>
+    <x-app-topbar title="FileProxy" subtitle="Боти і групи для зберігання файлів" />
 
     @if (session('status'))
         <div class="status">{{ session('status') }}</div>

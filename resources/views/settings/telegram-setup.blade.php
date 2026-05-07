@@ -4,20 +4,7 @@
 @section('robots', 'noindex, nofollow')
 
 @section('content')
-    <header class="topbar">
-        <a class="brand" href="{{ route('files.index') }}">
-            <div class="brand-mark">FP</div>
-            <div>
-                <strong>Прив’язка Telegram</strong>
-                <p>Підготовка групи для завантаження файлів</p>
-            </div>
-        </a>
-
-        <div class="nav-actions">
-            <a class="button secondary" href="{{ route('files.index') }}">До файлів</a>
-            <a class="button secondary" href="{{ route('telegram-settings.index') }}">Telegram-сховище</a>
-        </div>
-    </header>
+    <x-app-topbar title="Прив’язка Telegram" subtitle="Підготовка групи для завантаження файлів" />
 
     <section class="settings-grid">
         <section class="panel">

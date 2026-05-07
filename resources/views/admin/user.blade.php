@@ -3,52 +3,27 @@
 @section('title', $user->name.' — адмінка')
 @section('robots', 'noindex, nofollow')
 
-@section('content')
-    <header class="topbar topbar-v2">
-        <a class="brand" href="{{ route('admin.users.index') }}">
-            <div class="brand-mark">FP</div>
-            <div>
-                <strong>{{ $user->name }}</strong>
-                <p>{{ $user->phone ?? 'phone not set' }} · {{ $user->email }}</p>
-            </div>
-        </a>
+@include('partials.file-action-menu-script')
 
-        <div class="nav-actions">
-            <span class="user-chip user-chip-v2">
-                @if ($user->is_admin)
-                    <span class="user-chip-avatar" aria-hidden="true">A</span>
-                @else
-                    <span class="user-chip-avatar" aria-hidden="true">{{ mb_strtoupper(mb_substr($user->name, 0, 1)) ?: 'U' }}</span>
-                @endif
-                <span class="user-chip-name">{{ $user->is_blocked ? 'Заблокований' : ($user->is_admin ? 'Адмін' : 'Активний') }}</span>
-            </span>
-            <a class="button secondary nav-button" href="{{ route('admin.users.index') }}" aria-label="До користувачів">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M19 12H5"/>
-                    <polyline points="12 19 5 12 12 5"/>
-                </svg>
-                <span class="nav-button-label">До користувачів</span>
-            </a>
-            <a class="button secondary nav-button" href="{{ route('files.index') }}" aria-label="Кабінет">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/>
-                </svg>
-                <span class="nav-button-label">Кабінет</span>
-            </a>
-            <form action="{{ route('logout') }}" method="post">
-                @csrf
-                <button class="button secondary nav-button nav-button-logout" type="submit" aria-label="Вийти">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                        <polyline points="16 17 21 12 16 7"/>
-                        <line x1="21" y1="12" x2="9" y2="12"/>
-                    </svg>
-                    <span class="nav-button-label">Вийти</span>
-                </button>
-            </form>
-        </div>
-    </header>
+@section('content')
+    <x-app-topbar
+        :title="$user->name"
+        :subtitle="($user->phone ?? 'phone not set').' · '.$user->email"
+        :brandHref="route('admin.users.index')"
+        :showUserChip="false"
+    >
+        <span class="user-chip user-chip-v2">
+            <span class="user-chip-avatar" aria-hidden="true">{{ $user->is_admin ? 'A' : (mb_strtoupper(mb_substr($user->name, 0, 1)) ?: 'U') }}</span>
+            <span class="user-chip-name">{{ $user->is_blocked ? 'Заблокований' : ($user->is_admin ? 'Адмін' : 'Активний') }}</span>
+        </span>
+        <a class="button secondary nav-button" href="{{ route('admin.users.index') }}" aria-label="До користувачів">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M19 12H5"/>
+                <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            <span class="nav-button-label">До користувачів</span>
+        </a>
+    </x-app-topbar>
 
     @if (session('status'))
         <div class="status">{{ session('status') }}</div>

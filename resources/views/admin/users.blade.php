@@ -4,24 +4,7 @@
 @section('robots', 'noindex, nofollow')
 
 @section('content')
-    <header class="topbar">
-        <a class="brand" href="{{ route('admin.users.index') }}">
-            <div class="brand-mark">FP</div>
-            <div>
-                <strong>Адмінка</strong>
-                <p>Користувачі, файли і доступ</p>
-            </div>
-        </a>
-
-        <div class="nav-actions">
-            <a class="button secondary" href="{{ route('files.index') }}">До файлів</a>
-            <a class="button secondary" href="{{ route('telegram-settings.index') }}">Telegram-сховище</a>
-            <form action="{{ route('logout') }}" method="post">
-                @csrf
-                <button class="button secondary" type="submit">Вийти</button>
-            </form>
-        </div>
-    </header>
+    <x-app-topbar title="Адмінка" subtitle="Користувачі, файли і доступ" :brandHref="route('admin.users.index')" />
 
     @if (session('status'))
         <div class="status">{{ session('status') }}</div>

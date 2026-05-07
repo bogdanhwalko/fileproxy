@@ -4,20 +4,20 @@
 @section('robots', 'noindex, nofollow')
 
 @section('content')
-    <header class="topbar">
-        <a class="brand" href="{{ route('files.index', $file->folder_id ? ['folder' => $file->folder_id] : []) }}">
-            <div class="brand-mark">FP</div>
-            <div>
-                <strong>FileProxy</strong>
-                <p>Перегляд файла</p>
-            </div>
+    <x-app-topbar
+        title="FileProxy"
+        subtitle="Перегляд файла"
+        :brandHref="route('files.index', $file->folder_id ? ['folder' => $file->folder_id] : [])"
+    >
+        <a class="button nav-button" href="{{ route('files.download', $file) }}" aria-label="Скачати">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span class="nav-button-label">Скачати</span>
         </a>
-
-        <div class="nav-actions">
-            <a class="button secondary" href="{{ route('files.index', $file->folder_id ? ['folder' => $file->folder_id] : []) }}">До файлів</a>
-            <a class="button" href="{{ route('files.download', $file) }}">Скачати</a>
-        </div>
-    </header>
+    </x-app-topbar>
 
     <section class="panel preview-shell">
         <div class="preview-toolbar">
