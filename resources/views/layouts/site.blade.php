@@ -4476,10 +4476,22 @@
             .topbar-v2 .nav-actions {
                 width: 100%;
                 display: flex;
+                flex-direction: row;
                 align-items: center;
                 justify-content: space-between;
                 gap: 10px;
                 flex-wrap: nowrap;
+            }
+
+            .topbar-v2 .nav-button-logout {
+                min-height: 38px;
+                padding: 8px 14px;
+                white-space: nowrap;
+            }
+
+            .topbar-v2 form {
+                display: inline-flex;
+                flex: 0 0 auto;
             }
 
             .topbar-v2 .nav-actions .nav-button:not(.nav-button-logout) {
@@ -6685,6 +6697,23 @@
 
             .button.link {
                 width: auto;
+            }
+
+            .auth-row .button.link {
+                width: 100%;
+                min-height: 44px;
+                padding: 10px 16px;
+                border: 1px solid var(--line);
+                border-radius: 8px;
+                background: rgb(255 255 255 / 78%);
+                color: var(--text);
+                font-weight: 600;
+            }
+
+            .auth-row .button.link:hover {
+                border-color: var(--line-strong);
+                background: var(--surface-subtle);
+                color: var(--text);
             }
 
             .nav-actions,
