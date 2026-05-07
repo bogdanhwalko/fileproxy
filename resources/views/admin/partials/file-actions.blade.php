@@ -1,4 +1,4 @@
-<details class="file-action-menu">
+<details class="file-action-menu" data-file-share>
     <summary class="button secondary action-menu-trigger">Дії</summary>
 
     <div class="file-action-panel">
