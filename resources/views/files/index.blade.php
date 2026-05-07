@@ -175,6 +175,7 @@
                     $folderSelected = $folderOptions->firstWhere('is_selected', true) ?: $folderOptions->first();
 
                     $storageOptions = collect();
+                    $oldStorageId = (string) old('telegram_storage_group_id', '');
 
                     if ($canUseLocalStorage) {
                         $storageOptions->push([
@@ -182,45 +183,46 @@
                             'label' => 'Локальне сховище',
                             'sublabel' => 'Файли на сервері',
                             'icon' => 'server',
-                            'is_selected' => true,
+                            'is_selected' => $oldStorageId === '',
                         ]);
-                    } elseif ($telegramStorageGroups->isEmpty() && $systemTelegramStorageAvailable) {
+                    }
+
+                    foreach ($telegramStorageGroups as $storageGroup) {
+                        $isThisSelected = $oldStorageId !== ''
+                            ? $oldStorageId === (string) $storageGroup->id
+                            : (! $canUseLocalStorage && (bool) $storageGroup->is_default);
+
                         $storageOptions->push([
-                            'value' => '',
-                            'label' => 'Системне Telegram-сховище',
-                            'sublabel' => "Залишилось {$systemTelegramRemainingUploads} з {$systemTelegramUploadLimit}",
+                            'value' => (string) $storageGroup->id,
+                            'label' => $storageGroup->title,
+                            'sublabel' => '@'.($storageGroup->botToken?->username ?: $storageGroup->botToken?->name ?? 'бот'),
                             'icon' => 'tg',
-                            'is_selected' => true,
+                            'is_selected' => $isThisSelected,
                         ]);
-                    } elseif ($telegramStorageGroups->isEmpty()) {
-                        $storageOptions->push([
-                            'value' => '',
-                            'label' => 'Telegram-сховище не налаштоване',
-                            'sublabel' => 'Підключіть бота і групу в налаштуваннях',
-                            'icon' => 'warn',
-                            'is_selected' => true,
-                        ]);
-                    } else {
-                        $oldStorageId = (string) old('telegram_storage_group_id', '');
-                        $hasSelected = false;
-                        foreach ($telegramStorageGroups as $storageGroup) {
-                            $isThisSelected = $oldStorageId !== ''
-                                ? $oldStorageId === (string) $storageGroup->id
-                                : (bool) $storageGroup->is_default;
+                    }
 
-                            if ($isThisSelected) $hasSelected = true;
-
+                    if ($telegramStorageGroups->isEmpty() && ! $canUseLocalStorage) {
+                        if ($systemTelegramStorageAvailable) {
                             $storageOptions->push([
-                                'value' => (string) $storageGroup->id,
-                                'label' => $storageGroup->title,
-                                'sublabel' => '@'.($storageGroup->botToken?->username ?: $storageGroup->botToken?->name ?? 'бот'),
+                                'value' => '',
+                                'label' => 'Системне Telegram-сховище',
+                                'sublabel' => "Залишилось {$systemTelegramRemainingUploads} з {$systemTelegramUploadLimit}",
                                 'icon' => 'tg',
-                                'is_selected' => $isThisSelected,
+                                'is_selected' => true,
+                            ]);
+                        } else {
+                            $storageOptions->push([
+                                'value' => '',
+                                'label' => 'Telegram-сховище не налаштоване',
+                                'sublabel' => 'Підключіть бота і групу в налаштуваннях',
+                                'icon' => 'warn',
+                                'is_selected' => true,
                             ]);
                         }
-                        if (! $hasSelected && $storageOptions->isNotEmpty()) {
-                            $storageOptions[0]['is_selected'] = true;
-                        }
+                    }
+
+                    if (! $storageOptions->firstWhere('is_selected', true) && $storageOptions->isNotEmpty()) {
+                        $storageOptions[0]['is_selected'] = true;
                     }
 
                     $storageSelected = $storageOptions->firstWhere('is_selected', true) ?: $storageOptions->first();

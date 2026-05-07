@@ -4290,14 +4290,6 @@
             display: inline-flex;
             align-items: center;
             padding-right: 6px;
-            opacity: 0;
-            transition: opacity 140ms ease;
-        }
-
-        .folder-row-v2:hover .folder-actions,
-        .folder-row-v2:focus-within .folder-actions,
-        .folder-row-v2 .folder-actions [open] {
-            opacity: 1;
         }
 
         /* === Sidebar / Folders v2 === */
