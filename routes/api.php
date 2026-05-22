@@ -18,6 +18,7 @@ Route::prefix('v1')
     ->name('api.v1.')
     ->middleware(['auth:sanctum', 'api.not_blocked'])
     ->group(function () {
+
         Route::get('/user', fn (Request $request) => $request->user()->only(['id', 'name', 'phone', 'is_admin']))
             ->name('user');
 

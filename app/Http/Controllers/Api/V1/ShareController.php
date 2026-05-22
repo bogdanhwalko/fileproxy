@@ -34,7 +34,7 @@ class ShareController extends Controller
         $this->ensureFileOwner($request->user(), $file);
 
         if (! $file->share_token) {
-            return response()->json(['message' => 'Шеринг для цього файлу вимкнено.'], 422);
+            return response()->json(['message' => 'Sharing is disabled for this file.'], 422);
         }
 
         $validated = $request->validate([
@@ -63,7 +63,7 @@ class ShareController extends Controller
             'share_expires_at' => null,
         ])->save();
 
-        return response()->json(['message' => 'Публічний доступ до файла вимкнено.']);
+        return response()->json(['message' => 'Public access to the file disabled.']);
     }
 
     public function enableFolder(Request $request, FileFolder $folder): FileFolderResource
@@ -85,7 +85,7 @@ class ShareController extends Controller
         $this->ensureFolderOwner($request->user(), $folder);
 
         if (! $folder->share_token) {
-            return response()->json(['message' => 'Шеринг для цієї папки вимкнено.'], 422);
+            return response()->json(['message' => 'Sharing is disabled for this folder.'], 422);
         }
 
         $validated = $request->validate([
@@ -114,7 +114,7 @@ class ShareController extends Controller
             'share_expires_at' => null,
         ])->save();
 
-        return response()->json(['message' => 'Публічний доступ до папки вимкнено.']);
+        return response()->json(['message' => 'Public access to the folder disabled.']);
     }
 
     private function ensureFileOwner(?User $user, ManagedFile $file): void

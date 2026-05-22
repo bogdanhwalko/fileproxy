@@ -96,7 +96,7 @@ class FolderController extends Controller
         Storage::disk('local')->deleteDirectory('uploads/'.$folder->user_id.'/folders/'.$folder->id);
         $folder->delete();
 
-        return response()->json(['message' => 'Папку видалено.']);
+        return response()->json(['message' => 'Folder deleted.']);
     }
 
     private function ensureOwner(?User $user, FileFolder $folder): void

@@ -116,7 +116,7 @@ class FileController extends Controller
         $uploadedFiles = array_values(array_filter($uploadedFiles));
 
         if ($uploadedFiles === []) {
-            return response()->json(['message' => 'Не передано жодного файлу.'], 422);
+            return response()->json(['message' => 'No file was provided.'], 422);
         }
 
         $folderId = $validated['folder_id'] ?? null;
@@ -130,14 +130,14 @@ class FileController extends Controller
             $telegramGroup = $telegramStorageGroups->firstWhere('id', (int) $validated['telegram_storage_group_id']);
 
             if (! $telegramGroup) {
-                return response()->json(['message' => 'Telegram-група недоступна.'], 404);
+                return response()->json(['message' => 'Telegram storage group is not available.'], 404);
             }
         }
 
         if (! $user->is_admin && ! $telegramGroup) {
             if ($telegramStorageGroups->isNotEmpty()) {
                 return response()->json([
-                    'message' => 'Виберіть telegram_storage_group_id зі списку власних груп.',
+                    'message' => 'Select telegram_storage_group_id from your own groups.',
                 ], 422);
             }
 
@@ -149,7 +149,7 @@ class FileController extends Controller
 
             if ($systemGroups->isEmpty()) {
                 return response()->json([
-                    'message' => 'Системне Telegram-сховище не налаштовано. Підключіть власного бота і групу.',
+                    'message' => 'System Telegram storage is not configured. Connect your own bot and group.',
                 ], 422);
             }
 
@@ -172,13 +172,13 @@ class FileController extends Controller
 
                 if ($remaining <= 0) {
                     return response()->json([
-                        'message' => 'Системний ліміт 100 файлів вичерпано. Підключіть власну Telegram-групу.',
+                        'message' => 'System upload quota of 100 files has been exhausted. Connect your own Telegram group.',
                     ], 403);
                 }
 
                 if ($requested > $remaining) {
                     return response()->json([
-                        'message' => "Системне Telegram-сховище дозволяє завантажити ще {$remaining} файлів.",
+                        'message' => "System Telegram storage allows uploading {$remaining} more file(s).",
                     ], 403);
                 }
             }
@@ -196,7 +196,7 @@ class FileController extends Controller
             }
         } catch (LockTimeoutException) {
             return response()->json([
-                'message' => 'Вже триває інше завантаження від цього акаунта. Повторіть через кілька секунд.',
+                'message' => 'Another upload from this account is in progress. Retry in a few seconds.',
             ], 409);
         } catch (Throwable $exception) {
             report($exception);
@@ -204,7 +204,7 @@ class FileController extends Controller
             return response()->json([
                 'message' => $exception instanceof RuntimeException
                     ? $exception->getMessage()
-                    : 'Не вдалося завантажити файли.',
+                    : 'Failed to upload files.',
             ], 500);
         } finally {
             $lock?->release();
@@ -220,7 +220,7 @@ class FileController extends Controller
         $this->ensureOwner($request->user(), $file);
 
         if (! $fileStorage->exists($file)) {
-            return response()->json(['message' => 'Файл недоступний для завантаження.'], 404);
+            return response()->json(['message' => 'File is not available for download.'], 404);
         }
 
         return $fileStorage->downloadResponse($file);
@@ -232,7 +232,7 @@ class FileController extends Controller
 
         $fileStorage->delete($file);
 
-        return response()->json(['message' => 'Файл видалено.']);
+        return response()->json(['message' => 'File deleted.']);
     }
 
     private function ensureOwner(?User $user, ManagedFile $file): void
