@@ -1,5 +1,6 @@
 @php
     $shareUrl = $file->share_token ? route('share.files.show', $file->share_token) : '';
+    $shareRawUrl = $file->share_token ? route('share.files.raw', $file->share_token) : '';
     $shareExpiresInput = $file->share_expires_at?->format('Y-m-d\TH:i');
     $shareViewsLabel = $file->share_max_views
         ? $file->share_views_count.' / '.$file->share_max_views
@@ -62,7 +63,7 @@
 
             <div class="share-enabled" data-share-enabled @unless ($file->share_token) hidden @endunless>
                 <label class="share-link-field">
-                    <span>Лінк</span>
+                    <span>Сторінка перегляду</span>
                     <input class="field" type="text" value="{{ $shareUrl }}" data-share-link-input readonly>
                 </label>
 
@@ -71,6 +72,16 @@
                     <button class="button secondary" type="button" data-share-copy>Копіювати</button>
                     <button class="button danger" type="button" data-share-disable>Закрити</button>
                 </div>
+
+                <label class="share-link-field share-link-field-raw">
+                    <span>Прямий лінк на файл</span>
+                    <input class="field" type="text" value="{{ $shareRawUrl }}" data-share-raw-link-input readonly>
+                </label>
+                <div class="share-inline-actions share-inline-actions-raw">
+                    <a class="button secondary" href="{{ $shareRawUrl ?: '#' }}" target="_blank" rel="noopener" data-share-raw-open @if (! $shareRawUrl) aria-disabled="true" @endif>Відкрити</a>
+                    <button class="button secondary" type="button" data-share-raw-copy>Копіювати</button>
+                </div>
+                <p class="share-raw-hint">Без сторінки сайту — лінк віддає сам файл (зручно для месенджерів, embed'ів).</p>
 
                 <div class="share-limit-grid">
                     <label>

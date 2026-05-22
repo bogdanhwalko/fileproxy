@@ -72,6 +72,7 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => env('DB_ENGINE', 'InnoDB'),
+            'timezone' => env('DB_TIMEZONE', '+03:00'),
             'options' => $mysqlOptions(false),
         ],
 
@@ -91,6 +92,7 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => env('DB_ENGINE', 'InnoDB'),
+            'timezone' => env('DB_TIMEZONE', '+03:00'),
             'options' => $mysqlOptions(true),
         ],
 

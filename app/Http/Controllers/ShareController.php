@@ -187,6 +187,17 @@ class ShareController extends Controller
         return $fileStorage->inlineResponse($file);
     }
 
+    public function rawFile(string $token, ManagedFileStorageService $fileStorage)
+    {
+        $file = $this->sharedFile($token);
+
+        abort_unless($fileStorage->exists($file), 404);
+
+        $this->consumeFileShareView($file);
+
+        return $fileStorage->inlineResponse($file);
+    }
+
     public function downloadFile(string $token, ManagedFileStorageService $fileStorage)
     {
         $file = $this->sharedFile($token);
@@ -314,6 +325,18 @@ class ShareController extends Controller
         $this->ensureFileBelongsToFolder($folder, $file);
 
         abort_unless($file->is_image, 404);
+        abort_unless($fileStorage->exists($file), 404);
+
+        $this->consumeFolderShareView($folder);
+
+        return $fileStorage->inlineResponse($file);
+    }
+
+    public function rawFolderFile(string $token, ManagedFile $file, ManagedFileStorageService $fileStorage)
+    {
+        $folder = $this->sharedFolder($token);
+        $this->ensureFileBelongsToFolder($folder, $file);
+
         abort_unless($fileStorage->exists($file), 404);
 
         $this->consumeFolderShareView($folder);
@@ -457,6 +480,7 @@ class ShareController extends Controller
         return [
             'token' => $file->share_token,
             'url' => $isEnabled ? route('share.files.show', $file->share_token) : null,
+            'raw_url' => $isEnabled ? route('share.files.raw', $file->share_token) : null,
             'is_enabled' => $isEnabled,
             'status_label' => $isEnabled ? 'Активний' : 'Вимкнено',
             'share_max_views' => $file->share_max_views,

@@ -19,6 +19,8 @@ class ManagedFileResource extends JsonResource
             $share = [
                 'token' => $this->share_token,
                 'url' => route('share.files.show', $this->share_token),
+                'raw_url' => route('share.files.raw', $this->share_token),
+                'download_url' => route('share.files.download', $this->share_token),
                 'max_views' => $this->share_max_views,
                 'views_count' => $this->share_views_count,
                 'remaining_views' => $this->share_remaining_views,

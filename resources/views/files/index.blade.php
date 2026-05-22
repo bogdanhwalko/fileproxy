@@ -928,8 +928,9 @@
                 const shareDisable = event.target.closest('[data-share-disable]');
                 const shareSave = event.target.closest('[data-share-save]');
                 const shareCopy = event.target.closest('[data-share-copy]');
+                const shareRawCopy = event.target.closest('[data-share-raw-copy]');
 
-                if (shareEnable || shareDisable || shareSave || shareCopy) {
+                if (shareEnable || shareDisable || shareSave || shareCopy || shareRawCopy) {
                     const panel = event.target.closest('[data-file-share]');
 
                     if (! panel) {
@@ -939,7 +940,12 @@
                     event.preventDefault();
 
                     if (shareCopy) {
-                        copyShareLink(panel);
+                        copyShareLink(panel, '[data-share-link-input]');
+                        return;
+                    }
+
+                    if (shareRawCopy) {
+                        copyShareLink(panel, '[data-share-raw-link-input]');
                         return;
                     }
 
@@ -1967,6 +1973,16 @@
                     openLink.toggleAttribute('aria-disabled', ! share?.url);
                 }
 
+                const rawLinkInput = panel.querySelector('[data-share-raw-link-input]');
+                const rawOpenLink  = panel.querySelector('[data-share-raw-open]');
+                if (rawLinkInput) {
+                    rawLinkInput.value = share?.raw_url || '';
+                }
+                if (rawOpenLink) {
+                    rawOpenLink.href = share?.raw_url || '#';
+                    rawOpenLink.toggleAttribute('aria-disabled', ! share?.raw_url);
+                }
+
                 if (maxViews) {
                     maxViews.value = share?.share_max_views ?? '';
                 }
@@ -1982,8 +1998,8 @@
                 showShareMessage(panel, message || 'Збережено.', false);
             }
 
-            function copyShareLink(panel) {
-                const input = panel.querySelector('[data-share-link-input]');
+            function copyShareLink(panel, selector = '[data-share-link-input]') {
+                const input = panel.querySelector(selector);
 
                 if (! input?.value) {
                     showShareMessage(panel, 'Спочатку створіть публічний лінк.', true);

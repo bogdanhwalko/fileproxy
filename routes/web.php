@@ -19,11 +19,13 @@ Route::get('/docs/api', [DocsController::class, 'api'])->name('docs.api');
 
 Route::middleware('throttle:share-download')->group(function () {
     Route::get('/share/files/{token}', [ShareController::class, 'showFile'])->name('share.files.show');
+    Route::get('/share/files/{token}/raw', [ShareController::class, 'rawFile'])->name('share.files.raw');
     Route::get('/share/files/{token}/inline', [ShareController::class, 'inlineFile'])->name('share.files.inline');
     Route::get('/share/files/{token}/download', [ShareController::class, 'downloadFile'])->name('share.files.download');
     Route::get('/share/folders/{token}', [ShareController::class, 'showFolder'])->name('share.folders.show');
     Route::get('/share/folders/{token}/download', [ShareController::class, 'downloadFolder'])->name('share.folders.download');
     Route::get('/share/folders/{token}/files/{file}', [ShareController::class, 'showFolderFile'])->name('share.folders.files.show');
+    Route::get('/share/folders/{token}/files/{file}/raw', [ShareController::class, 'rawFolderFile'])->name('share.folders.files.raw');
     Route::get('/share/folders/{token}/files/{file}/inline', [ShareController::class, 'inlineFolderFile'])->name('share.folders.files.inline');
     Route::get('/share/folders/{token}/files/{file}/download', [ShareController::class, 'downloadFolderFile'])->name('share.folders.files.download');
 });
