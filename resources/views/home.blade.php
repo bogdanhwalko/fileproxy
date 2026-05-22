@@ -101,6 +101,7 @@
         </a>
 
         <div class="nav-actions">
+            <a class="button secondary nav-button" href="{{ route('docs.api') }}">API</a>
             @auth
                 <a class="button secondary nav-button" href="{{ route('files.index') }}">Кабінет</a>
                 <form action="{{ route('logout') }}" method="post">

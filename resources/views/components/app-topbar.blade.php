@@ -46,6 +46,14 @@
                 'icon' => 'telegram',
             ];
         }
+
+        if ($currentRoute !== 'api-tokens.index') {
+            $links[] = [
+                'href' => route('api-tokens.index'),
+                'label' => 'API',
+                'icon' => 'api',
+            ];
+        }
     }
 @endphp
 
@@ -108,6 +116,12 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="M19 12H5"/>
                             <polyline points="12 19 5 12 12 5"/>
+                        </svg>
+                        @break
+                    @case('api')
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polyline points="16 18 22 12 16 6"/>
+                            <polyline points="8 6 2 12 8 18"/>
                         </svg>
                         @break
                 @endswitch

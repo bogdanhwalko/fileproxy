@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\ApiTokenController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\DocsController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\FolderController;
 use App\Http\Controllers\ShareController;
@@ -12,6 +14,8 @@ use App\Http\Controllers\TelegramStorageSettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'home')->name('home');
+
+Route::get('/docs/api', [DocsController::class, 'api'])->name('docs.api');
 
 Route::middleware('throttle:share-download')->group(function () {
     Route::get('/share/files/{token}', [ShareController::class, 'showFile'])->name('share.files.show');
@@ -61,6 +65,10 @@ Route::middleware(['auth', 'not.blocked'])->group(function () {
     Route::patch('/folders/{folder}/share', [ShareController::class, 'updateFolderShareSettings'])->name('folders.share.update');
     Route::delete('/folders/{folder}/share', [ShareController::class, 'unshareFolder'])->name('folders.share.destroy');
     Route::delete('/folders/{folder}', [FolderController::class, 'destroy'])->name('folders.destroy');
+
+    Route::get('/settings/api-tokens', [ApiTokenController::class, 'index'])->name('api-tokens.index');
+    Route::post('/settings/api-tokens', [ApiTokenController::class, 'store'])->name('api-tokens.store');
+    Route::delete('/settings/api-tokens/{token}', [ApiTokenController::class, 'destroy'])->name('api-tokens.destroy');
 
     Route::get('/telegram/setup', TelegramSetupController::class)->name('telegram.setup');
     Route::get('/settings/telegram', [TelegramStorageSettingsController::class, 'index'])->name('telegram-settings.index');

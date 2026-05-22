@@ -28,6 +28,10 @@ class RouteServiceProvider extends ServiceProvider
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
         });
 
+        RateLimiter::for('api-uploads', function (Request $request) {
+            return Limit::perMinute(30)->by('api-uploads:'.($request->user()?->id ?: $request->ip()));
+        });
+
         RateLimiter::for('auth-phone', function (Request $request) {
             $phone = preg_replace('/\D+/', '', (string) $request->input('phone')) ?: 'unknown';
 
