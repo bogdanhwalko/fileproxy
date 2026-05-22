@@ -52,7 +52,7 @@
     <meta name="twitter:description" content="{{ $metaDescription }}">
     <meta name="twitter:image" content="{{ $ogImage }}">
 
-    <link rel="stylesheet" href="{{ asset('css/site.css') }}">
+    <link rel="stylesheet" href="@vasset('css/site.css')">
 
     @stack('head')
 </head>

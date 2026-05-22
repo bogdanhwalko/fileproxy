@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Database\SafeDatabaseMigrationRepository;
 use App\Models\ManagedFile;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -32,6 +33,10 @@ class AppServiceProvider extends ServiceProvider
     {
         Schema::defaultStringLength(191);
 
+        Blade::directive('vasset', function ($expression) {
+            return "<?php echo \\App\\Providers\\AppServiceProvider::versionedAsset({$expression}); ?>";
+        });
+
         View::composer('components.app-topbar', function ($view) {
             $count = 0;
 
@@ -50,5 +55,18 @@ class AppServiceProvider extends ServiceProvider
 
             $view->with('failedFilesCount', $count);
         });
+    }
+
+    public static function versionedAsset(string $path): string
+    {
+        $url = asset($path);
+        $abs = public_path($path);
+
+        if (is_file($abs)) {
+            $sep = str_contains($url, '?') ? '&' : '?';
+            $url .= $sep.'v='.filemtime($abs);
+        }
+
+        return $url;
     }
 }

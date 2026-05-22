@@ -4,7 +4,7 @@
 @section('robots', 'noindex, nofollow')
 
 @push('head')
-    <link rel="stylesheet" href="{{ asset('css/api-tokens.css') }}">
+    <link rel="stylesheet" href="@vasset('css/api-tokens.css')">
 @endpush
 
 @section('content')

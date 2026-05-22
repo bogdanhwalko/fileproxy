@@ -4,7 +4,7 @@
 @section('robots', 'noindex, nofollow')
 
 @push('head')
-    <link rel="stylesheet" href="{{ asset('css/uploader.css') }}">
+    <link rel="stylesheet" href="@vasset('css/uploader.css')">
 @endpush
 
 @section('content')
@@ -739,7 +739,7 @@
 @endsection
 
 @push('scripts')
-    <script src="{{ asset('js/uploader.js') }}" defer></script>
+    <script src="@vasset('js/uploader.js')" defer></script>
 
     <script>
         (() => {
@@ -958,6 +958,13 @@
 
             async function submitAjaxForm(form) {
                 const submitter = form.querySelector('[type="submit"]');
+                const owningRow = form.closest('[data-file-item]');
+
+                // Visually mark the file row as leaving so user sees immediate feedback.
+                if (owningRow) {
+                    owningRow.classList.add('is-leaving');
+                    owningRow.setAttribute('aria-busy', 'true');
+                }
 
                 try {
                     setShareBusy(submitter, true);
@@ -986,6 +993,11 @@
 
                     handleEmptyPageAfterMutation();
                 } catch (error) {
+                    // Restore the row — delete didn't go through
+                    if (owningRow) {
+                        owningRow.classList.remove('is-leaving');
+                        owningRow.removeAttribute('aria-busy');
+                    }
                     showToast(error.message || 'Дію не виконано.', 'error');
                 } finally {
                     setShareBusy(submitter, false);
@@ -1029,31 +1041,52 @@
                     layer = document.createElement('div');
                     layer.dataset.toastLayer = '';
                     layer.className = 'fp-toast-layer';
+                    // Safety: inline styles in case site.css is cached without toast rules
+                    layer.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:80;display:flex;flex-direction:column;gap:10px;pointer-events:none;width:min(380px,calc(100vw - 32px))';
                     document.body.appendChild(layer);
                 }
 
                 const toast = document.createElement('div');
                 toast.className = 'fp-toast' + (type === 'error' ? ' is-error' : '');
+                // Safety baseline (fallback if site.css cache is stale)
+                toast.style.cssText = 'pointer-events:auto;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 14px;background:#fff;color:#0f172a;border:1px solid #e2e8f0;border-left:4px solid '+(type==='error'?'#dc2626':'#16a34a')+';border-radius:12px;box-shadow:0 16px 38px -18px rgba(15,23,42,.45);font-size:14px;line-height:1.4;opacity:0;transform:translateY(12px);transition:opacity .2s,transform .2s';
                 toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
                 toast.innerHTML = `
                     <span class="fp-toast-icon" aria-hidden="true">
                         ${type === 'error'
-                            ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
-                            : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'}
+                            ? '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
+                            : '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'}
                     </span>
                     <span class="fp-toast-message"></span>
                     <button type="button" class="fp-toast-close" aria-label="Закрити">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
                 `;
                 toast.querySelector('.fp-toast-message').textContent = message;
+
+                // Safety: constrain icon/close button if site.css is stale
+                const iconEl = toast.querySelector('.fp-toast-icon');
+                if (iconEl) {
+                    iconEl.style.cssText = 'width:22px;height:22px;flex-shrink:0;display:grid;place-items:center;color:'+(type==='error'?'#dc2626':'#16a34a');
+                }
+                const closeEl = toast.querySelector('.fp-toast-close');
+                if (closeEl) {
+                    closeEl.style.cssText = 'background:transparent;border:0;cursor:pointer;width:26px;height:26px;border-radius:6px;display:grid;place-items:center;color:#94a3b8';
+                }
+
                 layer.appendChild(toast);
 
-                requestAnimationFrame(() => toast.classList.add('is-visible'));
+                requestAnimationFrame(() => {
+                    toast.classList.add('is-visible');
+                    toast.style.opacity = '1';
+                    toast.style.transform = 'translateY(0)';
+                });
 
                 const dismiss = () => {
                     toast.classList.remove('is-visible');
                     toast.classList.add('is-leaving');
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateY(6px)';
                     setTimeout(() => toast.remove(), 250);
                 };
 

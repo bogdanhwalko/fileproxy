@@ -4,7 +4,7 @@
 @section('description', 'Документація REST API FileProxy: автентифікація, ендпоінти для файлів, папок і публічних посилань. Приклади на curl і PHP.')
 
 @push('head')
-    <link rel="stylesheet" href="{{ asset('css/docs.css') }}">
+    <link rel="stylesheet" href="@vasset('css/docs.css')">
 @endpush
 
 @section('content')
