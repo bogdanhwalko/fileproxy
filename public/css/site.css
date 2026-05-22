@@ -7200,19 +7200,23 @@ tr[data-file-item].is-selected td:first-child {
     position: fixed;
     left: 50%;
     bottom: 18px;
-    transform: translateX(-50%) translateY(120%);
+    transform: translateX(-50%) translateY(140%);
+    opacity: 0;
+    visibility: hidden;
     z-index: 70;
-    transition: transform 0.25s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    transition: transform 0.25s cubic-bezier(0.18, 0.89, 0.32, 1.28),
+                opacity 0.2s ease,
+                visibility 0s linear 0.25s;
     pointer-events: none;
 }
 .fp-bulk-bar:not([hidden]) {
-    pointer-events: auto;
     transform: translateX(-50%) translateY(0);
-}
-.fp-bulk-bar[hidden] {
-    display: block !important;          /* keep slot, hide via transform */
-    transform: translateX(-50%) translateY(140%);
-    pointer-events: none;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: transform 0.25s cubic-bezier(0.18, 0.89, 0.32, 1.28),
+                opacity 0.2s ease,
+                visibility 0s linear 0s;
 }
 
 .fp-bulk-bar-inner {

@@ -350,24 +350,75 @@
     function finishedAllUploads() {
         // If any are still pending (polling), keep wake lock until they all resolve
         const pending = items.some(i => i.status === 'pending');
-        if (!pending) {
+
+        const onAllSettled = () => {
             releaseWakeLock();
-            // refresh file list after a short delay if everything went OK
-            if (reloadUrl && items.every(i => i.status === 'uploaded')) {
+
+            const allOk = items.length > 0 && items.every(i => i.status === 'uploaded');
+            const hasFailures = items.some(i => i.status === 'failed');
+
+            if (allOk && reloadUrl) {
+                // Full success → refresh file list shortly
                 setTimeout(() => { window.location.href = reloadUrl; }, 1200);
+                return;
             }
+
+            // After 4.5s start fading out and removing "uploaded" items one-by-one.
+            // Failed items stay visible so user notices them.
+            setTimeout(() => removeUploadedItems(), 4500);
+
+            if (hasFailures) {
+                // After a long timeout collapse remaining (still-failed) widget
+                setTimeout(() => {
+                    if (!hasActiveWork() && items.length > 0) {
+                        widget.classList.add('is-collapsed');
+                    }
+                }, 20000);
+            }
+        };
+
+        if (!pending) {
+            onAllSettled();
         } else {
-            // poll until pending resolved, then maybe reload
             const watcher = setInterval(() => {
                 if (!items.some(i => i.status === 'pending')) {
                     clearInterval(watcher);
-                    releaseWakeLock();
-                    if (reloadUrl && items.every(i => i.status === 'uploaded')) {
-                        setTimeout(() => { window.location.href = reloadUrl; }, 1200);
-                    }
+                    onAllSettled();
                 }
             }, 1500);
         }
+    }
+
+    function removeUploadedItems() {
+        const uploaded = items.filter(i => i.status === 'uploaded');
+        if (uploaded.length === 0) return;
+
+        uploaded.forEach((item) => {
+            const row = listEl.querySelector(`[data-item-id="${item.id}"]`);
+            if (row) {
+                row.style.transition = 'opacity 0.3s ease, transform 0.3s ease, max-height 0.35s ease, padding 0.25s ease, margin 0.25s ease';
+                row.style.maxHeight = row.offsetHeight + 'px';
+                requestAnimationFrame(() => {
+                    row.style.opacity = '0';
+                    row.style.transform = 'translateX(20px)';
+                    row.style.maxHeight = '0px';
+                    row.style.paddingTop = '0';
+                    row.style.paddingBottom = '0';
+                    row.style.marginTop = '0';
+                    row.style.marginBottom = '0';
+                });
+                setTimeout(() => row.remove(), 360);
+            }
+            items = items.filter(i => i.id !== item.id);
+        });
+
+        // Re-render summary; if list became empty, hide widget entirely
+        setTimeout(() => {
+            renderSummary();
+            if (items.length === 0) {
+                clearList();
+            }
+        }, 400);
     }
 
     /* ----------------------------------------------------
@@ -381,6 +432,15 @@
 
         const folderId = form.querySelector('[name="folder_id"]')?.value || '';
         const groupId = form.querySelector('[name="telegram_storage_group_id"]')?.value || '';
+
+        // Remember the last picked storage so subsequent uploads pre-select it.
+        try {
+            if (groupId !== '') {
+                window.localStorage?.setItem('fp_last_storage_group_id', groupId);
+            } else {
+                window.localStorage?.removeItem('fp_last_storage_group_id');
+            }
+        } catch (_) {}
 
         const newItems = Array.from(fileInput.files).map((file) => ({
             id: `i${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,

@@ -1034,6 +1034,14 @@
             async function submitAjaxForm(form) {
                 const submitter = form.querySelector('[type="submit"]');
                 const owningRow = form.closest('[data-file-item]');
+                const owningMenu = form.closest('[data-file-share]');
+
+                // Close the action menu immediately — its position:fixed panel
+                // can otherwise leak into viewport and cause scrollbars while
+                // the parent row pulses.
+                if (owningMenu) {
+                    owningMenu.removeAttribute('open');
+                }
 
                 // Visually mark the file row as leaving so user sees immediate feedback.
                 if (owningRow) {
@@ -1312,6 +1320,8 @@
                 if (! document.body.dataset.uploadDropdownBound) {
                     document.body.dataset.uploadDropdownBound = '1';
 
+                    restoreLastStorageChoice();
+
                     document.addEventListener('click', (event) => {
                         const trigger = event.target.closest('[data-upload-dropdown-trigger]');
 
@@ -1359,6 +1369,27 @@
                     if (trigger) trigger.setAttribute('aria-expanded', 'false');
                     if (menu) menu.hidden = true;
                 });
+            }
+
+            function restoreLastStorageChoice() {
+                try {
+                    const savedId = window.localStorage?.getItem('fp_last_storage_group_id');
+                    if (! savedId) return;
+
+                    const storageDropdown = document.querySelector('.upload-control-storage[data-upload-dropdown]');
+                    if (! storageDropdown) return;
+
+                    // Don't override an explicit "old value" from server (e.g. validation re-render)
+                    const oldValue = storageDropdown.querySelector('[data-upload-dropdown-input]')?.value || '';
+                    if (oldValue && oldValue !== '') return;
+
+                    const option = storageDropdown.querySelector(`[data-upload-dropdown-option][data-value="${CSS.escape(savedId)}"]`);
+                    if (option) {
+                        selectUploadDropdownOption(option);
+                    }
+                } catch (_) {
+                    // localStorage may throw in private mode / sandboxed contexts
+                }
             }
 
             function selectUploadDropdownOption(option) {
