@@ -187,7 +187,7 @@ class ShareController extends Controller
         return $fileStorage->inlineResponse($file);
     }
 
-    public function rawFile(string $token, ManagedFileStorageService $fileStorage)
+    public function rawFile(string $token, ManagedFileStorageService $fileStorage, ?string $ext = null)
     {
         $file = $this->sharedFile($token);
 
@@ -332,7 +332,7 @@ class ShareController extends Controller
         return $fileStorage->inlineResponse($file);
     }
 
-    public function rawFolderFile(string $token, ManagedFile $file, ManagedFileStorageService $fileStorage)
+    public function rawFolderFile(string $token, ManagedFile $file, ManagedFileStorageService $fileStorage, ?string $ext = null)
     {
         $folder = $this->sharedFolder($token);
         $this->ensureFileBelongsToFolder($folder, $file);
