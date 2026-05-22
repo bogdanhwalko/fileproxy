@@ -3,6 +3,10 @@
 @section('title', 'Файли — FileProxy')
 @section('robots', 'noindex, nofollow')
 
+@push('head')
+    <link rel="stylesheet" href="{{ asset('css/uploader.css') }}">
+@endpush
+
 @section('content')
     <x-app-topbar title="FileProxy" subtitle="Завантаження, папки і швидке керування файлами" />
 
@@ -58,7 +62,7 @@
             </div>
         </header>
 
-        <form class="upload-form-v2" action="{{ route('files.store') }}" method="post" enctype="multipart/form-data" data-upload-form>
+        <form class="upload-form-v2" action="{{ route('files.store') }}" method="post" enctype="multipart/form-data" data-upload-form data-fp-uploader data-status-url="{{ route('files.status', ['file' => '__id__']) }}" data-reload-url="{{ url()->full() }}">
             @csrf
 
             <label class="dropzone-v2" data-dropzone>
@@ -706,9 +710,37 @@
             @endif
         </section>
     </section>
+
+    {{-- Sticky upload widget --}}
+    <aside class="fp-up-widget" data-fp-uploader-widget hidden role="status" aria-live="polite">
+        <header class="fp-up-head">
+            <span class="fp-up-head-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+            </span>
+            <span class="fp-up-head-title" data-fp-uploader-summary>Завантаження…</span>
+            <button type="button" class="fp-up-head-btn" data-fp-uploader-minimize aria-label="Згорнути">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"/>
+                </svg>
+            </button>
+            <button type="button" class="fp-up-head-btn" data-fp-uploader-close aria-label="Закрити">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </header>
+        <div class="fp-up-list" data-fp-uploader-list></div>
+    </aside>
 @endsection
 
 @push('scripts')
+    <script src="{{ asset('js/uploader.js') }}" defer></script>
+
     <script>
         (() => {
             if (! document.querySelector('[data-file-items]')) {

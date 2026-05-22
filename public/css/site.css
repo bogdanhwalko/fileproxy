@@ -6941,3 +6941,27 @@
                 justify-content: flex-end;
             }
         }
+
+/* ====================================================
+   Failed-files badge in topbar (global)
+   ==================================================== */
+.fp-failed-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px 4px 8px;
+    border-radius: 999px;
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fca5a5;
+    font-size: 12.5px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.12s, transform 0.12s;
+    white-space: nowrap;
+}
+.fp-failed-badge:hover {
+    background: #fecaca;
+    transform: translateY(-1px);
+}
+.fp-failed-badge svg { width: 14px; height: 14px; }

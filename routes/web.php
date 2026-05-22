@@ -51,6 +51,7 @@ Route::middleware(['auth', 'not.blocked'])->group(function () {
     Route::post('/files', [FileController::class, 'store'])
         ->middleware('throttle:uploads')
         ->name('files.store');
+    Route::get('/files/{file}/status', [FileController::class, 'status'])->name('files.status');
     Route::get('/files/{file}/preview', [FileController::class, 'preview'])->name('files.preview');
     Route::get('/files/{file}/inline', [FileController::class, 'inline'])->name('files.inline');
     Route::get('/files/{file}/download', [FileController::class, 'download'])->name('files.download');

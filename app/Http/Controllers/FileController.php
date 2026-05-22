@@ -9,6 +9,7 @@ use App\Services\ManagedFileStorageService;
 use Carbon\Carbon;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -135,9 +136,10 @@ class FileController extends Controller
         ]);
     }
 
-    public function store(Request $request, ManagedFileStorageService $fileStorage): RedirectResponse
+    public function store(Request $request, ManagedFileStorageService $fileStorage): RedirectResponse|JsonResponse
     {
         $user = $request->user();
+        $wantsJson = $request->wantsJson() || $request->ajax();
 
         $validated = $request->validate([
             'folder_id' => [
@@ -174,17 +176,19 @@ class FileController extends Controller
 
         if (! $user->is_admin && ! $telegramGroup) {
             if ($telegramStorageGroups->isNotEmpty()) {
-                return back()
-                    ->withInput($request->except('files'))
-                    ->withErrors(['telegram_storage_group_id' => 'Звичайні користувачі можуть завантажувати файли тільки в Telegram-групу.']);
+                return $this->uploadErrorResponse($request, $wantsJson,
+                    'telegram_storage_group_id',
+                    'Звичайні користувачі можуть завантажувати файли тільки в Telegram-групу.'
+                );
             }
 
             $systemTelegramStorageGroups = $this->systemTelegramStorageGroups();
 
             if ($systemTelegramStorageGroups->isEmpty()) {
-                return back()
-                    ->withInput($request->except('files'))
-                    ->withErrors(['telegram_storage_group_id' => 'Адміністратор ще не налаштував системну Telegram-групу для завантажень.']);
+                return $this->uploadErrorResponse($request, $wantsJson,
+                    'telegram_storage_group_id',
+                    'Адміністратор ще не налаштував системну Telegram-групу для завантажень.'
+                );
             }
 
             $useSystemTelegramStorage = true;
@@ -193,6 +197,8 @@ class FileController extends Controller
         $lock = $useSystemTelegramStorage
             ? Cache::lock('fileproxy:system-tg-upload:'.$user->id, 10)
             : null;
+
+        $createdFiles = [];
 
         try {
             $lock?->block(5);
@@ -203,15 +209,17 @@ class FileController extends Controller
                 $requestedUploads = count($validated['files']);
 
                 if ($systemTelegramRemainingUploads <= 0) {
-                    return back()
-                        ->withInput($request->except('files'))
-                        ->withErrors(['telegram_storage_group_id' => 'Ви вже використали системний ліміт 100 файлів. Підключіть власну Telegram-групу.']);
+                    return $this->uploadErrorResponse($request, $wantsJson,
+                        'telegram_storage_group_id',
+                        'Ви вже використали системний ліміт 100 файлів. Підключіть власну Telegram-групу.'
+                    );
                 }
 
                 if ($requestedUploads > $systemTelegramRemainingUploads) {
-                    return back()
-                        ->withInput($request->except('files'))
-                        ->withErrors(['files' => "Системне Telegram-сховище дозволяє завантажити ще {$systemTelegramRemainingUploads} файлів."]);
+                    return $this->uploadErrorResponse($request, $wantsJson,
+                        'files',
+                        "Системне Telegram-сховище дозволяє завантажити ще {$systemTelegramRemainingUploads} файлів."
+                    );
                 }
             }
 
@@ -224,25 +232,41 @@ class FileController extends Controller
                         ->get(($systemTelegramUsedUploads + $index) % $systemTelegramStorageGroups->count());
                 }
 
-                $fileStorage->storeUploadedFile($user, $uploadedFile, $folderId, $targetTelegramGroup);
+                $createdFiles[] = $fileStorage->storeUploadedFile($user, $uploadedFile, $folderId, $targetTelegramGroup);
             }
         } catch (LockTimeoutException $exception) {
-            return back()
-                ->withInput($request->except('files'))
-                ->withErrors(['files' => 'Уже триває інше завантаження від цього акаунта. Повторіть через кілька секунд.']);
+            return $this->uploadErrorResponse($request, $wantsJson,
+                'files',
+                'Уже триває інше завантаження від цього акаунта. Повторіть через кілька секунд.'
+            );
         } catch (Throwable $exception) {
             report($exception);
 
-            return back()
-                ->withInput($request->except('files'))
-                ->withErrors(['files' => $exception instanceof RuntimeException
+            return $this->uploadErrorResponse($request, $wantsJson,
+                'files',
+                $exception instanceof RuntimeException
                     ? $exception->getMessage()
-                    : 'Не вдалося завантажити файли. Перевірте сховище та повторіть спробу.']);
+                    : 'Не вдалося завантажити файли. Перевірте сховище та повторіть спробу.'
+            );
         } finally {
             $lock?->release();
         }
 
         $count = count($validated['files']);
+
+        if ($wantsJson) {
+            return response()->json([
+                'message' => 'OK',
+                'files' => array_map(fn (ManagedFile $f) => [
+                    'id' => $f->id,
+                    'original_name' => $f->original_name,
+                    'status' => $f->status,
+                    'size' => (int) $f->size,
+                    'storage_driver' => $f->storage_driver,
+                ], $createdFiles),
+            ], 201);
+        }
+
         $storageLabel = match (true) {
             (bool) $telegramGroup => ' у Telegram-групу "'.$telegramGroup->title.'"',
             $useSystemTelegramStorage => ' у системне Telegram-сховище',
@@ -258,6 +282,32 @@ class FileController extends Controller
         return redirect()
             ->route('files.index', $routeParameters)
             ->with('status', $statusMessage);
+    }
+
+    public function status(ManagedFile $file): JsonResponse
+    {
+        abort_unless((int) $file->user_id === (int) auth()->id(), 404);
+
+        return response()->json([
+            'id' => $file->id,
+            'original_name' => $file->original_name,
+            'status' => $file->status,
+            'upload_failure_reason' => $file->upload_failure_reason,
+        ]);
+    }
+
+    private function uploadErrorResponse(Request $request, bool $wantsJson, string $field, string $message): JsonResponse|RedirectResponse
+    {
+        if ($wantsJson) {
+            return response()->json([
+                'message' => $message,
+                'errors' => [$field => [$message]],
+            ], 422);
+        }
+
+        return back()
+            ->withInput($request->except('files'))
+            ->withErrors([$field => $message]);
     }
 
     public function download(ManagedFile $file, ManagedFileStorageService $fileStorage)
