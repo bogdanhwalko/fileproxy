@@ -121,6 +121,8 @@ class ManagedFileStorageService
         $stream = $this->telegram->downloadStream($file);
 
         return response()->stream(function () use ($stream): void {
+            @ignore_user_abort(false);
+
             try {
                 while (! $stream->eof()) {
                     echo $stream->read(1024 * 1024);
@@ -130,6 +132,10 @@ class ManagedFileStorageService
                     }
 
                     flush();
+
+                    if (connection_aborted()) {
+                        break;
+                    }
                 }
             } finally {
                 $stream->close();

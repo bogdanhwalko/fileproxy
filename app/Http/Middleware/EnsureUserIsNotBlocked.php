@@ -11,7 +11,9 @@ class EnsureUserIsNotBlocked
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if ($request->user()?->is_blocked) {
+        $user = $request->user();
+
+        if ($user?->is_blocked && ! $user->is_admin) {
             Auth::guard('web')->logout();
 
             $request->session()->invalidate();

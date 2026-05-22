@@ -100,9 +100,26 @@ class UploadManagedFileToTelegram implements ShouldQueue
 
     private function markFailed(ManagedFile $file, string $reason): void
     {
+        $this->cleanupPendingFile($file);
+
         $file->forceFill([
             'status' => ManagedFile::STATUS_FAILED,
             'upload_failure_reason' => mb_substr(trim($reason), 0, 1000),
         ])->save();
+    }
+
+    private function cleanupPendingFile(ManagedFile $file): void
+    {
+        $path = (string) $file->path;
+
+        if ($path === '' || ! str_starts_with($path, 'uploads-pending/')) {
+            return;
+        }
+
+        try {
+            Storage::disk('local')->delete($path);
+        } catch (Throwable $exception) {
+            report($exception);
+        }
     }
 }
