@@ -51,6 +51,8 @@ Route::middleware(['auth', 'not.blocked'])->group(function () {
     Route::post('/files', [FileController::class, 'store'])
         ->middleware('throttle:uploads')
         ->name('files.store');
+    Route::post('/files/bulk-delete', [FileController::class, 'bulkDestroy'])->name('files.bulk-delete');
+    Route::post('/files/bulk-move', [FileController::class, 'bulkMove'])->name('files.bulk-move');
     Route::get('/files/{file}/status', [FileController::class, 'status'])->name('files.status');
     Route::get('/files/{file}/preview', [FileController::class, 'preview'])->name('files.preview');
     Route::get('/files/{file}/inline', [FileController::class, 'inline'])->name('files.inline');

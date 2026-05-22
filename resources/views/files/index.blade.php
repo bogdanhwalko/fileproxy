@@ -539,7 +539,13 @@
             @if ($display === 'grid')
                 <div class="file-grid {{ $imagePreviews ? 'with-previews' : '' }}" data-file-items>
                     @forelse ($files as $file)
-                        <article class="file-tile file-tile-status-{{ $file->status }}" data-file-item>
+                        <article class="file-tile file-tile-status-{{ $file->status }}" data-file-item data-file-id="{{ $file->id }}">
+                            <label class="fp-select-checkbox fp-select-checkbox-tile" title="Вибрати файл">
+                                <input type="checkbox" data-fp-select aria-label="Вибрати {{ $file->original_name }}">
+                                <span class="fp-select-mark" aria-hidden="true">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                </span>
+                            </label>
                             @if ($imagePreviews && $file->is_uploaded && $file->is_image)
                                 <a class="file-tile-preview" href="{{ route('files.preview', $file) }}" aria-label="Відкрити {{ $file->original_name }}">
                                     <img src="{{ route('files.inline', $file) }}" alt="{{ $file->original_name }}" loading="eager" decoding="async">
@@ -577,6 +583,14 @@
                     <table class="compact-file-table">
                         <thead>
                             <tr>
+                                <th class="fp-select-cell">
+                                    <label class="fp-select-checkbox" title="Вибрати все на сторінці">
+                                        <input type="checkbox" data-fp-select-all aria-label="Вибрати все на сторінці">
+                                        <span class="fp-select-mark" aria-hidden="true">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                        </span>
+                                    </label>
+                                </th>
                                 <th>Файл</th>
                                 <th>Папка</th>
                                 <th>Сховище</th>
@@ -587,7 +601,15 @@
                         </thead>
                         <tbody data-file-items>
                             @forelse ($files as $file)
-                                <tr class="file-row-status-{{ $file->status }}" data-file-item>
+                                <tr class="file-row-status-{{ $file->status }}" data-file-item data-file-id="{{ $file->id }}">
+                                    <td class="fp-select-cell">
+                                        <label class="fp-select-checkbox" title="Вибрати файл">
+                                            <input type="checkbox" data-fp-select aria-label="Вибрати {{ $file->original_name }}">
+                                            <span class="fp-select-mark" aria-hidden="true">
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                            </span>
+                                        </label>
+                                    </td>
                                     <td>
                                         <div class="file-table-name">
                                             <span class="file-icon">{{ $file->type_label }}</span>
@@ -612,7 +634,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6">
+                                    <td colspan="7">
                                         <div class="empty">У цьому розділі ще немає файлів. Додайте файл через форму завантаження.</div>
                                     </td>
                                 </tr>
@@ -710,6 +732,59 @@
             @endif
         </section>
     </section>
+
+    {{-- Bulk selection action bar --}}
+    <div class="fp-bulk-bar" data-fp-bulk-bar hidden role="region" aria-label="Дії над вибраними файлами">
+        <div class="fp-bulk-bar-inner">
+            <div class="fp-bulk-bar-count">
+                <span class="fp-bulk-bar-count-pill" data-fp-bulk-count>0</span>
+                <span class="fp-bulk-bar-count-label">вибрано</span>
+            </div>
+
+            <div class="fp-bulk-bar-actions">
+                <details class="fp-bulk-move" data-fp-bulk-move>
+                    <summary class="button secondary">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                        </svg>
+                        <span>Перемістити в…</span>
+                    </summary>
+                    <div class="fp-bulk-move-menu">
+                        <button type="button" class="fp-bulk-move-option" data-fp-bulk-move-folder="">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M3 12h18M3 6h18M3 18h18"/>
+                            </svg>
+                            <em>Корінь</em>
+                        </button>
+                        @foreach ($folders as $folder)
+                            <button type="button" class="fp-bulk-move-option" data-fp-bulk-move-folder="{{ $folder->id }}">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                                </svg>
+                                <span>{{ $folder->name }}</span>
+                            </button>
+                        @endforeach
+                    </div>
+                </details>
+
+                <button type="button" class="button danger" data-fp-bulk-delete>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                        <path d="M10 11v6M14 11v6"/>
+                    </svg>
+                    <span>Видалити</span>
+                </button>
+
+                <button type="button" class="fp-bulk-bar-clear" data-fp-bulk-clear aria-label="Зняти вибір">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
 
     {{-- Sticky upload widget --}}
     <aside class="fp-up-widget" data-fp-uploader-widget hidden role="status" aria-live="polite">
@@ -1919,6 +1994,227 @@
 
                 target.toggleAttribute('disabled', isBusy);
                 target.setAttribute('aria-busy', isBusy ? 'true' : 'false');
+            }
+
+            /* ====================================================
+               Bulk selection: multi-select + bulk delete/move
+               ==================================================== */
+            initBulkSelection();
+
+            function initBulkSelection() {
+                const selected = new Set();
+                const bar = document.querySelector('[data-fp-bulk-bar]');
+                if (! bar) return;
+
+                const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+                const countEl    = bar.querySelector('[data-fp-bulk-count]');
+                const deleteBtn  = bar.querySelector('[data-fp-bulk-delete]');
+                const clearBtn   = bar.querySelector('[data-fp-bulk-clear]');
+                const moveOptions = bar.querySelectorAll('[data-fp-bulk-move-folder]');
+                const moveDetails = bar.querySelector('[data-fp-bulk-move]');
+
+                const refreshBar = () => {
+                    const n = selected.size;
+                    if (countEl) countEl.textContent = String(n);
+                    bar.toggleAttribute('hidden', n === 0);
+                    // sync selected class on rows
+                    document.querySelectorAll('[data-file-item][data-file-id]').forEach((row) => {
+                        const id = row.dataset.fileId;
+                        const isOn = selected.has(id);
+                        row.classList.toggle('is-selected', isOn);
+                        const cb = row.querySelector('[data-fp-select]');
+                        if (cb) cb.checked = isOn;
+                    });
+                    refreshSelectAllCheckbox();
+                };
+
+                const refreshSelectAllCheckbox = () => {
+                    const masters = document.querySelectorAll('[data-fp-select-all]');
+                    const rowIds = Array.from(document.querySelectorAll('[data-file-item][data-file-id]'))
+                        .map((r) => r.dataset.fileId);
+                    if (rowIds.length === 0) {
+                        masters.forEach((m) => {
+                            m.checked = false;
+                            m.parentElement?.classList.remove('is-indeterminate');
+                        });
+                        return;
+                    }
+                    const allSelected = rowIds.every((id) => selected.has(id));
+                    const someSelected = rowIds.some((id) => selected.has(id));
+                    masters.forEach((m) => {
+                        m.checked = allSelected;
+                        m.parentElement?.classList.toggle('is-indeterminate', someSelected && ! allSelected);
+                    });
+                };
+
+                // Re-sync after AJAX swaps the file region
+                const observer = new MutationObserver(() => {
+                    // Items might have been replaced; prune selected IDs that no longer exist
+                    const currentIds = new Set(
+                        Array.from(document.querySelectorAll('[data-file-item][data-file-id]'))
+                            .map((r) => r.dataset.fileId)
+                    );
+                    for (const id of Array.from(selected)) {
+                        if (! currentIds.has(id)) selected.delete(id);
+                    }
+                    refreshBar();
+                });
+                const filesRegion = document.querySelector('[data-files-region]');
+                if (filesRegion) {
+                    observer.observe(filesRegion, { childList: true, subtree: true });
+                }
+
+                // Per-row checkbox click
+                document.addEventListener('change', (event) => {
+                    const cb = event.target.closest('[data-fp-select]');
+                    if (cb) {
+                        const row = cb.closest('[data-file-item][data-file-id]');
+                        const id = row?.dataset.fileId;
+                        if (! id) return;
+                        if (cb.checked) selected.add(id); else selected.delete(id);
+                        refreshBar();
+                        return;
+                    }
+                    const master = event.target.closest('[data-fp-select-all]');
+                    if (master) {
+                        const ids = Array.from(document.querySelectorAll('[data-file-item][data-file-id]'))
+                            .map((r) => r.dataset.fileId);
+                        if (master.checked) ids.forEach((id) => selected.add(id));
+                        else ids.forEach((id) => selected.delete(id));
+                        refreshBar();
+                    }
+                });
+
+                // Clear button
+                clearBtn?.addEventListener('click', () => {
+                    selected.clear();
+                    refreshBar();
+                });
+
+                // Bulk delete
+                deleteBtn?.addEventListener('click', async () => {
+                    const n = selected.size;
+                    if (n === 0) return;
+
+                    if (! confirm(`Видалити вибраних файлів: ${n}? Дію не можна скасувати.`)) {
+                        return;
+                    }
+
+                    // Mark all selected rows as leaving for visual feedback
+                    document.querySelectorAll('[data-file-item][data-file-id].is-selected').forEach((row) => {
+                        row.classList.add('is-leaving');
+                        row.setAttribute('aria-busy', 'true');
+                    });
+
+                    deleteBtn.setAttribute('disabled', 'true');
+                    deleteBtn.setAttribute('aria-busy', 'true');
+
+                    try {
+                        const ids = Array.from(selected);
+                        const fd = new FormData();
+                        ids.forEach((id) => fd.append('ids[]', id));
+
+                        const response = await fetch(@json(route('files.bulk-delete')), {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRF-TOKEN': csrf,
+                            },
+                            body: fd,
+                            credentials: 'same-origin',
+                        });
+
+                        if (! response.ok) {
+                            const text = await response.text();
+                            throw new Error(extractErrorFromHtml(text) || `HTTP ${response.status}`);
+                        }
+
+                        const data = await response.json().catch(() => ({}));
+                        showToast(data.message || `Видалено: ${n}`);
+
+                        selected.clear();
+                        refreshBar();
+
+                        // Refresh the file list region
+                        refreshFilesPage(window.location.href, false, { region: 'files' });
+                    } catch (error) {
+                        // Restore rows on failure
+                        document.querySelectorAll('[data-file-item].is-leaving').forEach((row) => {
+                            row.classList.remove('is-leaving');
+                            row.removeAttribute('aria-busy');
+                        });
+                        showToast(error.message || 'Не вдалося видалити файли.', 'error');
+                    } finally {
+                        deleteBtn.removeAttribute('disabled');
+                        deleteBtn.removeAttribute('aria-busy');
+                    }
+                });
+
+                // Bulk move
+                moveOptions.forEach((btn) => {
+                    btn.addEventListener('click', async () => {
+                        const n = selected.size;
+                        if (n === 0) return;
+
+                        const targetFolderId = btn.dataset.fpBulkMoveFolder; // "" for root
+                        const folderLabel = btn.textContent.trim();
+
+                        if (! confirm(`Перемістити ${n} файл(и/ів) у «${folderLabel}»?`)) {
+                            return;
+                        }
+
+                        // Close the details menu
+                        if (moveDetails) moveDetails.removeAttribute('open');
+
+                        // Mark selected rows as leaving (they'll be re-rendered)
+                        document.querySelectorAll('[data-file-item][data-file-id].is-selected').forEach((row) => {
+                            row.classList.add('is-leaving');
+                            row.setAttribute('aria-busy', 'true');
+                        });
+
+                        try {
+                            const ids = Array.from(selected);
+                            const fd = new FormData();
+                            ids.forEach((id) => fd.append('ids[]', id));
+                            if (targetFolderId !== '') fd.append('folder_id', targetFolderId);
+
+                            const response = await fetch(@json(route('files.bulk-move')), {
+                                method: 'POST',
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                    'X-CSRF-TOKEN': csrf,
+                                },
+                                body: fd,
+                                credentials: 'same-origin',
+                            });
+
+                            if (! response.ok) {
+                                const text = await response.text();
+                                throw new Error(extractErrorFromHtml(text) || `HTTP ${response.status}`);
+                            }
+
+                            const data = await response.json().catch(() => ({}));
+                            showToast(data.message || `Переміщено: ${n}`);
+
+                            selected.clear();
+                            refreshBar();
+
+                            refreshFilesPage(window.location.href, false, { region: 'files' });
+                        } catch (error) {
+                            document.querySelectorAll('[data-file-item].is-leaving').forEach((row) => {
+                                row.classList.remove('is-leaving');
+                                row.removeAttribute('aria-busy');
+                            });
+                            showToast(error.message || 'Не вдалося перемістити файли.', 'error');
+                        }
+                    });
+                });
+
+                // Initial sync
+                refreshBar();
             }
         })();
     </script>

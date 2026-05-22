@@ -296,6 +296,93 @@ class FileController extends Controller
         ]);
     }
 
+    public function bulkDestroy(Request $request, ManagedFileStorageService $fileStorage): RedirectResponse|JsonResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'ids'   => ['required', 'array', 'min:1', 'max:200'],
+            'ids.*' => ['integer'],
+        ]);
+
+        $files = $user->files()
+            ->whereIn('id', $validated['ids'])
+            ->with(['telegramBotToken', 'telegramStorageGroup.botToken'])
+            ->get();
+
+        $deleted = 0;
+        $failed  = 0;
+
+        foreach ($files as $file) {
+            try {
+                $fileStorage->delete($file);
+                $deleted++;
+            } catch (Throwable $e) {
+                report($e);
+                $failed++;
+            }
+        }
+
+        $message = $failed === 0
+            ? "Видалено файлів: {$deleted}."
+            : "Видалено: {$deleted}. Не вдалося видалити: {$failed}.";
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'message' => $message,
+                'deleted' => $deleted,
+                'failed'  => $failed,
+            ]);
+        }
+
+        return redirect()
+            ->to($this->safeReferer($request, route('files.index')))
+            ->with('status', $message);
+    }
+
+    public function bulkMove(Request $request): RedirectResponse|JsonResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'ids'       => ['required', 'array', 'min:1', 'max:500'],
+            'ids.*'     => ['integer'],
+            'folder_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('file_folders', 'id')->where('user_id', $user->id),
+            ],
+        ], [
+            'folder_id.exists' => 'Обрана папка недоступна.',
+        ]);
+
+        $targetFolderId = $validated['folder_id'] ?? null;
+
+        $moved = $user->files()
+            ->whereIn('id', $validated['ids'])
+            ->update(['folder_id' => $targetFolderId]);
+
+        $folderName = $targetFolderId
+            ? $user->folders()->where('id', $targetFolderId)->value('name')
+            : null;
+
+        $message = $folderName
+            ? "Переміщено файлів у «{$folderName}»: {$moved}."
+            : "Переміщено в корінь: {$moved}.";
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'message'   => $message,
+                'moved'     => (int) $moved,
+                'folder_id' => $targetFolderId,
+            ]);
+        }
+
+        return redirect()
+            ->to($this->safeReferer($request, route('files.index')))
+            ->with('status', $message);
+    }
+
     private function uploadErrorResponse(Request $request, bool $wantsJson, string $field, string $message): JsonResponse|RedirectResponse
     {
         if ($wantsJson) {
