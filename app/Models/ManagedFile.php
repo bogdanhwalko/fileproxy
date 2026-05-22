@@ -88,7 +88,14 @@ class ManagedFile extends Model
 
     public function getIsImageAttribute(): bool
     {
-        return str_starts_with((string) $this->mime_type, 'image/');
+        $mime = strtolower((string) $this->mime_type);
+        $extension = strtolower((string) $this->extension);
+
+        if ($mime === 'image/svg+xml' || $extension === 'svg' || $extension === 'svgz') {
+            return false;
+        }
+
+        return str_starts_with($mime, 'image/');
     }
 
     public function getIsTextAttribute(): bool

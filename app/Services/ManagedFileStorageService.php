@@ -86,35 +86,36 @@ class ManagedFileStorageService
 
     public function downloadResponse(ManagedFile $file): StreamedResponse|BinaryFileResponse|Response
     {
+        $downloadHeaders = [
+            'Content-Type' => $file->mime_type ?: 'application/octet-stream',
+            'X-Content-Type-Options' => 'nosniff',
+        ];
+
         if (! $file->is_telegram) {
             if ($accel = $this->xAccelResponse($file, HeaderUtils::DISPOSITION_ATTACHMENT)) {
                 return $accel;
             }
 
-            return Storage::disk('local')->download($file->path, $file->original_name, [
-                'Content-Type' => $file->mime_type ?: 'application/octet-stream',
-            ]);
+            return Storage::disk('local')->download($file->path, $file->original_name, $downloadHeaders);
         }
 
         $temporaryPath = $this->telegram->downloadToTemporaryPath($file);
 
         return response()
-            ->download($temporaryPath, $file->original_name, [
-                'Content-Type' => $file->mime_type ?: 'application/octet-stream',
-            ])
+            ->download($temporaryPath, $file->original_name, $downloadHeaders)
             ->deleteFileAfterSend();
     }
 
     public function inlineResponse(ManagedFile $file): StreamedResponse|BinaryFileResponse|Response
     {
+        $inlineHeaders = $this->inlineSecurityHeaders($file->mime_type ?: 'application/octet-stream');
+
         if (! $file->is_telegram) {
             if ($accel = $this->xAccelResponse($file, HeaderUtils::DISPOSITION_INLINE)) {
                 return $accel;
             }
 
-            return Storage::disk('local')->response($file->path, $file->original_name, [
-                'Content-Type' => $file->mime_type ?: 'application/octet-stream',
-            ]);
+            return Storage::disk('local')->response($file->path, $file->original_name, $inlineHeaders);
         }
 
         $stream = $this->telegram->downloadStream($file);
@@ -133,8 +134,7 @@ class ManagedFileStorageService
             } finally {
                 $stream->close();
             }
-        }, 200, [
-            'Content-Type' => $file->mime_type ?: 'application/octet-stream',
+        }, 200, $inlineHeaders + [
             'Content-Disposition' => HeaderUtils::makeDisposition(
                 HeaderUtils::DISPOSITION_INLINE,
                 $this->safeDownloadName($file->original_name),
@@ -183,6 +183,7 @@ class ManagedFileStorageService
         $headers = [
             'Content-Type' => $contentType,
             'X-Accel-Redirect' => $internalPath,
+            'X-Content-Type-Options' => 'nosniff',
             'Content-Disposition' => HeaderUtils::makeDisposition(
                 $disposition,
                 $this->safeDownloadName($downloadName),
@@ -190,7 +191,25 @@ class ManagedFileStorageService
             ),
         ];
 
+        if ($disposition === HeaderUtils::DISPOSITION_INLINE) {
+            $headers['Content-Security-Policy'] = $this->inlineContentSecurityPolicy();
+        }
+
         return response('', 200, $headers);
+    }
+
+    private function inlineSecurityHeaders(string $contentType): array
+    {
+        return [
+            'Content-Type' => $contentType,
+            'X-Content-Type-Options' => 'nosniff',
+            'Content-Security-Policy' => $this->inlineContentSecurityPolicy(),
+        ];
+    }
+
+    private function inlineContentSecurityPolicy(): string
+    {
+        return "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox";
     }
 
     private function xAccelEnabled(): bool
