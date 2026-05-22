@@ -976,12 +976,89 @@
                         throw new Error(extractErrorFromHtml(html) || 'Дію не виконано.');
                     }
 
+                    const toastMessage = extractStatusFromHtml(html);
+
                     replaceFilesPageFromHtml(html, response.url || window.location.href, true);
+
+                    if (toastMessage) {
+                        showToast(toastMessage);
+                    }
+
+                    handleEmptyPageAfterMutation();
                 } catch (error) {
-                    showPageFlash(error.message || 'Дію не виконано.', true);
+                    showToast(error.message || 'Дію не виконано.', 'error');
                 } finally {
                     setShareBusy(submitter, false);
                 }
+            }
+
+            // Якщо після видалення список порожній і ми не на 1-й сторінці —
+            // тихо переходимо на page-1.
+            function handleEmptyPageAfterMutation() {
+                const region = document.querySelector('[data-files-region]');
+                if (! region) return;
+
+                const items = region.querySelector('[data-file-items]');
+                if (! items) return;
+
+                // .file-card-item (table) і .file-tile (grid) — обидва мають [data-file-item]
+                const hasAny = items.querySelector('[data-file-item]');
+                if (hasAny) return;
+
+                const currentUrl = new URL(window.location.href);
+                const currentPage = parseInt(currentUrl.searchParams.get('page') || '1', 10);
+
+                if (currentPage > 1) {
+                    currentUrl.searchParams.set('page', String(currentPage - 1));
+                    refreshFilesPage(currentUrl.toString(), true, { region: 'files' });
+                }
+            }
+
+            function extractStatusFromHtml(html) {
+                const doc = new DOMParser().parseFromString(html || '', 'text/html');
+                const status = doc.querySelector('[data-flash-area] .status');
+                return status ? status.textContent.trim() : '';
+            }
+
+            // Toast layer + helper
+            function showToast(message, type) {
+                if (! message) return;
+
+                let layer = document.querySelector('[data-toast-layer]');
+                if (! layer) {
+                    layer = document.createElement('div');
+                    layer.dataset.toastLayer = '';
+                    layer.className = 'fp-toast-layer';
+                    document.body.appendChild(layer);
+                }
+
+                const toast = document.createElement('div');
+                toast.className = 'fp-toast' + (type === 'error' ? ' is-error' : '');
+                toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
+                toast.innerHTML = `
+                    <span class="fp-toast-icon" aria-hidden="true">
+                        ${type === 'error'
+                            ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
+                            : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'}
+                    </span>
+                    <span class="fp-toast-message"></span>
+                    <button type="button" class="fp-toast-close" aria-label="Закрити">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                `;
+                toast.querySelector('.fp-toast-message').textContent = message;
+                layer.appendChild(toast);
+
+                requestAnimationFrame(() => toast.classList.add('is-visible'));
+
+                const dismiss = () => {
+                    toast.classList.remove('is-visible');
+                    toast.classList.add('is-leaving');
+                    setTimeout(() => toast.remove(), 250);
+                };
+
+                toast.querySelector('.fp-toast-close').addEventListener('click', dismiss);
+                setTimeout(dismiss, type === 'error' ? 6000 : 3500);
             }
 
             function initDropzone() {

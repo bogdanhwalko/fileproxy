@@ -6965,3 +6965,72 @@
     transform: translateY(-1px);
 }
 .fp-failed-badge svg { width: 14px; height: 14px; }
+
+/* ====================================================
+   Toast notifications (bottom-right, auto-dismiss)
+   ==================================================== */
+.fp-toast-layer {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 80;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+    width: min(380px, calc(100vw - 32px));
+}
+
+.fp-toast {
+    pointer-events: auto;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 14px;
+    background: #ffffff;
+    color: #0f172a;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #16a34a;
+    border-radius: 12px;
+    box-shadow: 0 16px 38px -18px rgba(15, 23, 42, 0.45),
+                0 6px 14px -8px rgba(15, 23, 42, 0.20);
+    opacity: 0;
+    transform: translateY(12px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    font-size: 14px;
+    line-height: 1.4;
+}
+.fp-toast.is-visible { opacity: 1; transform: translateY(0); }
+.fp-toast.is-leaving { opacity: 0; transform: translateY(6px); }
+
+.fp-toast.is-error {
+    border-left-color: #dc2626;
+}
+
+.fp-toast-icon {
+    width: 22px; height: 22px;
+    display: grid; place-items: center;
+    color: #16a34a;
+}
+.fp-toast.is-error .fp-toast-icon { color: #dc2626; }
+.fp-toast-icon svg { width: 100%; height: 100%; }
+
+.fp-toast-message { min-width: 0; word-break: break-word; }
+
+.fp-toast-close {
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    width: 26px; height: 26px;
+    border-radius: 6px;
+    display: grid; place-items: center;
+    color: #94a3b8;
+    transition: background 0.12s, color 0.12s;
+}
+.fp-toast-close:hover { background: #f1f5f9; color: #0f172a; }
+.fp-toast-close svg { width: 14px; height: 14px; }
+
+@media (max-width: 640px) {
+    .fp-toast-layer { right: 8px; left: 8px; bottom: 8px; width: auto; }
+}

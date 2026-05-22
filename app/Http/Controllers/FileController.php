@@ -347,17 +347,31 @@ class FileController extends Controller
         return $fileStorage->inlineResponse($file);
     }
 
-    public function destroy(ManagedFile $file, ManagedFileStorageService $fileStorage): RedirectResponse
+    public function destroy(Request $request, ManagedFile $file, ManagedFileStorageService $fileStorage): RedirectResponse
     {
         abort_unless((int) $file->user_id === (int) auth()->id(), 404);
 
-        $routeParameters = $file->folder_id ? ['folder' => $file->folder_id] : [];
-
         $fileStorage->delete($file);
 
+        $fallback = route('files.index', $file->folder_id ? ['folder' => $file->folder_id] : []);
+
         return redirect()
-            ->route('files.index', $routeParameters)
+            ->to($this->safeReferer($request, $fallback))
             ->with('status', 'Файл видалено.');
+    }
+
+    private function safeReferer(Request $request, string $fallback): string
+    {
+        $referer = (string) $request->headers->get('referer', '');
+
+        if ($referer === '') {
+            return $fallback;
+        }
+
+        $refererHost = parse_url($referer, PHP_URL_HOST);
+        $appHost = parse_url((string) config('app.url'), PHP_URL_HOST) ?: $request->getHost();
+
+        return $refererHost && $refererHost === $appHost ? $referer : $fallback;
     }
 
     public function downloadArchive(Request $request, ManagedFileStorageService $fileStorage): BinaryFileResponse
