@@ -7078,33 +7078,17 @@
    File row: leaving animation (during delete AJAX)
    ==================================================== */
 [data-file-item] {
-    transition: opacity 0.2s ease, transform 0.2s ease;
+    transition: opacity 0.2s ease, filter 0.2s ease;
 }
 
 [data-file-item].is-leaving {
     opacity: 0.4;
     pointer-events: none;
-    transform: scale(0.985);
-    filter: blur(0.3px);
+    filter: grayscale(0.4);
+    animation: fp-leaving-pulse 1.3s ease-in-out infinite;
 }
 
-[data-file-item].is-leaving::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: repeating-linear-gradient(
-        45deg,
-        rgba(255, 255, 255, 0.45) 0 12px,
-        transparent 12px 24px
-    );
-    animation: fp-leaving-stripes 0.8s linear infinite;
-    pointer-events: none;
+@keyframes fp-leaving-pulse {
+    0%, 100% { opacity: 0.5; }
+    50%      { opacity: 0.22; }
 }
-
-@keyframes fp-leaving-stripes {
-    to { background-position: 24px 0; }
-}
-
-/* For table rows we need relative positioning for ::after overlay */
-tr[data-file-item] { position: relative; }
-tr[data-file-item].is-leaving td { opacity: 0.7; }
