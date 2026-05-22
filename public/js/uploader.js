@@ -354,21 +354,19 @@
         const onAllSettled = () => {
             releaseWakeLock();
 
-            const allOk = items.length > 0 && items.every(i => i.status === 'uploaded');
             const hasFailures = items.some(i => i.status === 'failed');
 
-            if (allOk && reloadUrl) {
-                // Full success → refresh file list shortly
-                setTimeout(() => { window.location.href = reloadUrl; }, 1200);
-                return;
-            }
+            // Soft-refresh the file list so newly uploaded files appear without a page reload.
+            // files/index.blade.php listens for this event and calls refreshFilesPage().
+            window.dispatchEvent(new CustomEvent('fp-uploader:refresh-needed'));
 
-            // After 4.5s start fading out and removing "uploaded" items one-by-one.
-            // Failed items stay visible so user notices them.
+            // After 4.5s fade out the "Готово" rows one by one.
+            // Failed items stay so user notices them.
             setTimeout(() => removeUploadedItems(), 4500);
 
             if (hasFailures) {
-                // After a long timeout collapse remaining (still-failed) widget
+                // Long timeout: if still-failed rows linger and user did nothing,
+                // collapse the widget so it doesn't sit forever on screen.
                 setTimeout(() => {
                     if (!hasActiveWork() && items.length > 0) {
                         widget.classList.add('is-collapsed');

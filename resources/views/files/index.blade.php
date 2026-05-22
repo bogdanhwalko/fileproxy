@@ -2028,6 +2028,18 @@
             }
 
             /* ====================================================
+               Listen for uploader.js "all done" → soft refresh file list
+               (no full page reload — preserves scroll, action menus, etc.)
+               ==================================================== */
+            window.addEventListener('fp-uploader:refresh-needed', () => {
+                try {
+                    refreshFilesPage(window.location.href, false, { region: 'files' });
+                } catch (e) {
+                    console.warn('fp-uploader refresh failed:', e);
+                }
+            });
+
+            /* ====================================================
                Bulk selection: multi-select + bulk delete/move
                ==================================================== */
             initBulkSelection();
