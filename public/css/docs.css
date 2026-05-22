@@ -1,0 +1,212 @@
+        .docs-page {
+            --docs-bg: #ffffff;
+            --docs-fg: #0f172a;
+            --docs-muted: #64748b;
+            --docs-border: #e2e8f0;
+            --docs-soft: #f8fafc;
+            --docs-accent: #4f46e5;
+            --docs-code-bg: #f1f5f9;
+            --docs-code-fg: #0f172a;
+            --docs-code-border: #d8dee9;
+            --docs-pre-bg: #0f172a;
+            --docs-pre-fg: #e2e8f0;
+
+            background: var(--docs-bg);
+            color: var(--docs-fg);
+            min-height: 100vh;
+            padding: 0 16px 64px;
+        }
+
+        .docs-wrap {
+            max-width: 1100px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 240px minmax(0, 1fr);
+            gap: 40px;
+            padding-top: 24px;
+        }
+
+        .docs-aside {
+            position: sticky; top: 16px; align-self: start;
+            max-height: calc(100vh - 32px); overflow-y: auto;
+            padding: 18px 16px;
+            background: var(--docs-soft);
+            border: 1px solid var(--docs-border);
+            border-radius: 14px;
+            font-size: 14px;
+        }
+        .docs-aside-title {
+            display: block; font-size: 11px; letter-spacing: 0.8px;
+            text-transform: uppercase; color: var(--docs-muted);
+            margin-bottom: 10px;
+        }
+        .docs-aside ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 2px; }
+        .docs-aside a {
+            display: block; padding: 6px 10px; border-radius: 8px;
+            color: var(--docs-fg); text-decoration: none; transition: background 0.12s;
+        }
+        .docs-aside a:hover { background: rgba(79, 70, 229, 0.08); color: var(--docs-accent); }
+        .docs-aside .docs-aside-sub {
+            padding-left: 20px; font-size: 13px; color: var(--docs-muted);
+        }
+        .docs-aside .docs-aside-sub a { padding: 4px 10px; }
+
+        .docs-main { min-width: 0; }
+
+        .docs-hero { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid var(--docs-border); }
+        .docs-hero h1 { font-size: 36px; margin: 0 0 8px; letter-spacing: -0.4px; }
+        .docs-hero .docs-hero-lead { font-size: 16px; color: var(--docs-muted); line-height: 1.6; margin: 0 0 16px; max-width: 70ch; }
+        .docs-hero-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+        .docs-hero-meta .docs-pill {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 4px 10px; background: var(--docs-soft);
+            border: 1px solid var(--docs-border); border-radius: 999px;
+            font-size: 12px; color: var(--docs-muted);
+        }
+        .docs-hero-meta .docs-pill strong { color: var(--docs-fg); font-weight: 600; }
+
+        .docs-section { scroll-margin-top: 20px; padding: 8px 0 4px; }
+        .docs-section + .docs-section { margin-top: 36px; border-top: 1px solid var(--docs-border); padding-top: 32px; }
+        .docs-section h2 { font-size: 24px; margin: 0 0 12px; letter-spacing: -0.2px; }
+        .docs-section h3 { font-size: 17px; margin: 22px 0 8px; color: var(--docs-fg); }
+        .docs-section p { line-height: 1.65; color: var(--docs-fg); margin: 8px 0 12px; max-width: 72ch; }
+
+        .docs-endpoint {
+            display: inline-flex; align-items: center; gap: 10px;
+            padding: 8px 14px; background: var(--docs-soft);
+            border: 1px solid var(--docs-border); border-radius: 10px;
+            font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+            font-size: 14px; margin: 6px 0;
+            color: var(--docs-fg);
+        }
+        .docs-endpoint .docs-method {
+            display: inline-flex; align-items: center;
+            padding: 2px 8px; border-radius: 5px;
+            font-weight: 700; font-size: 10.5px; letter-spacing: 0.5px;
+            text-transform: uppercase; color: white; font-family: inherit;
+            min-width: 52px; justify-content: center;
+        }
+        .docs-method.m-get { background: #0e7490; }
+        .docs-method.m-post { background: #16a34a; }
+        .docs-method.m-patch { background: #ca8a04; }
+        .docs-method.m-delete { background: #dc2626; }
+
+        /* Endpoint card — main building block for documenting one method */
+        .docs-endpoint-card {
+            position: relative;
+            border: 1px solid var(--docs-border);
+            border-left: 4px solid var(--docs-border);
+            border-radius: 12px;
+            background: #ffffff;
+            padding: 0;
+            margin: 20px 0;
+            overflow: hidden;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+            scroll-margin-top: 20px;
+        }
+        .docs-endpoint-card.is-get    { border-left-color: #0e7490; }
+        .docs-endpoint-card.is-post   { border-left-color: #16a34a; }
+        .docs-endpoint-card.is-patch  { border-left-color: #ca8a04; }
+        .docs-endpoint-card.is-delete { border-left-color: #dc2626; }
+
+        .docs-endpoint-card-head {
+            display: flex; align-items: center; gap: 12px;
+            padding: 14px 18px;
+            background: linear-gradient(180deg, #fafbfd 0%, #f4f6fa 100%);
+            border-bottom: 1px solid var(--docs-border);
+            flex-wrap: wrap;
+        }
+        .docs-endpoint-card-head .docs-method {
+            display: inline-flex; align-items: center;
+            padding: 4px 10px; border-radius: 6px;
+            font-weight: 700; font-size: 11px; letter-spacing: 0.6px;
+            text-transform: uppercase; color: white;
+            font-family: ui-monospace, Consolas, monospace;
+            min-width: 60px; justify-content: center;
+            flex-shrink: 0;
+        }
+        .docs-endpoint-card-path {
+            font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+            font-size: 14.5px; color: var(--docs-fg);
+            font-weight: 500;
+            word-break: break-all;
+            min-width: 0; flex: 1 1 auto;
+        }
+        .docs-endpoint-card-title {
+            margin-left: auto; flex: 0 0 auto;
+            font-size: 13px; color: var(--docs-muted);
+            font-style: italic;
+        }
+        .docs-endpoint-card-body {
+            padding: 16px 18px 18px;
+            display: flex; flex-direction: column; gap: 4px;
+        }
+        .docs-endpoint-card-body > p:first-child { margin-top: 0; }
+        .docs-endpoint-card-body > *:last-child { margin-bottom: 0; }
+
+        /* Compact group when several related endpoints share params (e.g. enable/update/disable) */
+        .docs-endpoint-stack { display: flex; flex-direction: column; gap: 6px; }
+        .docs-endpoint-stack .docs-endpoint-card { margin: 0; }
+
+        .docs-section code {
+            background: var(--docs-code-bg); color: var(--docs-code-fg);
+            border: 1px solid var(--docs-code-border);
+            padding: 1.5px 6px; border-radius: 4px;
+            font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+            font-size: 0.88em;
+        }
+        .docs-section pre {
+            background: var(--docs-pre-bg); color: var(--docs-pre-fg);
+            padding: 14px 16px; border-radius: 10px;
+            overflow-x: auto; font-size: 13px; line-height: 1.55;
+            margin: 10px 0 18px;
+            border: 1px solid #1e293b;
+        }
+        .docs-section pre code {
+            background: transparent; color: inherit; border: 0; padding: 0;
+            font-size: inherit;
+        }
+
+        .docs-table {
+            width: 100%; border-collapse: collapse;
+            margin: 10px 0 18px; font-size: 14px;
+            border: 1px solid var(--docs-border); border-radius: 10px;
+            overflow: hidden;
+        }
+        .docs-table thead { background: var(--docs-soft); }
+        .docs-table th {
+            text-align: left; padding: 10px 14px;
+            font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
+            color: var(--docs-muted); border-bottom: 1px solid var(--docs-border);
+        }
+        .docs-table td {
+            padding: 10px 14px; border-bottom: 1px solid var(--docs-border);
+            vertical-align: top; line-height: 1.5;
+        }
+        .docs-table tbody tr:last-child td { border-bottom: 0; }
+        .docs-table td:first-child { font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+
+        .docs-callout {
+            background: rgba(79, 70, 229, 0.08); border-left: 3px solid var(--docs-accent);
+            padding: 12px 16px; border-radius: 8px; margin: 14px 0;
+            font-size: 14px; line-height: 1.55;
+        }
+        .docs-callout strong { color: var(--docs-accent); }
+
+        .docs-section ul.docs-list { padding-left: 22px; margin: 8px 0 14px; line-height: 1.6; }
+        .docs-section ul.docs-list li { margin: 4px 0; }
+
+        .docs-cta {
+            display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+            margin: 16px 0 24px;
+        }
+
+        @media (max-width: 900px) {
+            .docs-wrap { grid-template-columns: 1fr; gap: 24px; }
+            .docs-aside {
+                position: static; max-height: none;
+                display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            }
+            .docs-aside ul { grid-template-columns: 1fr; }
+            .docs-hero h1 { font-size: 28px; }
+        }

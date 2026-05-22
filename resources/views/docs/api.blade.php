@@ -4,163 +4,7 @@
 @section('description', 'Документація REST API FileProxy: автентифікація, ендпоінти для файлів, папок і публічних посилань. Приклади на curl і PHP.')
 
 @push('head')
-    <style>
-        .docs-page {
-            --docs-bg: #ffffff;
-            --docs-fg: #0f172a;
-            --docs-muted: #64748b;
-            --docs-border: #e2e8f0;
-            --docs-soft: #f8fafc;
-            --docs-accent: #4f46e5;
-            --docs-code-bg: #f1f5f9;
-            --docs-code-fg: #0f172a;
-            --docs-code-border: #d8dee9;
-            --docs-pre-bg: #0f172a;
-            --docs-pre-fg: #e2e8f0;
-
-            background: var(--docs-bg);
-            color: var(--docs-fg);
-            min-height: 100vh;
-            padding: 0 16px 64px;
-        }
-
-        .docs-wrap {
-            max-width: 1100px;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: 240px minmax(0, 1fr);
-            gap: 40px;
-            padding-top: 24px;
-        }
-
-        .docs-aside {
-            position: sticky; top: 16px; align-self: start;
-            max-height: calc(100vh - 32px); overflow-y: auto;
-            padding: 18px 16px;
-            background: var(--docs-soft);
-            border: 1px solid var(--docs-border);
-            border-radius: 14px;
-            font-size: 14px;
-        }
-        .docs-aside-title {
-            display: block; font-size: 11px; letter-spacing: 0.8px;
-            text-transform: uppercase; color: var(--docs-muted);
-            margin-bottom: 10px;
-        }
-        .docs-aside ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 2px; }
-        .docs-aside a {
-            display: block; padding: 6px 10px; border-radius: 8px;
-            color: var(--docs-fg); text-decoration: none; transition: background 0.12s;
-        }
-        .docs-aside a:hover { background: rgba(79, 70, 229, 0.08); color: var(--docs-accent); }
-        .docs-aside .docs-aside-sub {
-            padding-left: 20px; font-size: 13px; color: var(--docs-muted);
-        }
-        .docs-aside .docs-aside-sub a { padding: 4px 10px; }
-
-        .docs-main { min-width: 0; }
-
-        .docs-hero { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid var(--docs-border); }
-        .docs-hero h1 { font-size: 36px; margin: 0 0 8px; letter-spacing: -0.4px; }
-        .docs-hero .docs-hero-lead { font-size: 16px; color: var(--docs-muted); line-height: 1.6; margin: 0 0 16px; max-width: 70ch; }
-        .docs-hero-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-        .docs-hero-meta .docs-pill {
-            display: inline-flex; align-items: center; gap: 6px;
-            padding: 4px 10px; background: var(--docs-soft);
-            border: 1px solid var(--docs-border); border-radius: 999px;
-            font-size: 12px; color: var(--docs-muted);
-        }
-        .docs-hero-meta .docs-pill strong { color: var(--docs-fg); font-weight: 600; }
-
-        .docs-section { scroll-margin-top: 20px; padding: 8px 0 4px; }
-        .docs-section + .docs-section { margin-top: 36px; border-top: 1px solid var(--docs-border); padding-top: 32px; }
-        .docs-section h2 { font-size: 24px; margin: 0 0 12px; letter-spacing: -0.2px; }
-        .docs-section h3 { font-size: 17px; margin: 22px 0 8px; color: var(--docs-fg); }
-        .docs-section p { line-height: 1.65; color: var(--docs-fg); margin: 8px 0 12px; max-width: 72ch; }
-
-        .docs-endpoint {
-            display: inline-flex; align-items: center; gap: 10px;
-            padding: 8px 14px; background: var(--docs-soft);
-            border: 1px solid var(--docs-border); border-radius: 10px;
-            font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-            font-size: 14px; margin: 6px 0;
-            color: var(--docs-fg);
-        }
-        .docs-endpoint .docs-method {
-            display: inline-flex; align-items: center;
-            padding: 2px 8px; border-radius: 5px;
-            font-weight: 700; font-size: 10.5px; letter-spacing: 0.5px;
-            text-transform: uppercase; color: white; font-family: inherit;
-            min-width: 52px; justify-content: center;
-        }
-        .docs-method.m-get { background: #0e7490; }
-        .docs-method.m-post { background: #16a34a; }
-        .docs-method.m-patch { background: #ca8a04; }
-        .docs-method.m-delete { background: #dc2626; }
-
-        .docs-section code {
-            background: var(--docs-code-bg); color: var(--docs-code-fg);
-            border: 1px solid var(--docs-code-border);
-            padding: 1.5px 6px; border-radius: 4px;
-            font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-            font-size: 0.88em;
-        }
-        .docs-section pre {
-            background: var(--docs-pre-bg); color: var(--docs-pre-fg);
-            padding: 14px 16px; border-radius: 10px;
-            overflow-x: auto; font-size: 13px; line-height: 1.55;
-            margin: 10px 0 18px;
-            border: 1px solid #1e293b;
-        }
-        .docs-section pre code {
-            background: transparent; color: inherit; border: 0; padding: 0;
-            font-size: inherit;
-        }
-
-        .docs-table {
-            width: 100%; border-collapse: collapse;
-            margin: 10px 0 18px; font-size: 14px;
-            border: 1px solid var(--docs-border); border-radius: 10px;
-            overflow: hidden;
-        }
-        .docs-table thead { background: var(--docs-soft); }
-        .docs-table th {
-            text-align: left; padding: 10px 14px;
-            font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
-            color: var(--docs-muted); border-bottom: 1px solid var(--docs-border);
-        }
-        .docs-table td {
-            padding: 10px 14px; border-bottom: 1px solid var(--docs-border);
-            vertical-align: top; line-height: 1.5;
-        }
-        .docs-table tbody tr:last-child td { border-bottom: 0; }
-        .docs-table td:first-child { font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
-
-        .docs-callout {
-            background: rgba(79, 70, 229, 0.08); border-left: 3px solid var(--docs-accent);
-            padding: 12px 16px; border-radius: 8px; margin: 14px 0;
-            font-size: 14px; line-height: 1.55;
-        }
-        .docs-callout strong { color: var(--docs-accent); }
-
-        .docs-section ul.docs-list { padding-left: 22px; margin: 8px 0 14px; line-height: 1.6; }
-        .docs-section ul.docs-list li { margin: 4px 0; }
-
-        .docs-cta {
-            display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
-            margin: 16px 0 24px;
-        }
-
-        @media (max-width: 900px) {
-            .docs-wrap { grid-template-columns: 1fr; gap: 24px; }
-            .docs-aside {
-                position: static; max-height: none;
-                display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            }
-            .docs-aside ul { grid-template-columns: 1fr; }
-            .docs-hero h1 { font-size: 28px; }
-        }
-    </style>
+    <link rel="stylesheet" href="{{ asset('css/docs.css') }}">
 @endpush
 
 @section('content')
@@ -269,102 +113,228 @@
 
                 <section class="docs-section" id="user">
                     <h2>Поточний користувач</h2>
-                    <div class="docs-endpoint">
-                        <span class="docs-method m-get">GET</span> /api/v1/user
-                    </div>
+                    <article class="docs-endpoint-card is-get">
+                        <header class="docs-endpoint-card-head">
+                            <span class="docs-method m-get">GET</span>
+                            <span class="docs-endpoint-card-path">/api/v1/user</span>
+                            <span class="docs-endpoint-card-title">Дані поточного юзера</span>
+                        </header>
+                        <div class="docs-endpoint-card-body">
+                            <p>Відповідь:</p>
 <pre><code>{
   "id": 1,
   "name": "Bohdan",
   "phone": "+380...",
   "is_admin": false
 }</code></pre>
+                        </div>
+                    </article>
                 </section>
 
                 <section class="docs-section" id="files">
                     <h2>Файли</h2>
 
-                    <h3 id="files-list">Список файлів</h3>
-                    <div class="docs-endpoint"><span class="docs-method m-get">GET</span> /api/v1/files</div>
-                    <p>Підтримує пагінацію та фільтри:</p>
-                    <table class="docs-table">
-                        <thead><tr><th>Параметр</th><th>Тип</th><th>Опис</th></tr></thead>
-                        <tbody>
-                            <tr><td>folder_id</td><td>int / "root"</td><td>Фільтр по папці. <code>root</code> — файли в корені.</td></tr>
-                            <tr><td>search</td><td>string</td><td>Пошук по імені, MIME, розширенню.</td></tr>
-                            <tr><td>storage_driver</td><td>local / telegram</td><td>Тип сховища.</td></tr>
-                            <tr><td>date_from</td><td>YYYY-MM-DD</td><td>Від цієї дати.</td></tr>
-                            <tr><td>date_to</td><td>YYYY-MM-DD</td><td>До цієї дати (включно).</td></tr>
-                            <tr><td>per_page</td><td>int (1–100)</td><td>Розмір сторінки. За замовчуванням 20.</td></tr>
-                            <tr><td>page</td><td>int</td><td>Номер сторінки.</td></tr>
-                        </tbody>
-                    </table>
-                    <p>Відповідь — стандартна Laravel-пагінація: <code>data</code> (масив файлів), <code>meta</code> (current_page, last_page, total), <code>links</code>.</p>
+                    <article class="docs-endpoint-card is-get" id="files-list">
+                        <header class="docs-endpoint-card-head">
+                            <span class="docs-method m-get">GET</span>
+                            <span class="docs-endpoint-card-path">/api/v1/files</span>
+                            <span class="docs-endpoint-card-title">Список файлів</span>
+                        </header>
+                        <div class="docs-endpoint-card-body">
+                            <p>Підтримує пагінацію та фільтри:</p>
+                            <table class="docs-table">
+                                <thead><tr><th>Параметр</th><th>Тип</th><th>Опис</th></tr></thead>
+                                <tbody>
+                                    <tr><td>folder_id</td><td>int / "root"</td><td>Фільтр по папці. <code>root</code> — файли в корені.</td></tr>
+                                    <tr><td>search</td><td>string</td><td>Пошук по імені, MIME, розширенню.</td></tr>
+                                    <tr><td>storage_driver</td><td>local / telegram</td><td>Тип сховища.</td></tr>
+                                    <tr><td>date_from</td><td>YYYY-MM-DD</td><td>Від цієї дати.</td></tr>
+                                    <tr><td>date_to</td><td>YYYY-MM-DD</td><td>До цієї дати (включно).</td></tr>
+                                    <tr><td>per_page</td><td>int (1–100)</td><td>Розмір сторінки. За замовчуванням 20.</td></tr>
+                                    <tr><td>page</td><td>int</td><td>Номер сторінки.</td></tr>
+                                </tbody>
+                            </table>
+                            <p>Відповідь — стандартна Laravel-пагінація: <code>data</code> (масив файлів), <code>meta</code> (current_page, last_page, total), <code>links</code>.</p>
+                        </div>
+                    </article>
 
-                    <h3 id="files-show">Метадані одного файлу</h3>
-                    <div class="docs-endpoint"><span class="docs-method m-get">GET</span> /api/v1/files/{id}</div>
+                    <article class="docs-endpoint-card is-get" id="files-show">
+                        <header class="docs-endpoint-card-head">
+                            <span class="docs-method m-get">GET</span>
+                            <span class="docs-endpoint-card-path">/api/v1/files/{id}</span>
+                            <span class="docs-endpoint-card-title">Метадані одного файлу</span>
+                        </header>
+                        <div class="docs-endpoint-card-body">
+                            <p>Повертає одну сутність <code>ManagedFile</code> з повним набором полів і <code>share</code>-блоком, якщо ввімкнено публічний доступ.</p>
+                        </div>
+                    </article>
 
-                    <h3 id="files-content">Завантажити файл (бінарка)</h3>
-                    <div class="docs-endpoint"><span class="docs-method m-get">GET</span> /api/v1/files/{id}/content</div>
-                    <p>Повертає файл з оригінальним MIME та <code>Content-Disposition: attachment</code>. Безпечно для будь-яких типів — заголовок <code>X-Content-Type-Options: nosniff</code> блокує MIME-sniffing.</p>
+                    <article class="docs-endpoint-card is-get" id="files-content">
+                        <header class="docs-endpoint-card-head">
+                            <span class="docs-method m-get">GET</span>
+                            <span class="docs-endpoint-card-path">/api/v1/files/{id}/content</span>
+                            <span class="docs-endpoint-card-title">Скачати файл</span>
+                        </header>
+                        <div class="docs-endpoint-card-body">
+                            <p>Повертає файл з оригінальним MIME та <code>Content-Disposition: attachment</code>. Безпечно для будь-яких типів — заголовок <code>X-Content-Type-Options: nosniff</code> блокує MIME-sniffing.</p>
+                        </div>
+                    </article>
 
-                    <h3 id="files-upload">Upload</h3>
-                    <div class="docs-endpoint"><span class="docs-method m-post">POST</span> /api/v1/files</div>
-                    <p>Multipart form-data. Поля:</p>
-                    <table class="docs-table">
-                        <thead><tr><th>Поле</th><th>Тип</th><th>Опис</th></tr></thead>
-                        <tbody>
-                            <tr><td>file <em>або</em> files[]</td><td>file</td><td>До 25 файлів за один запит, кожен ≤ 50 MB.</td></tr>
-                            <tr><td>folder_id</td><td>int, optional</td><td>ID вашої папки.</td></tr>
-                            <tr><td>telegram_storage_group_id</td><td>int, optional</td><td>ID вашої Telegram-групи. Якщо не передати — файл піде у системне Telegram-сховище (для не-адмінів) або локально (для адмінів).</td></tr>
-                        </tbody>
-                    </table>
-                    <p>Відповідь <code>201 Created</code> з масивом створених файлів. Якщо завантаження в Telegram — статус буде <code>pending</code> до завершення фонового джобу.</p>
+                    <article class="docs-endpoint-card is-post" id="files-upload">
+                        <header class="docs-endpoint-card-head">
+                            <span class="docs-method m-post">POST</span>
+                            <span class="docs-endpoint-card-path">/api/v1/files</span>
+                            <span class="docs-endpoint-card-title">Upload</span>
+                        </header>
+                        <div class="docs-endpoint-card-body">
+                            <p>Multipart form-data. Поля:</p>
+                            <table class="docs-table">
+                                <thead><tr><th>Поле</th><th>Тип</th><th>Опис</th></tr></thead>
+                                <tbody>
+                                    <tr><td>file <em>або</em> files[]</td><td>file</td><td>До 25 файлів за один запит, кожен ≤ 50 MB.</td></tr>
+                                    <tr><td>folder_id</td><td>int, optional</td><td>ID вашої папки.</td></tr>
+                                    <tr><td>telegram_storage_group_id</td><td>int, optional</td><td>ID вашої Telegram-групи. Якщо не передати — файл піде у системне Telegram-сховище (для не-адмінів) або локально (для адмінів).</td></tr>
+                                </tbody>
+                            </table>
+                            <p>Відповідь <code>201 Created</code> з масивом створених файлів. Якщо завантаження в Telegram — статус буде <code>pending</code> до завершення фонового джобу.</p>
+                        </div>
+                    </article>
 
-                    <h3 id="files-delete">Видалити файл</h3>
-                    <div class="docs-endpoint"><span class="docs-method m-delete">DELETE</span> /api/v1/files/{id}</div>
-                    <p>Видаляє як запис у БД, так і фізичний файл (локально або через <code>deleteMessage</code> у Telegram).</p>
+                    <article class="docs-endpoint-card is-delete" id="files-delete">
+                        <header class="docs-endpoint-card-head">
+                            <span class="docs-method m-delete">DELETE</span>
+                            <span class="docs-endpoint-card-path">/api/v1/files/{id}</span>
+                            <span class="docs-endpoint-card-title">Видалити файл</span>
+                        </header>
+                        <div class="docs-endpoint-card-body">
+                            <p>Видаляє як запис у БД, так і фізичний файл (локально або через <code>deleteMessage</code> у Telegram).</p>
+                        </div>
+                    </article>
                 </section>
 
                 <section class="docs-section" id="folders">
                     <h2>Папки</h2>
-                    <div class="docs-endpoint"><span class="docs-method m-get">GET</span> /api/v1/folders</div>
-                    <div class="docs-endpoint"><span class="docs-method m-post">POST</span> /api/v1/folders</div>
-                    <div class="docs-endpoint"><span class="docs-method m-get">GET</span> /api/v1/folders/{id}</div>
-                    <div class="docs-endpoint"><span class="docs-method m-patch">PATCH</span> /api/v1/folders/{id}</div>
-                    <div class="docs-endpoint"><span class="docs-method m-delete">DELETE</span> /api/v1/folders/{id}</div>
 
-                    <h3>Створення / перейменування</h3>
-                    <p>Body JSON:</p>
+                    <article class="docs-endpoint-card is-get">
+                        <header class="docs-endpoint-card-head">
+                            <span class="docs-method m-get">GET</span>
+                            <span class="docs-endpoint-card-path">/api/v1/folders</span>
+                            <span class="docs-endpoint-card-title">Список папок</span>
+                        </header>
+                        <div class="docs-endpoint-card-body">
+                            <p>Усі папки поточного юзера з лічильником <code>files_count</code>.</p>
+                        </div>
+                    </article>
+
+                    <article class="docs-endpoint-card is-get">
+                        <header class="docs-endpoint-card-head">
+                            <span class="docs-method m-get">GET</span>
+                            <span class="docs-endpoint-card-path">/api/v1/folders/{id}</span>
+                            <span class="docs-endpoint-card-title">Одна папка</span>
+                        </header>
+                    </article>
+
+                    <article class="docs-endpoint-card is-post">
+                        <header class="docs-endpoint-card-head">
+                            <span class="docs-method m-post">POST</span>
+                            <span class="docs-endpoint-card-path">/api/v1/folders</span>
+                            <span class="docs-endpoint-card-title">Створити папку</span>
+                        </header>
+                        <div class="docs-endpoint-card-body">
+                            <p>Body JSON:</p>
 <pre><code>{ "name": "Archive" }</code></pre>
-                    <p>Назва унікальна в межах акаунта, до 100 символів.</p>
+                            <p>Назва унікальна в межах акаунта, до 100 символів.</p>
+                        </div>
+                    </article>
 
-                    <h3>Видалення</h3>
-                    <p><code>DELETE /folders/{id}</code> видаляє папку <strong>з усіма файлами всередині</strong>. Telegram-повідомлення також видаляються через бота.</p>
+                    <article class="docs-endpoint-card is-patch">
+                        <header class="docs-endpoint-card-head">
+                            <span class="docs-method m-patch">PATCH</span>
+                            <span class="docs-endpoint-card-path">/api/v1/folders/{id}</span>
+                            <span class="docs-endpoint-card-title">Перейменувати</span>
+                        </header>
+                        <div class="docs-endpoint-card-body">
+                            <p>Body JSON: <code>{ "name": "New name" }</code></p>
+                        </div>
+                    </article>
+
+                    <article class="docs-endpoint-card is-delete">
+                        <header class="docs-endpoint-card-head">
+                            <span class="docs-method m-delete">DELETE</span>
+                            <span class="docs-endpoint-card-path">/api/v1/folders/{id}</span>
+                            <span class="docs-endpoint-card-title">Видалити папку</span>
+                        </header>
+                        <div class="docs-endpoint-card-body">
+                            <p>Видаляє папку <strong>з усіма файлами всередині</strong>. Telegram-повідомлення також видаляються через бота.</p>
+                        </div>
+                    </article>
                 </section>
 
                 <section class="docs-section" id="shares">
                     <h2>Шеринг</h2>
-                    <p>Файли та папки можна публікувати з обмеженнями: кількість переглядів і термін дії.</p>
+                    <p>Файли та папки можна публікувати з обмеженнями: кількість переглядів і термін дії. Для кожної дії — окремі ендпоінти для файлу і для папки.</p>
 
                     <h3>Увімкнути шеринг</h3>
-                    <div class="docs-endpoint"><span class="docs-method m-post">POST</span> /api/v1/files/{id}/share</div>
-                    <div class="docs-endpoint"><span class="docs-method m-post">POST</span> /api/v1/folders/{id}/share</div>
-                    <p>Повертає ресурс з полем <code>share.url</code> — публічне посилання.</p>
+                    <article class="docs-endpoint-card is-post">
+                        <header class="docs-endpoint-card-head">
+                            <span class="docs-method m-post">POST</span>
+                            <span class="docs-endpoint-card-path">/api/v1/files/{id}/share</span>
+                            <span class="docs-endpoint-card-title">Опублікувати файл</span>
+                        </header>
+                    </article>
+                    <article class="docs-endpoint-card is-post">
+                        <header class="docs-endpoint-card-head">
+                            <span class="docs-method m-post">POST</span>
+                            <span class="docs-endpoint-card-path">/api/v1/folders/{id}/share</span>
+                            <span class="docs-endpoint-card-title">Опублікувати папку</span>
+                        </header>
+                        <div class="docs-endpoint-card-body">
+                            <p>Повертає ресурс із полем <code>share.url</code> — публічне посилання.</p>
+                        </div>
+                    </article>
 
                     <h3>Налаштувати ліміти</h3>
-                    <div class="docs-endpoint"><span class="docs-method m-patch">PATCH</span> /api/v1/files/{id}/share</div>
-                    <div class="docs-endpoint"><span class="docs-method m-patch">PATCH</span> /api/v1/folders/{id}/share</div>
-                    <p>Body JSON (обидва поля nullable):</p>
+                    <article class="docs-endpoint-card is-patch">
+                        <header class="docs-endpoint-card-head">
+                            <span class="docs-method m-patch">PATCH</span>
+                            <span class="docs-endpoint-card-path">/api/v1/files/{id}/share</span>
+                            <span class="docs-endpoint-card-title">Ліміти файлу</span>
+                        </header>
+                    </article>
+                    <article class="docs-endpoint-card is-patch">
+                        <header class="docs-endpoint-card-head">
+                            <span class="docs-method m-patch">PATCH</span>
+                            <span class="docs-endpoint-card-path">/api/v1/folders/{id}/share</span>
+                            <span class="docs-endpoint-card-title">Ліміти папки</span>
+                        </header>
+                        <div class="docs-endpoint-card-body">
+                            <p>Body JSON (обидва поля nullable):</p>
 <pre><code>{
   "share_max_views": 50,
   "share_expires_at": "2026-12-31T23:59:00Z"
 }</code></pre>
-                    <p>Передайте <code>null</code> в полі, щоб зняти ліміт.</p>
+                            <p>Передайте <code>null</code>, щоб зняти конкретний ліміт.</p>
+                        </div>
+                    </article>
 
                     <h3>Вимкнути шеринг</h3>
-                    <div class="docs-endpoint"><span class="docs-method m-delete">DELETE</span> /api/v1/files/{id}/share</div>
-                    <div class="docs-endpoint"><span class="docs-method m-delete">DELETE</span> /api/v1/folders/{id}/share</div>
-                    <p>Видаляє публічне посилання — наступні відвідування дадуть 404.</p>
+                    <article class="docs-endpoint-card is-delete">
+                        <header class="docs-endpoint-card-head">
+                            <span class="docs-method m-delete">DELETE</span>
+                            <span class="docs-endpoint-card-path">/api/v1/files/{id}/share</span>
+                            <span class="docs-endpoint-card-title">Закрити шер файлу</span>
+                        </header>
+                    </article>
+                    <article class="docs-endpoint-card is-delete">
+                        <header class="docs-endpoint-card-head">
+                            <span class="docs-method m-delete">DELETE</span>
+                            <span class="docs-endpoint-card-path">/api/v1/folders/{id}/share</span>
+                            <span class="docs-endpoint-card-title">Закрити шер папки</span>
+                        </header>
+                        <div class="docs-endpoint-card-body">
+                            <p>Видаляє публічне посилання — наступні відвідування дадуть 404.</p>
+                        </div>
+                    </article>
                 </section>
 
                 <section class="docs-section" id="examples">
