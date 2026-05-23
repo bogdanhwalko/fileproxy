@@ -829,14 +829,10 @@
             });
 
             document.addEventListener('submit', async (event) => {
-                const uploadForm = event.target.closest('[data-upload-form]');
-
-                if (uploadForm) {
-                    event.preventDefault();
-                    uploadFiles(uploadForm);
-
-                    return;
-                }
+                // Upload form is handled exclusively by uploader.js (corner widget).
+                // The old inline pipeline (uploadFiles/uploadSingleFile/setUploadProgress)
+                // is intentionally not invoked here — both handlers would otherwise fire
+                // the same submit, causing duplicate uploads.
 
                 const filterForm = event.target.closest('[data-ajax-filter]');
 
