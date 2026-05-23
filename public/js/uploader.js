@@ -2,32 +2,23 @@
  * FileProxy uploader
  * Per-file XHR upload with progress, status polling, and Wake Lock.
  *
- * Wires up automatically when there's a [data-fp-uploader] form on the page.
- * Form data: standard file input named "files[]" + folder_id + telegram_storage_group_id.
+ * Listens (via document delegation) for submits on any [data-fp-uploader] form.
+ * All DOM elements (form, widget, etc.) are resolved lazily at submit time,
+ * so this script survives DOM replacements and late-rendered markup.
+ *
+ * Form must have: action, data-status-url ("/files/__id__/status"), file input
+ * named "files[]". Optional: hidden inputs folder_id, telegram_storage_group_id.
+ *
+ * Widget markup must exist with [data-fp-uploader-widget] +
+ * [data-fp-uploader-list], optionally [data-fp-uploader-summary],
+ * [data-fp-uploader-minimize], [data-fp-uploader-close].
  */
 
 (() => {
-    const form = document.querySelector('[data-fp-uploader]');
-    if (!form) return;
-
-    const widget       = document.querySelector('[data-fp-uploader-widget]');
-    const listEl       = widget?.querySelector('[data-fp-uploader-list]');
-    const summaryEl    = widget?.querySelector('[data-fp-uploader-summary]');
-    const minimizeBtn  = widget?.querySelector('[data-fp-uploader-minimize]');
-    const closeBtn     = widget?.querySelector('[data-fp-uploader-close]');
-    const csrf         = document.querySelector('meta[name="csrf-token"]')?.content;
-    const endpoint     = form.getAttribute('action');
-    const statusUrlTpl = form.dataset.statusUrl;        // "/files/__id__/status"
-    const reloadUrl    = form.dataset.reloadUrl || null;
     const POLL_INTERVAL_MS = 3000;
-    const POLL_MAX_ATTEMPTS = 60; // 3 хв
+    const POLL_MAX_ATTEMPTS = 60; // 3 min
     const CONCURRENCY = 2;
-    const TELEGRAM_BOT_MAX_BYTES = 50 * 1024 * 1024; // 50 MB — hard limit of Telegram Bot API sendDocument
-
-    if (!widget || !listEl || !csrf || !endpoint || !statusUrlTpl) {
-        console.warn('FileProxy uploader: missing required DOM/config; falling back to native form');
-        return;
-    }
+    const TELEGRAM_BOT_MAX_BYTES = 50 * 1024 * 1024; // 50 MB — Telegram Bot API sendDocument limit
 
     /* ----------------------------------------------------
        State
@@ -36,6 +27,17 @@
     let active = 0;
     let wakeLock = null;
     let wakeLockRequested = false;
+    let currentEndpoint = null;
+    let currentStatusUrlTpl = null;
+    let currentCsrf = null;
+
+    /* ----------------------------------------------------
+       Lazy element resolution
+       ---------------------------------------------------- */
+    function widget()      { return document.querySelector('[data-fp-uploader-widget]'); }
+    function listEl()      { return widget()?.querySelector('[data-fp-uploader-list]') || null; }
+    function summaryEl()   { return widget()?.querySelector('[data-fp-uploader-summary]') || null; }
+    function csrfToken()   { return document.querySelector('meta[name="csrf-token"]')?.content || ''; }
 
     /* ----------------------------------------------------
        Wake Lock
@@ -49,7 +51,6 @@
             wakeLock = await navigator.wakeLock.request('screen');
             wakeLock.addEventListener('release', () => { wakeLock = null; });
         } catch (e) {
-            // permission denied or unsupported context
             wakeLock = null;
         }
     }
@@ -62,7 +63,6 @@
         }
     }
 
-    // Re-acquire wake lock on visibility change while active uploads exist
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible' && hasActiveWork()) {
             wakeLockRequested = false;
@@ -78,7 +78,10 @@
        Rendering
        ---------------------------------------------------- */
     function renderItem(item) {
-        let row = listEl.querySelector(`[data-item-id="${item.id}"]`);
+        const list = listEl();
+        if (!list) return;
+
+        let row = list.querySelector(`[data-item-id="${item.id}"]`);
         if (!row) {
             row = document.createElement('div');
             row.className = 'fp-up-item';
@@ -92,7 +95,7 @@
                 </div>
                 <div class="fp-up-item-status"></div>
             `;
-            listEl.appendChild(row);
+            list.appendChild(row);
         }
         row.dataset.status = item.status;
         row.querySelector('.fp-up-item-name').textContent = item.file.name;
@@ -147,15 +150,16 @@
     }
 
     function renderSummary() {
-        if (!summaryEl) return;
+        const w = widget();
+        const s = summaryEl();
         const total = items.length;
         const done = items.filter(i => i.status === 'uploaded').length;
         const failed = items.filter(i => i.status === 'failed').length;
-        const active = items.filter(i => i.status === 'uploading' || i.status === 'pending').length;
+        const inFlight = items.filter(i => i.status === 'uploading' || i.status === 'pending').length;
         const queued = items.filter(i => i.status === 'queued').length;
 
         let line;
-        if (active + queued > 0) {
+        if (inFlight + queued > 0) {
             line = `Завантаження: ${done + failed} з ${total}${failed > 0 ? ` · помилок: ${failed}` : ''}`;
         } else if (failed > 0 && done > 0) {
             line = `Готово: ${done} · з помилкою: ${failed}`;
@@ -164,9 +168,8 @@
         } else {
             line = `Усі ${total} ${pluralizeFiles(total)} завантажено`;
         }
-        summaryEl.textContent = line;
-
-        widget.dataset.state = (active + queued > 0) ? 'active' : (failed > 0 ? 'with-failures' : 'done');
+        if (s) s.textContent = line;
+        if (w) w.dataset.state = (inFlight + queued > 0) ? 'active' : (failed > 0 ? 'with-failures' : 'done');
     }
 
     function pluralizeFiles(n) {
@@ -178,15 +181,21 @@
     }
 
     function showWidget() {
-        widget.hidden = false;
-        widget.classList.remove('is-collapsed');
+        const w = widget();
+        if (!w) return;
+        w.hidden = false;
+        w.classList.remove('is-collapsed');
     }
 
     function clearList() {
         items = [];
-        listEl.innerHTML = '';
-        widget.hidden = true;
-        widget.classList.remove('is-collapsed');
+        const list = listEl();
+        if (list) list.innerHTML = '';
+        const w = widget();
+        if (w) {
+            w.hidden = true;
+            w.classList.remove('is-collapsed');
+        }
     }
 
     /* ----------------------------------------------------
@@ -197,7 +206,7 @@
             if (item.file && item.file.size > TELEGRAM_BOT_MAX_BYTES) {
                 item.status = 'failed';
                 item.progress = 0;
-                item.error = `Файл більше 50 МБ — Telegram Bot API не приймає такі файли. Завантажте файл вручну у групу через Telegram, або поділіть його на частини.`;
+                item.error = 'Файл більше 50 МБ — Telegram Bot API не приймає такі файли. Завантажте файл вручну у групу через Telegram, або поділіть його на частини.';
                 renderItem(item);
                 renderSummary();
                 resolve();
@@ -210,10 +219,10 @@
             if (formExtras.telegram_storage_group_id) fd.append('telegram_storage_group_id', formExtras.telegram_storage_group_id);
 
             const xhr = new XMLHttpRequest();
-            xhr.open('POST', endpoint, true);
+            xhr.open('POST', currentEndpoint, true);
             xhr.setRequestHeader('Accept', 'application/json');
             xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-            xhr.setRequestHeader('X-CSRF-TOKEN', csrf);
+            xhr.setRequestHeader('X-CSRF-TOKEN', currentCsrf || csrfToken());
 
             item.status = 'uploading';
             item.progress = 0;
@@ -295,8 +304,8 @@
        Status polling for Telegram-pending files
        ---------------------------------------------------- */
     function pollStatus(item) {
-        if (!item.serverId) return;
-        const url = statusUrlTpl.replace('__id__', String(item.serverId));
+        if (!item.serverId || !currentStatusUrlTpl) return;
+        const url = currentStatusUrlTpl.replace('__id__', String(item.serverId));
         let attempts = 0;
 
         const tick = async () => {
@@ -325,14 +334,11 @@
                         return;
                     }
                 }
-            } catch (_) {
-                // network glitch; just retry
-            }
+            } catch (_) {}
 
             if (attempts < POLL_MAX_ATTEMPTS) {
                 setTimeout(tick, POLL_INTERVAL_MS);
             } else {
-                // give up — leave status as pending; user can refresh later
                 item.status = 'failed';
                 item.error = 'Timeout — перевірте стан пізніше';
                 renderItem(item);
@@ -371,18 +377,12 @@
     }
 
     function finishedAllUploads() {
-        // If any are still pending (polling), keep wake lock until they all resolve
         const pending = items.some(i => i.status === 'pending');
 
         const onAllSettled = () => {
             releaseWakeLock();
-
-            // Soft-refresh the file list so newly uploaded files appear without a page reload.
-            // files/index.blade.php listens for this event and calls refreshFilesPage().
             window.dispatchEvent(new CustomEvent('fp-uploader:refresh-needed'));
-
-            // Keep ALL rows visible (both uploaded and failed) so the user sees the full result.
-            // The user closes the widget manually via the X button when ready.
+            // All rows stay visible until the user closes the widget manually.
         };
 
         if (!pending) {
@@ -397,51 +397,41 @@
         }
     }
 
-    function removeUploadedItems() {
-        const uploaded = items.filter(i => i.status === 'uploaded');
-        if (uploaded.length === 0) return;
-
-        uploaded.forEach((item) => {
-            const row = listEl.querySelector(`[data-item-id="${item.id}"]`);
-            if (row) {
-                row.style.transition = 'opacity 0.3s ease, transform 0.3s ease, max-height 0.35s ease, padding 0.25s ease, margin 0.25s ease';
-                row.style.maxHeight = row.offsetHeight + 'px';
-                requestAnimationFrame(() => {
-                    row.style.opacity = '0';
-                    row.style.transform = 'translateX(20px)';
-                    row.style.maxHeight = '0px';
-                    row.style.paddingTop = '0';
-                    row.style.paddingBottom = '0';
-                    row.style.marginTop = '0';
-                    row.style.marginBottom = '0';
-                });
-                setTimeout(() => row.remove(), 360);
-            }
-            items = items.filter(i => i.id !== item.id);
-        });
-
-        // Re-render summary; if list became empty, hide widget entirely
-        setTimeout(() => {
-            renderSummary();
-            if (items.length === 0) {
-                clearList();
-            }
-        }, 400);
-    }
-
     /* ----------------------------------------------------
-       Wire up: intercept form submit
+       Submit interception — delegated on document so it survives
+       form replacements and runs regardless of DOM-ready timing.
        ---------------------------------------------------- */
-    form.addEventListener('submit', (e) => {
+    document.addEventListener('submit', (e) => {
+        const form = e.target.closest && e.target.closest('[data-fp-uploader]');
+        if (!form) return;
+
         const fileInput = form.querySelector('input[type="file"][name="files[]"]');
         if (!fileInput || !fileInput.files || !fileInput.files.length) return;
 
+        const endpoint     = form.getAttribute('action');
+        const statusUrlTpl = form.dataset.statusUrl;
+        const csrf         = csrfToken();
+        const w            = widget();
+        const list         = listEl();
+
+        // Required for the widget to function. If anything is missing, log and let the
+        // browser do a native submit (graceful fallback).
+        if (!endpoint || !statusUrlTpl || !csrf || !w || !list) {
+            console.warn('FileProxy uploader: missing config — falling back to native form submit', {
+                endpoint, statusUrlTpl, hasCsrf: !!csrf, hasWidget: !!w, hasList: !!list,
+            });
+            return;
+        }
+
         e.preventDefault();
+
+        currentEndpoint = endpoint;
+        currentStatusUrlTpl = statusUrlTpl;
+        currentCsrf = csrf;
 
         const folderId = form.querySelector('[name="folder_id"]')?.value || '';
         const groupId = form.querySelector('[name="telegram_storage_group_id"]')?.value || '';
 
-        // Remember the last picked storage so subsequent uploads pre-select it.
         try {
             if (groupId !== '') {
                 window.localStorage?.setItem('fp_last_storage_group_id', groupId);
@@ -479,19 +469,23 @@
     });
 
     /* ----------------------------------------------------
-       Widget controls
+       Widget controls (delegated)
        ---------------------------------------------------- */
-    minimizeBtn?.addEventListener('click', () => {
-        widget.classList.toggle('is-collapsed');
-    });
-
-    closeBtn?.addEventListener('click', () => {
-        if (hasActiveWork()) {
-            const ok = confirm('Активні завантаження ще тривають. Якщо закрити віджет, прогрес буде втрачено. Закрити?');
-            if (!ok) return;
+    document.addEventListener('click', (e) => {
+        if (e.target.closest && e.target.closest('[data-fp-uploader-minimize]')) {
+            const w = widget();
+            if (w) w.classList.toggle('is-collapsed');
+            return;
         }
-        releaseWakeLock();
-        clearList();
+
+        if (e.target.closest && e.target.closest('[data-fp-uploader-close]')) {
+            if (hasActiveWork()) {
+                const ok = confirm('Активні завантаження ще тривають. Якщо закрити віджет, прогрес буде втрачено. Закрити?');
+                if (!ok) return;
+            }
+            releaseWakeLock();
+            clearList();
+        }
     });
 
     // Warn user before leaving page if uploads in progress
