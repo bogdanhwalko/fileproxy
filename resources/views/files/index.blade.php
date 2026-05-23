@@ -537,7 +537,14 @@
                             </label>
                             @if ($imagePreviews && $file->is_uploaded && $file->is_image)
                                 <a class="file-tile-preview" href="{{ route('files.preview', $file) }}" aria-label="Відкрити {{ $file->original_name }}">
-                                    <img src="{{ route('files.inline', $file) }}" alt="{{ $file->original_name }}" loading="eager" decoding="async">
+                                    <img
+                                        src="{{ route('files.inline', $file) }}"
+                                        alt="{{ $file->original_name }}"
+                                        loading="lazy"
+                                        decoding="async"
+                                        data-preview-img
+                                        data-type-label="{{ $file->type_label }}"
+                                    >
                                 </a>
                             @elseif ($imagePreviews)
                                 <div class="file-tile-preview file-tile-preview-empty" aria-hidden="true">
@@ -2104,6 +2111,40 @@
                     console.warn('fp-uploader refresh failed:', e);
                 }
             });
+
+            /* ====================================================
+               Image preview fallback: when a tile thumbnail fails to load
+               (e.g. Telegram throttled the bot mid-batch), retry once after
+               a short jittered delay, then fall back to a clean placeholder.
+               ==================================================== */
+            initPreviewFallback();
+
+            function initPreviewFallback() {
+                document.addEventListener('error', (event) => {
+                    const img = event.target;
+                    if (!img || img.tagName !== 'IMG' || !img.matches?.('[data-preview-img]')) return;
+
+                    const attempts = parseInt(img.dataset.previewAttempts || '0', 10);
+
+                    if (attempts < 1) {
+                        // First failure: retry once after 800–1500ms (jitter to spread retries)
+                        img.dataset.previewAttempts = String(attempts + 1);
+                        const wait = 800 + Math.random() * 700;
+                        const original = img.src.split('?')[0];
+                        setTimeout(() => {
+                            img.src = original + '?retry=' + Date.now();
+                        }, wait);
+                        return;
+                    }
+
+                    // Give up: swap <img> for a clean type-label placeholder
+                    const wrap = img.closest('.file-tile-preview');
+                    if (!wrap) return;
+                    const label = img.dataset.typeLabel || 'FILE';
+                    wrap.classList.add('file-tile-preview-empty');
+                    wrap.innerHTML = `<span>${label}</span>`;
+                }, true); // capture phase — error events on <img> don't bubble
+            }
 
             /* ====================================================
                Bulk selection: multi-select + bulk delete/move
