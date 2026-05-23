@@ -263,6 +263,7 @@ class FileController extends Controller
                     'status' => $f->status,
                     'size' => (int) $f->size,
                     'storage_driver' => $f->storage_driver,
+                    'upload_failure_reason' => $f->upload_failure_reason,
                 ], $createdFiles),
             ], 201);
         }

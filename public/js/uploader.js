@@ -22,6 +22,7 @@
     const POLL_INTERVAL_MS = 3000;
     const POLL_MAX_ATTEMPTS = 60; // 3 хв
     const CONCURRENCY = 2;
+    const TELEGRAM_BOT_MAX_BYTES = 50 * 1024 * 1024; // 50 MB — hard limit of Telegram Bot API sendDocument
 
     if (!widget || !listEl || !csrf || !endpoint || !statusUrlTpl) {
         console.warn('FileProxy uploader: missing required DOM/config; falling back to native form');
@@ -98,7 +99,9 @@
         row.querySelector('.fp-up-item-bar-fill').style.width = `${item.progress}%`;
         row.querySelector('.fp-up-item-icon').innerHTML = iconForStatus(item.status);
         row.querySelector('.fp-up-item-status').innerHTML = statusLabel(item);
-        row.querySelector('.fp-up-item-meta').textContent = metaLine(item);
+        const meta = row.querySelector('.fp-up-item-meta');
+        meta.textContent = metaLine(item);
+        meta.title = (item.status === 'failed' && item.error) ? item.error : '';
     }
 
     function iconForStatus(status) {
@@ -153,15 +156,25 @@
 
         let line;
         if (active + queued > 0) {
-            line = `Завантаження: ${done + failed} з ${total}`;
-        } else if (failed > 0) {
+            line = `Завантаження: ${done + failed} з ${total}${failed > 0 ? ` · помилок: ${failed}` : ''}`;
+        } else if (failed > 0 && done > 0) {
             line = `Готово: ${done} · з помилкою: ${failed}`;
+        } else if (failed > 0) {
+            line = `З помилкою: ${failed} з ${total}`;
         } else {
-            line = `Усі ${total} файлів завантажено`;
+            line = `Усі ${total} ${pluralizeFiles(total)} завантажено`;
         }
         summaryEl.textContent = line;
 
         widget.dataset.state = (active + queued > 0) ? 'active' : (failed > 0 ? 'with-failures' : 'done');
+    }
+
+    function pluralizeFiles(n) {
+        const mod10 = n % 10;
+        const mod100 = n % 100;
+        if (mod10 === 1 && mod100 !== 11) return 'файл';
+        if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'файли';
+        return 'файлів';
     }
 
     function showWidget() {
@@ -181,6 +194,16 @@
        ---------------------------------------------------- */
     function uploadOne(item, formExtras) {
         return new Promise((resolve) => {
+            if (item.file && item.file.size > TELEGRAM_BOT_MAX_BYTES) {
+                item.status = 'failed';
+                item.progress = 0;
+                item.error = `Файл більше 50 МБ — Telegram Bot API не приймає такі файли. Завантажте файл вручну у групу через Telegram, або поділіть його на частини.`;
+                renderItem(item);
+                renderSummary();
+                resolve();
+                return;
+            }
+
             const fd = new FormData();
             fd.append('files[]', item.file);
             if (formExtras.folder_id) fd.append('folder_id', formExtras.folder_id);
@@ -219,7 +242,7 @@
                             item.progress = 100;
                         } else if (created.status === 'failed') {
                             item.status = 'failed';
-                            item.error = 'Завантаження в Telegram не вдалося';
+                            item.error = created.upload_failure_reason || 'Завантаження в Telegram не вдалося';
                         } else {
                             item.status = 'pending';
                             item.progress = 100;
@@ -354,25 +377,12 @@
         const onAllSettled = () => {
             releaseWakeLock();
 
-            const hasFailures = items.some(i => i.status === 'failed');
-
             // Soft-refresh the file list so newly uploaded files appear without a page reload.
             // files/index.blade.php listens for this event and calls refreshFilesPage().
             window.dispatchEvent(new CustomEvent('fp-uploader:refresh-needed'));
 
-            // After 4.5s fade out the "Готово" rows one by one.
-            // Failed items stay so user notices them.
-            setTimeout(() => removeUploadedItems(), 4500);
-
-            if (hasFailures) {
-                // Long timeout: if still-failed rows linger and user did nothing,
-                // collapse the widget so it doesn't sit forever on screen.
-                setTimeout(() => {
-                    if (!hasActiveWork() && items.length > 0) {
-                        widget.classList.add('is-collapsed');
-                    }
-                }, 20000);
-            }
+            // Keep ALL rows visible (both uploaded and failed) so the user sees the full result.
+            // The user closes the widget manually via the X button when ready.
         };
 
         if (!pending) {
