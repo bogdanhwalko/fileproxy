@@ -18,18 +18,21 @@
     const POLL_INTERVAL_MS = 3000;
     const POLL_MAX_ATTEMPTS = 60; // 3 min
     const CONCURRENCY = 2;
-    const TELEGRAM_BOT_MAX_BYTES = 50 * 1024 * 1024; // 50 MB — Telegram Bot API sendDocument limit
+    const DEFAULT_MAX_FILE_MB = 50; // Telegram Bot API sendDocument limit (raise via self-hosted bot-api server)
+    const MAX_RETRY_ATTEMPTS = 5;   // per-file retry budget for 429 / transient network failures
 
     /* ----------------------------------------------------
        State
        ---------------------------------------------------- */
-    let items = [];           // [{ id, file, status, progress, error, serverId }]
+    let items = [];           // [{ id, file, status, progress, error, serverId, attempts }]
     let active = 0;
     let wakeLock = null;
     let wakeLockRequested = false;
     let currentEndpoint = null;
     let currentStatusUrlTpl = null;
     let currentCsrf = null;
+    let currentMaxBytes = DEFAULT_MAX_FILE_MB * 1024 * 1024;
+    let pauseUntil = 0;       // epoch ms; while > now, queue workers wait
 
     /* ----------------------------------------------------
        Lazy element resolution
@@ -124,13 +127,27 @@
 
     function statusLabel(item) {
         switch (item.status) {
-            case 'queued':    return '<span class="fp-up-pill">У черзі</span>';
+            case 'queued':
+                if (isPaused()) {
+                    const sec = Math.max(1, Math.ceil((pauseUntil - Date.now()) / 1000));
+                    return `<span class="fp-up-pill is-pause">Пауза ${sec}с</span>`;
+                }
+                return '<span class="fp-up-pill">У черзі</span>';
             case 'uploading': return `<span class="fp-up-pct">${Math.round(item.progress)}%</span>`;
             case 'pending':   return '<span class="fp-up-pill is-pending">Telegram…</span>';
             case 'uploaded':  return '<span class="fp-up-pill is-ok">Готово</span>';
             case 'failed':    return '<span class="fp-up-pill is-fail">Помилка</span>';
             default:          return '';
         }
+    }
+
+    function isPaused() {
+        return Date.now() < pauseUntil;
+    }
+
+    function setPause(seconds) {
+        const target = Date.now() + Math.max(1, seconds) * 1000;
+        if (target > pauseUntil) pauseUntil = target;
     }
 
     function metaLine(item) {
@@ -157,9 +174,13 @@
         const failed = items.filter(i => i.status === 'failed').length;
         const inFlight = items.filter(i => i.status === 'uploading' || i.status === 'pending').length;
         const queued = items.filter(i => i.status === 'queued').length;
+        const paused = isPaused();
 
         let line;
-        if (inFlight + queued > 0) {
+        if (paused && (queued > 0 || inFlight > 0)) {
+            const sec = Math.max(1, Math.ceil((pauseUntil - Date.now()) / 1000));
+            line = `Пауза ${sec}с (ліміт API). ${done + failed} з ${total} оброблено${failed > 0 ? ` · помилок: ${failed}` : ''}`;
+        } else if (inFlight + queued > 0) {
             line = `Завантаження: ${done + failed} з ${total}${failed > 0 ? ` · помилок: ${failed}` : ''}`;
         } else if (failed > 0 && done > 0) {
             line = `Готово: ${done} · з помилкою: ${failed}`;
@@ -169,7 +190,11 @@
             line = `Усі ${total} ${pluralizeFiles(total)} завантажено`;
         }
         if (s) s.textContent = line;
-        if (w) w.dataset.state = (inFlight + queued > 0) ? 'active' : (failed > 0 ? 'with-failures' : 'done');
+        if (w) {
+            w.dataset.state = paused
+                ? 'paused'
+                : ((inFlight + queued > 0) ? 'active' : (failed > 0 ? 'with-failures' : 'done'));
+        }
     }
 
     function pluralizeFiles(n) {
@@ -203,10 +228,12 @@
        ---------------------------------------------------- */
     function uploadOne(item, formExtras) {
         return new Promise((resolve) => {
-            if (item.file && item.file.size > TELEGRAM_BOT_MAX_BYTES) {
+            const maxMb = Math.round(currentMaxBytes / 1024 / 1024);
+
+            if (item.file && item.file.size > currentMaxBytes) {
                 item.status = 'failed';
                 item.progress = 0;
-                item.error = 'Файл більше 50 МБ — Telegram Bot API не приймає такі файли. Завантажте файл вручну у групу через Telegram, або поділіть його на частини.';
+                item.error = `Файл більше ${maxMb} МБ — Telegram Bot API не приймає такі файли. Завантажте файл вручну у групу через Telegram, або поділіть його на частини.`;
                 renderItem(item);
                 renderSummary();
                 resolve();
@@ -264,8 +291,27 @@
                     item.status = 'failed';
                     item.error = json.message || extractFirstError(json.errors) || 'Помилка валідації';
                 } else if (xhr.status === 429) {
+                    // Rate limit hit. Respect server's Retry-After if present, otherwise wait 15s.
+                    // Re-queue the file and pause all workers until the window passes.
+                    const retryAfterHdr = xhr.getResponseHeader('Retry-After');
+                    const retryAfter = retryAfterHdr ? parseInt(retryAfterHdr, 10) : 15;
+                    const wait = Math.max(5, Math.min(120, isNaN(retryAfter) ? 15 : retryAfter));
+
+                    item.attempts = (item.attempts || 0) + 1;
+
+                    if (item.attempts <= MAX_RETRY_ATTEMPTS) {
+                        setPause(wait);
+                        item.status = 'queued';
+                        item.progress = 0;
+                        item.error = null;
+                        renderItem(item);
+                        renderSummary();
+                        resolve();
+                        return;
+                    }
+
                     item.status = 'failed';
-                    item.error = 'Перевищено ліміт запитів. Спробуйте пізніше.';
+                    item.error = `Перевищено ліміт запитів (429) після ${MAX_RETRY_ATTEMPTS} спроб. Спробуйте пізніше.`;
                 } else if (xhr.status === 0) {
                     item.status = 'failed';
                     item.error = 'З\'єднання обірвано';
@@ -356,8 +402,22 @@
         await acquireWakeLock();
 
         const runOne = async () => {
+            // If a server-imposed pause is in effect, wait it out before picking the next file.
+            if (isPaused()) {
+                const wait = Math.max(250, pauseUntil - Date.now() + 50);
+                renderSummary();
+                items.filter(i => i.status === 'queued').forEach(renderItem);
+                setTimeout(runOne, Math.min(wait, 1000));
+                return;
+            }
+
             const next = items.find(i => i.status === 'queued');
-            if (!next) return;
+            if (!next) {
+                if (active === 0 && !items.some(i => i.status === 'queued' || i.status === 'uploading')) {
+                    finishedAllUploads();
+                }
+                return;
+            }
             active++;
             try {
                 await uploadOne(next, formExtras);
@@ -374,6 +434,26 @@
         for (let i = 0; i < CONCURRENCY; i++) {
             runOne();
         }
+
+        // Keep summary in sync during pause countdowns
+        startPauseTicker();
+    }
+
+    let pauseTickerInterval = null;
+
+    function startPauseTicker() {
+        if (pauseTickerInterval) return;
+        pauseTickerInterval = setInterval(() => {
+            if (!hasActiveWork() && !isPaused()) {
+                clearInterval(pauseTickerInterval);
+                pauseTickerInterval = null;
+                return;
+            }
+            if (isPaused()) {
+                renderSummary();
+                items.filter(i => i.status === 'queued').forEach(renderItem);
+            }
+        }, 1000);
     }
 
     function finishedAllUploads() {
@@ -429,6 +509,9 @@
         currentStatusUrlTpl = statusUrlTpl;
         currentCsrf = csrf;
 
+        const maxMbAttr = parseInt(form.dataset.maxFileMb || '', 10);
+        currentMaxBytes = (Number.isFinite(maxMbAttr) && maxMbAttr > 0 ? maxMbAttr : DEFAULT_MAX_FILE_MB) * 1024 * 1024;
+
         const folderId = form.querySelector('[name="folder_id"]')?.value || '';
         const groupId = form.querySelector('[name="telegram_storage_group_id"]')?.value || '';
 
@@ -447,6 +530,7 @@
             progress: 0,
             error: null,
             serverId: null,
+            attempts: 0,
         }));
 
         items = items.filter(i => i.status === 'pending' || i.status === 'uploading').concat(newItems);

@@ -62,7 +62,7 @@
             </div>
         </header>
 
-        <form class="upload-form-v2" action="{{ route('files.store') }}" method="post" enctype="multipart/form-data" data-upload-form data-fp-uploader data-status-url="{{ route('files.status', ['file' => '__id__']) }}" data-reload-url="{{ url()->full() }}">
+        <form class="upload-form-v2" action="{{ route('files.store') }}" method="post" enctype="multipart/form-data" data-upload-form data-fp-uploader data-status-url="{{ route('files.status', ['file' => '__id__']) }}" data-reload-url="{{ url()->full() }}" data-max-file-mb="{{ $telegramUploadMaxMb }}">
             @csrf
 
             <label class="dropzone-v2" data-dropzone>

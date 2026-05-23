@@ -25,7 +25,14 @@ use ZipArchive;
 
 class FileController extends Controller
 {
-    private const TELEGRAM_UPLOAD_MAX_KB = 51200;
+    private const TELEGRAM_UPLOAD_MAX_KB_DEFAULT = 51200;
+
+    private function telegramUploadMaxKb(): int
+    {
+        $mb = (int) env('TELEGRAM_BOT_MAX_FILE_MB', 50);
+
+        return max(1, $mb) * 1024;
+    }
 
     private const SYSTEM_TELEGRAM_UPLOAD_LIMIT = 100;
 
@@ -122,7 +129,7 @@ class FileController extends Controller
             'folderFilter' => $folderFilter,
             'folders' => $folders,
             'imagePreviews' => $imagePreviews,
-            'telegramUploadMaxMb' => (int) (self::TELEGRAM_UPLOAD_MAX_KB / 1024),
+            'telegramUploadMaxMb' => (int) ($this->telegramUploadMaxKb() / 1024),
             'search' => $search,
             'stats' => $stats,
             'systemTelegramRemainingUploads' => $systemTelegramRemainingUploads,
@@ -153,11 +160,11 @@ class FileController extends Controller
                 Rule::exists('telegram_storage_groups', 'id')->where('user_id', $user->id),
             ],
             'files' => ['required', 'array', 'min:1', 'max:'.self::UPLOAD_FILES_PER_REQUEST_LIMIT],
-            'files.*' => ['file', 'max:'.self::TELEGRAM_UPLOAD_MAX_KB],
+            'files.*' => ['file', 'max:'.$this->telegramUploadMaxKb()],
         ], [
             'files.required' => 'Оберіть хоча б один файл для завантаження.',
             'files.max' => 'За один раз можна завантажити не більше '.self::UPLOAD_FILES_PER_REQUEST_LIMIT.' файлів.',
-            'files.*.max' => 'Максимальний розмір одного файлу для Telegram Bot API - 50 MB.',
+            'files.*.max' => 'Максимальний розмір одного файлу для Telegram Bot API - '.(int) ($this->telegramUploadMaxKb() / 1024).' MB.',
             'folder_id.exists' => 'Обрана папка недоступна.',
             'telegram_storage_group_id.exists' => 'Обрана Telegram-група недоступна.',
         ]);

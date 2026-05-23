@@ -42,7 +42,9 @@ class RouteServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('uploads', function (Request $request) {
-            return Limit::perMinute(30)->by('uploads:'.($request->user()?->id ?: $request->ip()));
+            $perMinute = (int) env('UPLOADS_PER_MINUTE', 120);
+
+            return Limit::perMinute($perMinute)->by('uploads:'.($request->user()?->id ?: $request->ip()));
         });
 
         RateLimiter::for('share-download', function (Request $request) {
