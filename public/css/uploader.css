@@ -174,7 +174,12 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-.fp-up-item[data-status="failed"] .fp-up-item-meta { color: #b91c1c; }
+.fp-up-item[data-status="failed"] .fp-up-item-meta {
+    color: #b91c1c;
+    white-space: normal;
+    line-height: 1.35;
+    font-weight: 500;
+}
 
 .fp-up-item-status {
     flex-shrink: 0;

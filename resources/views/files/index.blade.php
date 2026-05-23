@@ -1823,6 +1823,14 @@
                         const isActive = nextHref && item.getAttribute('href') === nextHref;
                         item.classList.toggle('is-active', !! isActive);
                     });
+
+                    // Sync per-folder file count badges from the new HTML.
+                    // After upload or navigation, the counts in the sidebar must reflect reality.
+                    syncFolderCounts(doc);
+
+                    // Sync the upload form's folder_id so subsequent uploads land in the currently
+                    // viewed folder. The hidden input + visible dropdown value + selected option all update.
+                    syncUploadFolderSelection(doc);
                 } else {
                     // Full swap (after upload, etc.)
                     selectors = ['[data-flash-area]', '.upload-panel', '.workspace'];
@@ -1846,6 +1854,60 @@
                 }
 
                 initDropzone();
+            }
+
+            function syncFolderCounts(doc) {
+                // Map href → count from the freshly fetched doc, then apply to current sidebar.
+                const fresh = new Map();
+                doc.querySelectorAll('.folder-item').forEach((item) => {
+                    const href = item.getAttribute('href');
+                    const countEl = item.querySelector('.folder-item-count');
+                    if (href && countEl) {
+                        fresh.set(href, countEl.textContent.trim());
+                    }
+                });
+
+                document.querySelectorAll('.folder-item').forEach((item) => {
+                    const href = item.getAttribute('href');
+                    const countEl = item.querySelector('.folder-item-count');
+                    if (href && countEl && fresh.has(href)) {
+                        const next = fresh.get(href);
+                        if (countEl.textContent.trim() !== next) {
+                            countEl.textContent = next;
+                            countEl.classList.add('folder-item-count-bump');
+                            setTimeout(() => countEl.classList.remove('folder-item-count-bump'), 700);
+                        }
+                    }
+                });
+            }
+
+            function syncUploadFolderSelection(doc) {
+                const nextInput = doc.querySelector('[data-upload-dropdown-input][name="folder_id"]');
+                const nextValueEl = doc.querySelector('.upload-control-folder [data-upload-dropdown-value]');
+                if (! nextInput) return;
+
+                const currentInput = document.querySelector('[data-upload-dropdown-input][name="folder_id"]');
+                const currentValueEl = document.querySelector('.upload-control-folder [data-upload-dropdown-value]');
+                const currentDropdown = document.querySelector('.upload-control-folder [data-upload-dropdown-menu]');
+                if (! currentInput) return;
+
+                const newValue = nextInput.value || '';
+                if (currentInput.value !== newValue) {
+                    currentInput.value = newValue;
+                    currentInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+
+                if (currentValueEl && nextValueEl) {
+                    currentValueEl.textContent = nextValueEl.textContent;
+                }
+
+                if (currentDropdown) {
+                    currentDropdown.querySelectorAll('[data-upload-dropdown-option]').forEach((opt) => {
+                        const isSelected = (opt.dataset.value || '') === newValue;
+                        opt.classList.toggle('is-selected', isSelected);
+                        opt.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+                    });
+                }
             }
 
             function setUploadProgress(form, percent, label) {
