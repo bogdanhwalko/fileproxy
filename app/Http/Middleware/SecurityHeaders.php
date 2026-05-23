@@ -27,7 +27,7 @@ class SecurityHeaders
         if (! $response->headers->has('Permissions-Policy')) {
             $response->headers->set(
                 'Permissions-Policy',
-                'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()'
+                'camera=(), microphone=(), geolocation=(), payment=(), usb=()'
             );
         }
 
