@@ -240,10 +240,15 @@ class TelegramFileStorageService
             return true;
         }
 
-        // Flood control can also surface as 200 OK with {ok: false, parameters.retry_after}
-        $body = $response->json();
-        if (is_array($body) && ($body['ok'] ?? true) === false && data_get($body, 'parameters.retry_after')) {
-            return true;
+        // Flood control can also surface as 200 OK with {ok: false, parameters.retry_after}.
+        // Critical: only parse JSON for JSON responses — calling ->json() on a binary
+        // stream response (file download) would consume the body and leave the caller
+        // with an empty stream.
+        if ($this->isJsonResponse($response)) {
+            $body = $response->json();
+            if (is_array($body) && ($body['ok'] ?? true) === false && data_get($body, 'parameters.retry_after')) {
+                return true;
+            }
         }
 
         return false;
@@ -251,13 +256,13 @@ class TelegramFileStorageService
 
     private function pauseBeforeTelegramRetry(Response $response): void
     {
-        $retryAfterFromHeader = $response->status() === 429
-            ? (int) data_get($response->json(), 'parameters.retry_after', 1)
-            : 0;
+        $seconds = 0;
 
-        $retryAfterFromBody = (int) (data_get($response->json(), 'parameters.retry_after') ?? 0);
+        if ($this->isJsonResponse($response)) {
+            $body = $response->json();
+            $seconds = (int) (data_get($body, 'parameters.retry_after') ?? 0);
+        }
 
-        $seconds = max($retryAfterFromHeader, $retryAfterFromBody);
         $seconds = max(0, min(self::TELEGRAM_MAX_RETRY_SECONDS, $seconds));
 
         if ($seconds > 0) {
@@ -268,8 +273,15 @@ class TelegramFileStorageService
             return;
         }
 
-        // No retry_after — back off with mild exponential jitter (0.25s, 0.5s, 1s, 2s...)
+        // No retry_after — back off with mild jitter
         usleep(random_int(250_000, 750_000));
+    }
+
+    private function isJsonResponse(Response $response): bool
+    {
+        $contentType = strtolower((string) $response->header('Content-Type'));
+
+        return str_contains($contentType, 'json');
     }
 
     private function apiUrl(string $token, string $method): string
