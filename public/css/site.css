@@ -7459,3 +7459,23 @@ tr[data-file-item].is-selected td:first-child {
     20%  { transform: scale(1.25); background-color: rgba(79, 70, 229, 0.3); }
     100% { transform: scale(1);   background-color: rgba(79, 70, 229, 0.0); }
 }
+
+/* Inline "i" hint inside failed-upload badge — full reason shows via title tooltip on hover */
+.file-status-badge {
+    cursor: help;
+}
+.file-status-info {
+    display: inline-grid;
+    place-items: center;
+    width: 14px;
+    height: 14px;
+    margin-left: 4px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.55);
+    color: inherit;
+    font-size: 9.5px;
+    font-weight: 800;
+    font-style: italic;
+    vertical-align: middle;
+    line-height: 1;
+}

@@ -24,7 +24,7 @@
     /* ----------------------------------------------------
        State
        ---------------------------------------------------- */
-    let items = [];           // [{ id, file, status, progress, error, serverId, attempts }]
+    let items = [];           // [{ id, file, status, progress, error, serverId, attempts, batchId }]
     let active = 0;
     let wakeLock = null;
     let wakeLockRequested = false;
@@ -33,6 +33,7 @@
     let currentCsrf = null;
     let currentMaxBytes = DEFAULT_MAX_FILE_MB * 1024 * 1024;
     let pauseUntil = 0;       // epoch ms; while > now, queue workers wait
+    let currentBatchId = 0;   // every new submit increments this; stale items from older batches don't render
 
     /* ----------------------------------------------------
        Lazy element resolution
@@ -81,6 +82,10 @@
        Rendering
        ---------------------------------------------------- */
     function renderItem(item) {
+        // Stale items from previous batches must not paint into the widget.
+        // Their XHRs may still complete after a new batch starts; we just ignore those callbacks visually.
+        if (item.batchId !== undefined && item.batchId !== currentBatchId) return;
+
         const list = listEl();
         if (!list) return;
 
@@ -523,6 +528,11 @@
             }
         } catch (_) {}
 
+        // Start a fresh batch — drop any previously rendered rows. Old XHRs may still
+        // be in flight; their callbacks will see a stale batchId and skip render.
+        currentBatchId++;
+        const batchId = currentBatchId;
+
         const newItems = Array.from(fileInput.files).map((file) => ({
             id: `i${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
             file,
@@ -531,9 +541,11 @@
             error: null,
             serverId: null,
             attempts: 0,
+            batchId,
         }));
 
-        items = items.filter(i => i.status === 'pending' || i.status === 'uploading').concat(newItems);
+        items = newItems;
+        list.innerHTML = '';
         showWidget();
         newItems.forEach(renderItem);
         renderSummary();

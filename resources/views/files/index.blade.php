@@ -15,17 +15,6 @@
         @if (session('status'))
             <div class="status">{{ session('status') }}</div>
         @endif
-
-        @if ($errors->any())
-            <div class="errors">
-                <strong>Перевірте дані форми.</strong>
-                <ul>
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-            </div>
-        @endif
     </div>
 
     <section class="panel upload-panel upload-panel-v2">
@@ -617,7 +606,10 @@
                                                 <strong title="{{ $file->original_name }}">{{ $file->original_name }}</strong>
                                                 <span>{{ $file->mime_type ?? 'unknown' }}</span>
                                                 @if (! $file->is_uploaded)
-                                                    <span class="file-status-badge file-status-badge-{{ $file->status }}">{{ $file->status_label }}</span>
+                                                    <span class="file-status-badge file-status-badge-{{ $file->status }}"
+                                                    @if ($file->is_failed && $file->upload_failure_reason) title="{{ $file->upload_failure_reason }}" @endif>
+                                                    {{ $file->status_label }}@if ($file->is_failed) <span class="file-status-info" aria-hidden="true">i</span>@endif
+                                                </span>
                                                 @endif
                                             </div>
                                         </div>

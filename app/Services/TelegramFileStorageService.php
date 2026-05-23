@@ -15,9 +15,9 @@ use RuntimeException;
 
 class TelegramFileStorageService
 {
-    private const TELEGRAM_API_ATTEMPTS = 3;
+    private const TELEGRAM_API_ATTEMPTS = 5;
 
-    private const TELEGRAM_MAX_RETRY_SECONDS = 10;
+    private const TELEGRAM_MAX_RETRY_SECONDS = 60;
 
     public function sendDocument(UploadedFile $file, TelegramStorageGroup $group): array
     {
@@ -50,7 +50,15 @@ class TelegramFileStorageService
         $response = $this->sendDocumentRequest($absolutePath, $originalName, $group, $bot);
 
         if (! $response->successful() || ! $response->json('ok')) {
-            throw new RuntimeException('Telegram не прийняв файл. Перевірте токен бота, group chat_id і права бота в групі.');
+            $description = trim((string) $response->json('description'));
+            $code = $response->status();
+            $retryAfter = data_get($response->json(), 'parameters.retry_after');
+
+            $reason = $description !== ''
+                ? "Telegram API {$code}: {$description}".($retryAfter ? " (retry_after={$retryAfter}s)" : '')
+                : "Telegram API {$code}: відповідь без опису";
+
+            throw new RuntimeException($reason);
         }
 
         $payload = $response->json();
@@ -227,23 +235,41 @@ class TelegramFileStorageService
             return false;
         }
 
-        return $response->status() === 429 || $response->serverError();
+        // Standard rate-limit / server error
+        if ($response->status() === 429 || $response->serverError()) {
+            return true;
+        }
+
+        // Flood control can also surface as 200 OK with {ok: false, parameters.retry_after}
+        $body = $response->json();
+        if (is_array($body) && ($body['ok'] ?? true) === false && data_get($body, 'parameters.retry_after')) {
+            return true;
+        }
+
+        return false;
     }
 
     private function pauseBeforeTelegramRetry(Response $response): void
     {
-        $seconds = $response->status() === 429
+        $retryAfterFromHeader = $response->status() === 429
             ? (int) data_get($response->json(), 'parameters.retry_after', 1)
             : 0;
+
+        $retryAfterFromBody = (int) (data_get($response->json(), 'parameters.retry_after') ?? 0);
+
+        $seconds = max($retryAfterFromHeader, $retryAfterFromBody);
         $seconds = max(0, min(self::TELEGRAM_MAX_RETRY_SECONDS, $seconds));
 
         if ($seconds > 0) {
+            // Add small jitter (0–750ms) so multiple concurrent uploads don't all unblock at the same instant
             sleep($seconds);
+            usleep(random_int(0, 750_000));
 
             return;
         }
 
-        usleep(250_000);
+        // No retry_after — back off with mild exponential jitter (0.25s, 0.5s, 1s, 2s...)
+        usleep(random_int(250_000, 750_000));
     }
 
     private function apiUrl(string $token, string $method): string
