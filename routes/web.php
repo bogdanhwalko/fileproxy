@@ -6,7 +6,9 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\DocsController;
 use App\Http\Controllers\FileController;
+use App\Http\Controllers\FilePurchaseController;
 use App\Http\Controllers\FolderController;
+use App\Http\Controllers\LemonSqueezyWebhookController;
 use App\Http\Controllers\ShareController;
 use App\Http\Controllers\StatsController;
 use App\Http\Controllers\TelegramSetupController;
@@ -17,7 +19,21 @@ Route::view('/', 'home')->name('home');
 
 Route::get('/docs/api', [DocsController::class, 'api'])->name('docs.api');
 
+Route::post('/webhooks/lemon-squeezy', LemonSqueezyWebhookController::class)->name('webhooks.lemon-squeezy');
+
 Route::middleware('throttle:share-download')->group(function () {
+    Route::get('/share/files/{token}/buy', [FilePurchaseController::class, 'paywall'])->name('share.files.paywall');
+    Route::post('/share/files/{token}/buy', [FilePurchaseController::class, 'checkout'])->name('share.files.checkout');
+
+    Route::get('/share/access/{accessToken}', [FilePurchaseController::class, 'processing'])->name('share.access.processing');
+    Route::get('/share/access/{accessToken}/status', [FilePurchaseController::class, 'status'])->name('share.access.status');
+    Route::get('/share/access/{accessToken}/view', [FilePurchaseController::class, 'show'])->name('share.access.show');
+    Route::get('/share/access/{accessToken}/inline', [FilePurchaseController::class, 'inline'])->name('share.access.inline');
+    Route::get('/share/access/{accessToken}/raw{ext?}', [FilePurchaseController::class, 'raw'])
+        ->where('ext', '\.[A-Za-z0-9]+')
+        ->name('share.access.raw');
+    Route::get('/share/access/{accessToken}/download', [FilePurchaseController::class, 'download'])->name('share.access.download');
+
     Route::get('/share/files/{token}', [ShareController::class, 'showFile'])->name('share.files.show');
     Route::get('/share/files/{token}/raw{ext?}', [ShareController::class, 'rawFile'])
         ->where('ext', '\.[A-Za-z0-9]+')

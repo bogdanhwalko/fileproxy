@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ManagedFile extends Model
 {
@@ -38,6 +39,11 @@ class ManagedFile extends Model
         'share_max_views',
         'share_views_count',
         'share_expires_at',
+        'is_paid',
+        'price_cents',
+        'currency',
+        'purchase_max_downloads',
+        'purchase_access_hours',
     ];
 
     protected $casts = [
@@ -46,6 +52,10 @@ class ManagedFile extends Model
         'share_views_count' => 'integer',
         'share_expires_at' => 'datetime',
         'telegram_message_id' => 'integer',
+        'is_paid' => 'boolean',
+        'price_cents' => 'integer',
+        'purchase_max_downloads' => 'integer',
+        'purchase_access_hours' => 'integer',
     ];
 
     protected $attributes = [
@@ -70,6 +80,20 @@ class ManagedFile extends Model
     public function telegramStorageGroup(): BelongsTo
     {
         return $this->belongsTo(TelegramStorageGroup::class);
+    }
+
+    public function purchases(): HasMany
+    {
+        return $this->hasMany(FilePurchase::class, 'managed_file_id');
+    }
+
+    public function getPriceFormattedAttribute(): ?string
+    {
+        if (! $this->is_paid || ! $this->price_cents) {
+            return null;
+        }
+
+        return number_format($this->price_cents / 100, 2, '.', '').' '.($this->currency ?: 'USD');
     }
 
     public function getHumanSizeAttribute(): string

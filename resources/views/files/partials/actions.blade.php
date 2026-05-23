@@ -98,7 +98,39 @@
                     Переглядів: {{ $shareViewsLabel }} · Доступний до: {{ $shareExpiresLabel }}
                 </div>
 
-                <button class="button secondary share-save-button" type="button" data-share-save>Зберегти ліміт</button>
+                <div class="share-paid-block" data-share-paid-block>
+                    <label class="share-paid-toggle">
+                        <input type="checkbox" name="is_paid" value="1" {{ $file->is_paid ? 'checked' : '' }} data-share-paid-toggle>
+                        <span>Зробити файл платним</span>
+                    </label>
+
+                    <div class="share-paid-fields" data-share-paid-fields @unless ($file->is_paid) hidden @endunless>
+                        <div class="share-paid-grid">
+                            <label>
+                                <span>Ціна</span>
+                                <input class="field" type="number" step="0.01" min="0.5" max="1000" name="price" value="{{ $file->price_cents ? number_format($file->price_cents / 100, 2, '.', '') : '' }}" placeholder="2.99" data-share-price>
+                            </label>
+                            <label>
+                                <span>Валюта</span>
+                                <select class="field" name="currency" data-share-currency>
+                                    <option value="USD" {{ ($file->currency ?? 'USD') === 'USD' ? 'selected' : '' }}>USD</option>
+                                    <option value="EUR" {{ ($file->currency ?? '') === 'EUR' ? 'selected' : '' }}>EUR</option>
+                                </select>
+                            </label>
+                            <label>
+                                <span>Скачувань на покупку</span>
+                                <input class="field" type="number" min="1" max="1000" name="purchase_max_downloads" value="{{ $file->purchase_max_downloads }}" placeholder="Без ліміту" data-share-purchase-max-downloads>
+                            </label>
+                            <label>
+                                <span>Доступ (годин)</span>
+                                <input class="field" type="number" min="1" max="8760" name="purchase_access_hours" value="{{ $file->purchase_access_hours }}" placeholder="Без ліміту" data-share-purchase-access-hours>
+                            </label>
+                        </div>
+                        <p class="share-paid-hint">При увімкненому платному файлі публічний лінк показує сторінку оплати замість прямого доступу.</p>
+                    </div>
+                </div>
+
+                <button class="button secondary share-save-button" type="button" data-share-save>Зберегти налаштування</button>
             </div>
 
             <p class="share-message" data-share-message></p>

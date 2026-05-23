@@ -47,17 +47,41 @@ class ShareController extends Controller
         $validated = $request->validate([
             'share_max_views' => ['nullable', 'integer', 'min:1', 'max:1000000'],
             'share_expires_at' => ['nullable', 'date', 'after:now'],
+            'is_paid' => ['nullable', 'boolean'],
+            'price' => ['nullable', 'numeric', 'min:0.5', 'max:1000'],
+            'currency' => ['nullable', 'in:USD,EUR'],
+            'purchase_max_downloads' => ['nullable', 'integer', 'min:1', 'max:1000'],
+            'purchase_access_hours' => ['nullable', 'integer', 'min:1', 'max:8760'],
         ], [
             'share_max_views.min' => 'Ліміт переглядів має бути не менше 1.',
             'share_max_views.max' => 'Ліміт переглядів занадто великий.',
             'share_expires_at.after' => 'Дата завершення має бути в майбутньому.',
+            'price.min' => 'Мінімальна ціна — 0.50.',
+            'price.max' => 'Максимальна ціна — 1000.',
         ]);
+
+        $isPaid = (bool) ($validated['is_paid'] ?? false);
+        $priceCents = $isPaid && isset($validated['price'])
+            ? (int) round(((float) $validated['price']) * 100)
+            : null;
+
+        if ($isPaid && (! $priceCents || $priceCents < 50)) {
+            return response()->json([
+                'message' => 'Вкажіть коректну ціну (мінімум 0.50).',
+                'errors' => ['price' => ['Вкажіть коректну ціну.']],
+            ], 422);
+        }
 
         $file->forceFill([
             'share_max_views' => $validated['share_max_views'] ?? null,
             'share_expires_at' => ! empty($validated['share_expires_at'])
                 ? Carbon::parse($validated['share_expires_at'])
                 : null,
+            'is_paid' => $isPaid,
+            'price_cents' => $priceCents,
+            'currency' => $isPaid ? ($validated['currency'] ?? 'USD') : null,
+            'purchase_max_downloads' => $isPaid ? ($validated['purchase_max_downloads'] ?? null) : null,
+            'purchase_access_hours' => $isPaid ? ($validated['purchase_access_hours'] ?? null) : null,
         ])->save();
 
         return response()->json([
@@ -75,6 +99,11 @@ class ShareController extends Controller
             'share_max_views' => null,
             'share_views_count' => 0,
             'share_expires_at' => null,
+            'is_paid' => false,
+            'price_cents' => null,
+            'currency' => null,
+            'purchase_max_downloads' => null,
+            'purchase_access_hours' => null,
         ])->save();
 
         if ($request->expectsJson()) {
@@ -156,9 +185,13 @@ class ShareController extends Controller
         return back()->with('status', 'Публічний доступ до папки вимкнено.');
     }
 
-    public function showFile(string $token, ManagedFileStorageService $fileStorage): View
+    public function showFile(string $token, ManagedFileStorageService $fileStorage): View|RedirectResponse
     {
         $file = $this->sharedFile($token);
+
+        if ($this->shouldRequirePayment($file)) {
+            return redirect()->route('share.files.paywall', $token);
+        }
 
         abort_unless($fileStorage->exists($file), 404);
 
@@ -179,6 +212,10 @@ class ShareController extends Controller
     {
         $file = $this->sharedFile($token);
 
+        if ($this->shouldRequirePayment($file)) {
+            abort(402);
+        }
+
         abort_unless($file->is_image, 404);
         abort_unless($fileStorage->exists($file), 404);
 
@@ -191,6 +228,10 @@ class ShareController extends Controller
     {
         $file = $this->sharedFile($token);
 
+        if ($this->shouldRequirePayment($file)) {
+            abort(402);
+        }
+
         abort_unless($fileStorage->exists($file), 404);
 
         $this->consumeFileShareView($file);
@@ -202,11 +243,20 @@ class ShareController extends Controller
     {
         $file = $this->sharedFile($token);
 
+        if ($this->shouldRequirePayment($file)) {
+            abort(402);
+        }
+
         abort_unless($fileStorage->exists($file), 404);
 
         $this->consumeFileShareView($file);
 
         return $fileStorage->downloadResponse($file);
+    }
+
+    private function shouldRequirePayment(ManagedFile $file): bool
+    {
+        return $file->is_paid && (int) $file->price_cents > 0;
     }
 
     public function showFolder(string $token): View
@@ -489,6 +539,12 @@ class ShareController extends Controller
             'share_expires_at' => $expiresAt?->format('Y-m-d H:i:s'),
             'share_expires_at_input' => $expiresAt?->format('Y-m-d\TH:i'),
             'usage_label' => 'Переглядів: '.$viewsLabel.' · Доступний до: '.$expiresLabel,
+            'is_paid' => (bool) $file->is_paid,
+            'price' => $file->price_cents ? number_format($file->price_cents / 100, 2, '.', '') : null,
+            'currency' => $file->currency,
+            'price_formatted' => $file->price_formatted,
+            'purchase_max_downloads' => $file->purchase_max_downloads,
+            'purchase_access_hours' => $file->purchase_access_hours,
         ];
     }
 

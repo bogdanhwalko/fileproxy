@@ -960,9 +960,16 @@
                             const data = await sendShareRequest(panel.dataset.shareDisableUrl, 'DELETE');
                             updateSharePanel(panel, data.share, data.message);
                         } else if (shareSave) {
+                            const paidToggle = panel.querySelector('[data-share-paid-toggle]');
+                            const isPaid = !!(paidToggle && paidToggle.checked);
                             const data = await sendShareRequest(panel.dataset.shareSettingsUrl, 'PATCH', {
                                 share_max_views: panel.querySelector('[data-share-max-views]')?.value || null,
                                 share_expires_at: panel.querySelector('[data-share-expires-at]')?.value || null,
+                                is_paid: isPaid ? 1 : 0,
+                                price: isPaid ? (panel.querySelector('[data-share-price]')?.value || null) : null,
+                                currency: isPaid ? (panel.querySelector('[data-share-currency]')?.value || 'USD') : null,
+                                purchase_max_downloads: isPaid ? (panel.querySelector('[data-share-purchase-max-downloads]')?.value || null) : null,
+                                purchase_access_hours: isPaid ? (panel.querySelector('[data-share-purchase-access-hours]')?.value || null) : null,
                             });
                             updateSharePanel(panel, data.share, data.message);
                         }
@@ -998,6 +1005,19 @@
                 if (navigationLink && ! navigationLink.target) {
                     event.preventDefault();
                     refreshFilesPage(navigationLink.href, true, { region: 'files' });
+                }
+            });
+
+            document.addEventListener('change', (event) => {
+                const paidToggle = event.target.closest('[data-share-paid-toggle]');
+
+                if (paidToggle) {
+                    const panel = paidToggle.closest('[data-file-share]');
+                    const fields = panel?.querySelector('[data-share-paid-fields]');
+
+                    if (fields) {
+                        fields.toggleAttribute('hidden', ! paidToggle.checked);
+                    }
                 }
             });
 
@@ -1993,6 +2013,32 @@
 
                 if (usage) {
                     usage.textContent = share?.usage_label || 'Переглядів: 0 / без ліміту · Доступний до: без дати';
+                }
+
+                const paidToggle = panel.querySelector('[data-share-paid-toggle]');
+                const paidFields = panel.querySelector('[data-share-paid-fields]');
+                const priceInput = panel.querySelector('[data-share-price]');
+                const currencySelect = panel.querySelector('[data-share-currency]');
+                const purchaseMax = panel.querySelector('[data-share-purchase-max-downloads]');
+                const purchaseHours = panel.querySelector('[data-share-purchase-access-hours]');
+
+                if (paidToggle) {
+                    paidToggle.checked = !!share?.is_paid;
+                }
+                if (paidFields) {
+                    paidFields.toggleAttribute('hidden', ! share?.is_paid);
+                }
+                if (priceInput) {
+                    priceInput.value = share?.price ?? '';
+                }
+                if (currencySelect && share?.currency) {
+                    currencySelect.value = share.currency;
+                }
+                if (purchaseMax) {
+                    purchaseMax.value = share?.purchase_max_downloads ?? '';
+                }
+                if (purchaseHours) {
+                    purchaseHours.value = share?.purchase_access_hours ?? '';
                 }
 
                 showShareMessage(panel, message || 'Збережено.', false);

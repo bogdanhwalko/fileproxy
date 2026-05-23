@@ -38,4 +38,12 @@ return [
         'show_code_locally' => env('PHONE_AUTH_SHOW_CODE_LOCALLY', false),
     ],
 
+    'lemonsqueezy' => [
+        'api_key' => env('LEMON_SQUEEZY_API_KEY'),
+        'store_id' => env('LEMON_SQUEEZY_STORE_ID'),
+        'variant_id' => env('LEMON_SQUEEZY_VARIANT_ID'),
+        'signing_secret' => env('LEMON_SQUEEZY_SIGNING_SECRET'),
+        'test_mode' => env('LEMON_SQUEEZY_TEST_MODE', false),
+    ],
+
 ];
