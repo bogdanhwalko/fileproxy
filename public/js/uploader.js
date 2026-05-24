@@ -229,9 +229,171 @@
     }
 
     /* ----------------------------------------------------
+       Chunked upload (browser-side split) — used for protected files.
+       Each 5 MB Blob slice is a separate short HTTP request so the server
+       never holds a long-lived connection that hits hosting timeouts.
+       ---------------------------------------------------- */
+    const CHUNK_BYTES = 5 * 1024 * 1024; // 5 MB per chunk
+
+    function generateUploadId() {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let s = '';
+        for (let i = 0; i < 32; i++) {
+            s += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return s;
+    }
+
+    async function uploadOneChunked(item, formExtras) {
+        const file = item.file;
+        const maxMb = Math.round(currentMaxBytes / 1024 / 1024);
+
+        if (file.size > currentMaxBytes) {
+            item.status = 'failed';
+            item.progress = 0;
+            item.error = `Файл більше ${maxMb} МБ — перевищує ліміт захищеного завантаження.`;
+            renderItem(item);
+            renderSummary();
+            return;
+        }
+
+        const totalChunks = Math.max(1, Math.ceil(file.size / CHUNK_BYTES));
+        const uploadId = generateUploadId();
+
+        item.status = 'uploading';
+        item.progress = 0;
+        renderItem(item);
+        renderSummary();
+
+        for (let i = 0; i < totalChunks; i++) {
+            if (isPaused()) {
+                // Rate-limited: pause this loop until window passes
+                await sleep(Math.max(500, pauseUntil - Date.now() + 100));
+            }
+
+            const start = i * CHUNK_BYTES;
+            const end = Math.min(file.size, start + CHUNK_BYTES);
+            const blob = file.slice(start, end);
+            const isLast = (i === totalChunks - 1);
+
+            const fd = new FormData();
+            fd.append('upload_id', uploadId);
+            fd.append('chunk_index', String(i));
+            fd.append('total_chunks', String(totalChunks));
+            fd.append('total_size', String(file.size));
+            fd.append('original_name', file.name);
+            fd.append('mime_type', file.type || 'application/octet-stream');
+            if (formExtras.folder_id) fd.append('folder_id', formExtras.folder_id);
+            if (formExtras.telegram_storage_group_id) fd.append('telegram_storage_group_id', formExtras.telegram_storage_group_id);
+            if (formExtras.is_protected) fd.append('is_protected', '1');
+            if (formExtras.tags) fd.append('tags', formExtras.tags);
+            if (isLast) fd.append('finalize', '1');
+            fd.append('chunk', blob, 'chunk.bin');
+
+            const result = await sendChunk(fd, item, i, totalChunks);
+
+            if (result === 'paused') {
+                // Server replied 429 — retry this chunk after pause
+                i--; // re-do same chunk
+                continue;
+            }
+
+            if (!result.ok) {
+                item.status = 'failed';
+                item.error = result.error || `HTTP ${result.status || '?'}`;
+                renderItem(item);
+                renderSummary();
+                return;
+            }
+
+            // Update progress based on bytes confirmed by server
+            item.progress = Math.min(100, ((i + 1) / totalChunks) * 100);
+            renderItem(item);
+
+            if (isLast && result.fileData) {
+                item.serverId = result.fileData.id;
+                if (result.fileData.status === 'uploaded') {
+                    item.status = 'uploaded';
+                    item.progress = 100;
+                } else if (result.fileData.status === 'failed') {
+                    item.status = 'failed';
+                    item.error = result.fileData.upload_failure_reason || 'Завантаження не вдалося';
+                } else {
+                    item.status = 'pending';
+                    item.progress = 100;
+                    pollStatus(item);
+                }
+                renderItem(item);
+                renderSummary();
+                return;
+            }
+        }
+    }
+
+    function sendChunk(fd, item, chunkIndex, totalChunks) {
+        return new Promise((resolve) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/files/upload-chunk', true);
+            xhr.setRequestHeader('Accept', 'application/json');
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            xhr.setRequestHeader('X-CSRF-TOKEN', currentCsrf || csrfToken());
+
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const chunkFrac = e.loaded / e.total;
+                    item.progress = Math.min(100, ((chunkIndex + chunkFrac) / totalChunks) * 100);
+                    renderItem(item);
+                }
+            };
+
+            xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    let json = {};
+                    try { json = JSON.parse(xhr.responseText); } catch (_) {}
+                    resolve({ ok: true, fileData: (json.files || [])[0] || null });
+                    return;
+                }
+                if (xhr.status === 429) {
+                    const retryAfterHdr = xhr.getResponseHeader('Retry-After');
+                    const retryAfter = retryAfterHdr ? parseInt(retryAfterHdr, 10) : 15;
+                    const wait = Math.max(5, Math.min(120, isNaN(retryAfter) ? 15 : retryAfter));
+                    item.attempts = (item.attempts || 0) + 1;
+                    if (item.attempts <= MAX_RETRY_ATTEMPTS) {
+                        setPause(wait);
+                        renderSummary();
+                        resolve('paused');
+                        return;
+                    }
+                    resolve({ ok: false, status: 429, error: `Перевищено ліміт запитів після ${MAX_RETRY_ATTEMPTS} спроб.` });
+                    return;
+                }
+                let msg = `HTTP ${xhr.status}`;
+                try {
+                    const json = JSON.parse(xhr.responseText);
+                    msg = json.message || extractFirstError(json.errors) || msg;
+                } catch (_) {}
+                resolve({ ok: false, status: xhr.status, error: msg });
+            };
+
+            xhr.onerror = () => resolve({ ok: false, error: 'Помилка мережі' });
+
+            xhr.send(fd);
+        });
+    }
+
+    function sleep(ms) {
+        return new Promise((r) => setTimeout(r, ms));
+    }
+
+    /* ----------------------------------------------------
        Upload one file via XHR
        ---------------------------------------------------- */
     function uploadOne(item, formExtras) {
+        // Protected files always use chunked upload — single 187 MB POST hits hosting timeouts.
+        if (formExtras.is_protected) {
+            return uploadOneChunked(item, formExtras);
+        }
+
         return new Promise((resolve) => {
             const maxMb = Math.round(currentMaxBytes / 1024 / 1024);
 
@@ -249,6 +411,8 @@
             fd.append('files[]', item.file);
             if (formExtras.folder_id) fd.append('folder_id', formExtras.folder_id);
             if (formExtras.telegram_storage_group_id) fd.append('telegram_storage_group_id', formExtras.telegram_storage_group_id);
+            if (formExtras.is_protected) fd.append('is_protected', '1');
+            if (formExtras.tags) fd.append('tags', formExtras.tags);
 
             const xhr = new XMLHttpRequest();
             xhr.open('POST', currentEndpoint, true);
@@ -514,7 +678,8 @@
         currentStatusUrlTpl = statusUrlTpl;
         currentCsrf = csrf;
 
-        const maxMbAttr = parseInt(form.dataset.maxFileMb || '', 10);
+        const isProtected = !!(form.querySelector('[data-upload-protect-checkbox]')?.checked);
+        const maxMbAttr = parseInt((isProtected ? form.dataset.maxProtectedMb : form.dataset.maxFileMb) || '', 10);
         currentMaxBytes = (Number.isFinite(maxMbAttr) && maxMbAttr > 0 ? maxMbAttr : DEFAULT_MAX_FILE_MB) * 1024 * 1024;
 
         const folderId = form.querySelector('[name="folder_id"]')?.value || '';
@@ -558,9 +723,13 @@
         }
         form.dispatchEvent(new Event('fp-uploader:enqueued'));
 
+        const tagsInput = form.querySelector('[data-upload-tags]')?.value || '';
+
         processQueue({
             folder_id: folderId,
             telegram_storage_group_id: groupId,
+            is_protected: isProtected,
+            tags: tagsInput.trim(),
         });
     });
 

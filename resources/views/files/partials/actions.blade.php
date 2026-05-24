@@ -8,6 +8,8 @@
     $shareExpiresLabel = $file->share_expires_at
         ? $file->share_expires_at->format('d.m.Y H:i')
         : 'без дати';
+    $currentTags = $file->relationLoaded('tags') ? $file->tags : $file->tags()->get();
+    $currentTagsCsv = $currentTags->pluck('name')->implode(', ');
 @endphp
 
 <details
@@ -16,6 +18,7 @@
     data-share-url="{{ route('files.share', $file) }}"
     data-share-settings-url="{{ route('files.share.update', $file) }}"
     data-share-disable-url="{{ route('files.share.destroy', $file) }}"
+    data-tags-url="{{ route('files.tags.update', $file) }}"
 >
     <summary class="button secondary action-menu-trigger">Дії</summary>
 
@@ -27,7 +30,7 @@
 
         <div class="action-menu-links">
             @if ($file->is_uploaded)
-                @if ($file->is_previewable)
+                @if ($file->is_previewable && ! $file->is_protected)
                     <a class="action-line accent" href="{{ route('files.preview', $file) }}">Переглянути</a>
                 @endif
                 <a class="action-line" href="{{ route('files.download', $file) }}">Скачати</a>
@@ -37,6 +40,27 @@
                 @method('delete')
                 <button class="action-line danger" type="submit">{{ $file->is_uploaded ? 'Видалити' : 'Скасувати' }}</button>
             </form>
+        </div>
+
+        <div class="action-tags-block">
+            <label for="action-tags-{{ $file->id }}" class="action-tags-label">
+                <strong>Теги</strong>
+                <span>через кому. Для незахищених теги додадуться в Telegram caption тільки при upload (зміна тут не оновлює існуючу message).</span>
+            </label>
+            <div class="action-tags-row">
+                <input
+                    id="action-tags-{{ $file->id }}"
+                    type="text"
+                    class="field action-tags-input"
+                    value="{{ $currentTagsCsv }}"
+                    placeholder="тег1, тег2"
+                    maxlength="1000"
+                    data-action-tags-input
+                    autocomplete="off"
+                >
+                <button class="button secondary" type="button" data-action-tags-save>Зберегти</button>
+            </div>
+            <p class="action-tags-message" data-action-tags-message></p>
         </div>
 
         @if (! $file->is_uploaded)

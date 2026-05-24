@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\ManagedFile;
+use App\Services\ProtectedFileService;
 use App\Services\TelegramFileStorageService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -21,13 +22,13 @@ class UploadManagedFileToTelegram implements ShouldQueue
 
     public int $tries = 3;
 
-    public int $timeout = 300;
+    public int $timeout = 1800; // 30 min — protected files with many chunks can take a while
 
     public array $backoff = [10, 60, 300];
 
     public function __construct(public ManagedFile $file) {}
 
-    public function handle(TelegramFileStorageService $telegram): void
+    public function handle(TelegramFileStorageService $telegram, ProtectedFileService $protected): void
     {
         $file = $this->file->fresh();
 
@@ -36,7 +37,11 @@ class UploadManagedFileToTelegram implements ShouldQueue
         }
 
         try {
-            $this->upload($file, $telegram);
+            if ($file->is_protected) {
+                $this->uploadProtected($file, $protected);
+            } else {
+                $this->upload($file, $telegram);
+            }
         } catch (Throwable $exception) {
             $isFinalAttempt = $this->attempts() >= $this->tries;
             $isSyncQueue = (string) config('queue.default') === 'sync';
@@ -49,6 +54,33 @@ class UploadManagedFileToTelegram implements ShouldQueue
 
             throw $exception;
         }
+    }
+
+    private function uploadProtected(ManagedFile $file, ProtectedFileService $protected): void
+    {
+        // Scatter across every storage group the user has bots for. Falls back to
+        // the per-file telegramStorageGroup if no extra groups exist.
+        $user = $file->user()->first();
+
+        if (! $user) {
+            $this->markFailed($file, 'Користувача не знайдено.');
+            return;
+        }
+
+        $groups = $user->telegramStorageGroups()->with('botToken')->get()
+            ->filter(fn ($g) => $g->botToken !== null);
+
+        if ($groups->isEmpty()) {
+            // Fall back to the originally selected group only
+            $primary = $file->telegramStorageGroup()->with('botToken')->first();
+            if (! $primary || ! $primary->botToken) {
+                $this->markFailed($file, 'Telegram-група або бот недоступні для захищеного файла.');
+                return;
+            }
+            $groups = collect([$primary]);
+        }
+
+        $protected->uploadFromPendingPath($file, $groups);
     }
 
     private function upload(ManagedFile $file, TelegramFileStorageService $telegram): void
@@ -69,7 +101,16 @@ class UploadManagedFileToTelegram implements ShouldQueue
             return;
         }
 
-        $result = $telegram->sendDocumentFromPath($absolutePath, $file->original_name, $group);
+        $caption = $this->buildCaption($file);
+
+        $result = $telegram->sendDocumentFromPath(
+            $absolutePath,
+            $file->original_name,
+            $group,
+            0,
+            'application/octet-stream',
+            $caption,
+        );
 
         $file->forceFill([
             'status' => ManagedFile::STATUS_UPLOADED,
@@ -85,6 +126,39 @@ class UploadManagedFileToTelegram implements ShouldQueue
         ])->save();
 
         @unlink($absolutePath);
+    }
+
+    /**
+     * Build the Telegram caption. For non-protected files we append the user's
+     * tags as hashtags so they're searchable in the group. Protected files get
+     * NO tags in caption — that would leak metadata about encrypted content.
+     */
+    private function buildCaption(ManagedFile $file): string
+    {
+        $caption = (string) $file->original_name;
+
+        if ($file->is_protected) {
+            return $caption;
+        }
+
+        $tags = $file->tags()->pluck('name')->all();
+
+        if ($tags === []) {
+            return $caption;
+        }
+
+        $hashtags = array_map(function (string $name): string {
+            // Telegram hashtags must be alphanumeric / underscore. Strip everything else.
+            $slug = preg_replace('/[^\p{L}\p{N}_]+/u', '_', $name) ?? '';
+            $slug = trim($slug, '_');
+            return $slug === '' ? '' : '#'.$slug;
+        }, $tags);
+
+        $hashtagLine = trim(implode(' ', array_filter($hashtags)));
+
+        return $hashtagLine === ''
+            ? $caption
+            : $caption."\n".$hashtagLine;
     }
 
     public function failed(Throwable $exception): void

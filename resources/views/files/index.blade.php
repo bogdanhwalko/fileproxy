@@ -51,7 +51,7 @@
             </div>
         </header>
 
-        <form class="upload-form-v2" action="{{ route('files.store') }}" method="post" enctype="multipart/form-data" data-upload-form data-fp-uploader data-status-url="{{ route('files.status', ['file' => '__id__']) }}" data-reload-url="{{ url()->full() }}" data-max-file-mb="{{ $telegramUploadMaxMb }}">
+        <form class="upload-form-v2" action="{{ route('files.store') }}" method="post" enctype="multipart/form-data" data-upload-form data-fp-uploader data-status-url="{{ route('files.status', ['file' => '__id__']) }}" data-reload-url="{{ url()->full() }}" data-max-file-mb="{{ $telegramUploadMaxMb }}" data-max-protected-mb="{{ $protectedUploadMaxMb }}">
             @csrf
 
             <label class="dropzone-v2" data-dropzone>
@@ -298,6 +298,45 @@
                 </div>
             </div>
 
+            <div class="upload-tags-row">
+                <label class="upload-tags-label" for="upload-tags-input">
+                    <span class="upload-tags-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                            <line x1="7" y1="7" x2="7.01" y2="7"/>
+                        </svg>
+                    </span>
+                    <span class="upload-tags-body">
+                        <strong>Теги</strong>
+                        <span>через кому: <code>відео, літо 2025, важливе</code>. Для незахищених файлів додаються як <code>#hashtag</code> у Telegram caption.</span>
+                    </span>
+                </label>
+                <input
+                    id="upload-tags-input"
+                    type="text"
+                    class="field upload-tags-input"
+                    name="tags"
+                    maxlength="1000"
+                    placeholder="тег1, тег2"
+                    data-upload-tags
+                    autocomplete="off"
+                >
+            </div>
+
+            <label class="upload-protect-toggle" data-upload-protect>
+                <input type="checkbox" name="is_protected" value="1" data-upload-protect-checkbox>
+                <span class="upload-protect-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2"/>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                </span>
+                <span class="upload-protect-body">
+                    <strong>Захистити файл</strong>
+                    <span>Розбити на зашифровані частини, розкидати по групах. Максимум <strong>{{ $protectedUploadMaxMb }} MB</strong>. Працює тільки з вибраною своєю Telegram-групою.</span>
+                </span>
+            </label>
+
             @if (! $canUseLocalStorage && $telegramStorageGroups->isEmpty() && ! $systemTelegramStorageAvailable)
                 <div class="upload-warning">
                     Власну Telegram-групу ще не підключено. Перейдіть у <a href="{{ route('telegram-settings.index') }}">налаштування Telegram</a>, додайте бота і додайте його у вашу групу — група зʼявиться автоматично.
@@ -415,6 +454,31 @@
                         </div>
                     @endforeach
                 </nav>
+
+                @if ($tags->isNotEmpty())
+                    <header class="folders-header-v2 folders-header-tags">
+                        <div class="folders-header-text">
+                            <strong>Теги</strong>
+                            <span class="folders-header-count">{{ $tags->count() }}</span>
+                        </div>
+                    </header>
+                    <nav class="tag-list" aria-label="Список тегів">
+                        @if ($activeTag)
+                            <a class="tag-chip tag-chip-clear" href="{{ route('files.index', array_filter(['folder' => $folderFilter !== 'all' ? $folderFilter : null, 'view' => $display])) }}">
+                                ✕ Скинути тег
+                            </a>
+                        @endif
+                        @foreach ($tags as $tag)
+                            <a
+                                class="tag-chip {{ $activeTag?->id === $tag->id ? 'is-active' : '' }}"
+                                href="{{ route('files.index', array_filter(['folder' => $folderFilter !== 'all' ? $folderFilter : null, 'view' => $display, 'tag' => $tag->name])) }}"
+                            >
+                                #{{ $tag->name }}
+                                <span class="tag-chip-count">{{ $tag->files_count }}</span>
+                            </a>
+                        @endforeach
+                    </nav>
+                @endif
             </section>
         </aside>
 
@@ -535,7 +599,7 @@
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                                 </span>
                             </label>
-                            @if ($imagePreviews && $file->is_uploaded && $file->is_image)
+                            @if ($imagePreviews && $file->is_uploaded && $file->is_image && ! $file->is_protected)
                                 <a class="file-tile-preview" href="{{ route('files.preview', $file) }}" aria-label="Відкрити {{ $file->original_name }}">
                                     <img
                                         src="{{ route('files.inline', $file) }}"
@@ -548,13 +612,22 @@
                                 </a>
                             @elseif ($imagePreviews)
                                 <div class="file-tile-preview file-tile-preview-empty" aria-hidden="true">
-                                    <span>{{ $file->type_label }}</span>
+                                    @if ($file->is_protected)
+                                        <span title="Захищений файл — превʼю недоступне">🔒</span>
+                                    @else
+                                        <span>{{ $file->type_label }}</span>
+                                    @endif
                                 </div>
                             @endif
                             <div class="file-tile-head">
                                 <span class="file-icon">{{ $file->type_label }}</span>
                                 <div class="file-tile-title">
-                                    <strong title="{{ $file->original_name }}">{{ $file->original_name }}</strong>
+                                    <strong title="{{ $file->original_name }}">
+                                        @if ($file->is_protected)
+                                            <span class="file-protected-badge" title="Захищений: розбито на зашифровані частини">🔒</span>
+                                        @endif
+                                        {{ $file->original_name }}
+                                    </strong>
                                     <span>{{ $file->mime_type ?? 'unknown' }}</span>
                                 </div>
                             </div>
@@ -617,6 +690,13 @@
                                                     @if ($file->is_failed && $file->upload_failure_reason) title="{{ $file->upload_failure_reason }}" @endif>
                                                     {{ $file->status_label }}@if ($file->is_failed) <span class="file-status-info" aria-hidden="true">i</span>@endif
                                                 </span>
+                                                @endif
+                                                @if ($file->tags->isNotEmpty())
+                                                    <div class="file-tags-inline">
+                                                        @foreach ($file->tags as $tag)
+                                                            <a class="tag-chip tag-chip-inline" href="{{ route('files.index', array_filter(['folder' => $folderFilter !== 'all' ? $folderFilter : null, 'view' => $display, 'tag' => $tag->name])) }}">#{{ $tag->name }}</a>
+                                                        @endforeach
+                                                    </div>
                                                 @endif
                                             </div>
                                         </div>
@@ -916,6 +996,13 @@
                     event.preventDefault();
                     actionClose.closest('[data-file-share]')?.removeAttribute('open');
 
+                    return;
+                }
+
+                const tagsSave = event.target.closest('[data-action-tags-save]');
+                if (tagsSave) {
+                    event.preventDefault();
+                    saveTagsForFile(tagsSave.closest('[data-file-share]'));
                     return;
                 }
 
@@ -1938,6 +2025,29 @@
                 div.textContent = value;
 
                 return div.innerHTML;
+            }
+
+            async function saveTagsForFile(panel) {
+                if (! panel) return;
+                const url = panel.dataset.tagsUrl;
+                const input = panel.querySelector('[data-action-tags-input]');
+                const msg = panel.querySelector('[data-action-tags-message]');
+                if (! url || ! input) return;
+
+                const button = panel.querySelector('[data-action-tags-save]');
+                if (button) button.disabled = true;
+                if (msg) { msg.textContent = ''; msg.classList.remove('is-error'); }
+
+                try {
+                    const data = await sendShareRequest(url, 'PATCH', { tags: input.value });
+                    if (msg) msg.textContent = data.message || 'Збережено.';
+                    // Soft-refresh file list so chips update inline (and sidebar count)
+                    try { refreshFilesPage(window.location.href, false, { region: 'files' }); } catch (_) {}
+                } catch (e) {
+                    if (msg) { msg.textContent = e.message || 'Не вдалося зберегти.'; msg.classList.add('is-error'); }
+                } finally {
+                    if (button) button.disabled = false;
+                }
             }
 
             async function sendShareRequest(url, method, payload = null) {

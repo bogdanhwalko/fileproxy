@@ -5,6 +5,7 @@ use App\Http\Controllers\ApiTokenController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\DocsController;
+use App\Http\Controllers\FileChunkUploadController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\FolderController;
 use App\Http\Controllers\ShareController;
@@ -57,6 +58,11 @@ Route::middleware(['auth', 'not.blocked'])->group(function () {
     Route::post('/files', [FileController::class, 'store'])
         ->middleware('throttle:uploads')
         ->name('files.store');
+    // Chunked upload for large/protected files — each chunk is a separate short request,
+    // so no single POST stays open long enough to hit shared-hosting timeouts.
+    Route::post('/files/upload-chunk', [FileChunkUploadController::class, 'uploadChunk'])
+        ->middleware('throttle:uploads')
+        ->name('files.upload-chunk');
     Route::post('/files/bulk-delete', [FileController::class, 'bulkDestroy'])->name('files.bulk-delete');
     Route::post('/files/bulk-move', [FileController::class, 'bulkMove'])->name('files.bulk-move');
     Route::get('/files/{file}/status', [FileController::class, 'status'])->name('files.status');
@@ -68,6 +74,7 @@ Route::middleware(['auth', 'not.blocked'])->group(function () {
     Route::post('/files/{file}/share', [ShareController::class, 'shareFile'])->name('files.share');
     Route::patch('/files/{file}/share', [ShareController::class, 'updateFileShareSettings'])->name('files.share.update');
     Route::delete('/files/{file}/share', [ShareController::class, 'unshareFile'])->name('files.share.destroy');
+    Route::patch('/files/{file}/tags', [FileController::class, 'updateTags'])->name('files.tags.update');
     Route::delete('/files/{file}', [FileController::class, 'destroy'])->name('files.destroy');
 
     Route::post('/folders', [FolderController::class, 'store'])->name('folders.store');

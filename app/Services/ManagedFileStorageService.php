@@ -16,13 +16,21 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ManagedFileStorageService
 {
-    public function __construct(private readonly TelegramFileStorageService $telegram) {}
+    public function __construct(
+        private readonly TelegramFileStorageService $telegram,
+        private readonly ProtectedFileService $protected,
+    ) {}
 
+    /**
+     * @param  array<int,int>  $tagIds  IDs of tags to attach after creation
+     */
     public function storeUploadedFile(
         User $user,
         UploadedFile $uploadedFile,
         ?int $folderId = null,
-        ?TelegramStorageGroup $telegramGroup = null
+        ?TelegramStorageGroup $telegramGroup = null,
+        bool $isProtected = false,
+        array $tagIds = []
     ): ManagedFile {
         $extension = preg_replace('/[^a-z0-9]+/', '', strtolower($uploadedFile->getClientOriginalExtension())) ?? '';
         $storedName = (string) Str::uuid();
@@ -35,6 +43,8 @@ class ManagedFileStorageService
             $pendingDirectory = 'uploads-pending/'.$user->id;
             $pendingPath = $uploadedFile->storeAs($pendingDirectory, $storedName, 'local');
 
+            $size = $uploadedFile->getSize() ?: 0;
+
             $file = ManagedFile::create([
                 'user_id' => $user->id,
                 'folder_id' => $folderId,
@@ -46,9 +56,16 @@ class ManagedFileStorageService
                 'path' => $pendingPath,
                 'mime_type' => $uploadedFile->getMimeType() ?: 'application/octet-stream',
                 'extension' => $extension ?: null,
-                'size' => $uploadedFile->getSize() ?: 0,
+                'size' => $size,
                 'status' => ManagedFile::STATUS_PENDING,
+                'is_protected' => $isProtected,
+                'original_size' => $isProtected ? $size : null,
+                'chunk_count' => $isProtected ? (int) ceil($size / ProtectedFileService::CHUNK_SIZE_BYTES) : null,
             ]);
+
+            if ($tagIds !== []) {
+                $file->tags()->sync($tagIds);
+            }
 
             UploadManagedFileToTelegram::dispatch($file);
 
@@ -58,7 +75,7 @@ class ManagedFileStorageService
         $storageDirectory = 'uploads/'.$user->id.'/'.($folderId ? "folders/{$folderId}" : 'root');
         $path = $uploadedFile->storeAs($storageDirectory, $storedName, 'local');
 
-        return ManagedFile::create([
+        $file = ManagedFile::create([
             'user_id' => $user->id,
             'folder_id' => $folderId,
             'storage_driver' => 'local',
@@ -69,12 +86,120 @@ class ManagedFileStorageService
             'extension' => $extension ?: null,
             'size' => $uploadedFile->getSize() ?: 0,
         ]);
+
+        if ($tagIds !== []) {
+            $file->tags()->sync($tagIds);
+        }
+
+        return $file;
+    }
+
+    /**
+     * Create a ManagedFile record from a pre-assembled binary file on disk.
+     * Used by chunked-upload flow (FileChunkUploadController) where the final
+     * file has been built by appending many small HTTP chunks.
+     *
+     * The source file is moved into uploads-pending/{user_id}/{uuid}.{ext}.
+     *
+     * @param  array<int,int>  $tagIds  IDs of tags to attach after creation
+     */
+    public function storeAssembledFile(
+        User $user,
+        string $sourcePath,
+        string $originalName,
+        ?string $mimeType,
+        ?int $folderId,
+        ?TelegramStorageGroup $telegramGroup,
+        bool $isProtected = false,
+        array $tagIds = []
+    ): ManagedFile {
+        $rawExt = pathinfo($originalName, PATHINFO_EXTENSION);
+        $extension = preg_replace('/[^a-z0-9]+/', '', strtolower((string) $rawExt)) ?: '';
+        $storedName = (string) Str::uuid();
+        if ($extension !== '') {
+            $storedName .= ".{$extension}";
+        }
+        $size = (int) (@filesize($sourcePath) ?: 0);
+
+        if ($telegramGroup) {
+            $pendingDirectory = 'uploads-pending/'.$user->id;
+            Storage::disk('local')->makeDirectory($pendingDirectory);
+            $pendingPath = $pendingDirectory.'/'.$storedName;
+            $absDest = Storage::disk('local')->path($pendingPath);
+
+            if (! @rename($sourcePath, $absDest)) {
+                if (! @copy($sourcePath, $absDest)) {
+                    throw new \RuntimeException('Could not move assembled chunked file to uploads-pending.');
+                }
+                @unlink($sourcePath);
+            }
+
+            $file = ManagedFile::create([
+                'user_id' => $user->id,
+                'folder_id' => $folderId,
+                'storage_driver' => 'telegram',
+                'telegram_bot_token_id' => $telegramGroup->telegram_bot_token_id,
+                'telegram_storage_group_id' => $telegramGroup->id,
+                'original_name' => $originalName,
+                'stored_name' => $storedName,
+                'path' => $pendingPath,
+                'mime_type' => $mimeType ?: 'application/octet-stream',
+                'extension' => $extension ?: null,
+                'size' => $size,
+                'status' => ManagedFile::STATUS_PENDING,
+                'is_protected' => $isProtected,
+                'original_size' => $isProtected ? $size : null,
+                'chunk_count' => $isProtected ? (int) ceil($size / ProtectedFileService::CHUNK_SIZE_BYTES) : null,
+            ]);
+
+            if ($tagIds !== []) {
+                $file->tags()->sync($tagIds);
+            }
+
+            UploadManagedFileToTelegram::dispatch($file);
+
+            return $file;
+        }
+
+        $storageDirectory = 'uploads/'.$user->id.'/'.($folderId ? "folders/{$folderId}" : 'root');
+        Storage::disk('local')->makeDirectory($storageDirectory);
+        $path = $storageDirectory.'/'.$storedName;
+        $absDest = Storage::disk('local')->path($path);
+
+        if (! @rename($sourcePath, $absDest)) {
+            if (! @copy($sourcePath, $absDest)) {
+                throw new \RuntimeException('Could not move assembled chunked file to local storage.');
+            }
+            @unlink($sourcePath);
+        }
+
+        $file = ManagedFile::create([
+            'user_id' => $user->id,
+            'folder_id' => $folderId,
+            'storage_driver' => 'local',
+            'original_name' => $originalName,
+            'stored_name' => $storedName,
+            'path' => $path,
+            'mime_type' => $mimeType ?: 'application/octet-stream',
+            'extension' => $extension ?: null,
+            'size' => $size,
+        ]);
+
+        if ($tagIds !== []) {
+            $file->tags()->sync($tagIds);
+        }
+
+        return $file;
     }
 
     public function exists(ManagedFile $file): bool
     {
         if ($file->is_pending || $file->is_failed) {
             return false;
+        }
+
+        if ($file->is_protected) {
+            return $file->chunks()->count() === (int) $file->chunk_count && $file->chunk_count > 0;
         }
 
         if ($file->is_telegram) {
@@ -91,6 +216,10 @@ class ManagedFileStorageService
             'X-Content-Type-Options' => 'nosniff',
         ];
 
+        if ($file->is_protected) {
+            return $this->protectedStreamResponse($file, HeaderUtils::DISPOSITION_ATTACHMENT, $downloadHeaders);
+        }
+
         if (! $file->is_telegram) {
             if ($accel = $this->xAccelResponse($file, HeaderUtils::DISPOSITION_ATTACHMENT)) {
                 return $accel;
@@ -106,6 +235,45 @@ class ManagedFileStorageService
             ->deleteFileAfterSend();
     }
 
+    private function protectedStreamResponse(ManagedFile $file, string $disposition, array $extraHeaders = []): StreamedResponse
+    {
+        $headers = $extraHeaders + [
+            'Content-Disposition' => HeaderUtils::makeDisposition(
+                $disposition,
+                $this->safeDownloadName($file->original_name),
+                $this->asciiDownloadFallback($file->original_name)
+            ),
+        ];
+
+        if ($file->original_size) {
+            $headers['Content-Length'] = (string) $file->original_size;
+        }
+
+        return response()->stream(function () use ($file): void {
+            @ignore_user_abort(false);
+
+            try {
+                foreach ($this->protected->streamDecrypted($file) as $plaintext) {
+                    if ($plaintext === '') {
+                        continue;
+                    }
+                    echo $plaintext;
+
+                    if (ob_get_level() > 0) {
+                        @ob_flush();
+                    }
+                    flush();
+
+                    if (connection_aborted()) {
+                        break;
+                    }
+                }
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }, 200, $headers);
+    }
+
     public function inlineResponse(ManagedFile $file): StreamedResponse|BinaryFileResponse|Response
     {
         $mime = $file->mime_type ?: 'application/octet-stream';
@@ -116,6 +284,10 @@ class ManagedFileStorageService
         // via a "shared image" link that opens an HTML phishing page.
         if (! $this->isSafeInlineMime($mime)) {
             return $this->downloadResponse($file);
+        }
+
+        if ($file->is_protected) {
+            return $this->protectedStreamResponse($file, HeaderUtils::DISPOSITION_INLINE, $this->inlineSecurityHeaders($mime));
         }
 
         $inlineHeaders = $this->inlineSecurityHeaders($mime);
@@ -328,7 +500,15 @@ class ManagedFileStorageService
 
     public function delete(ManagedFile $file): void
     {
-        if ($file->is_pending || $file->is_failed) {
+        if ($file->is_protected) {
+            // Remove all encrypted chunks from Telegram (best-effort)
+            $this->protected->deleteChunks($file);
+
+            // For pending protected files, the unencrypted source may still be in uploads-pending
+            if (str_starts_with((string) $file->path, 'uploads-pending/')) {
+                Storage::disk('local')->delete($file->path);
+            }
+        } elseif ($file->is_pending || $file->is_failed) {
             if ($file->path) {
                 Storage::disk('local')->delete($file->path);
             }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ManagedFile;
+use App\Models\Tag;
 use App\Models\TelegramStorageGroup;
 use App\Models\User;
 use App\Services\ManagedFileStorageService;
@@ -34,6 +35,12 @@ class FileController extends Controller
         return max(1, $mb) * 1024;
     }
 
+    /** Per-file size cap for protected uploads (10× normal). */
+    private function protectedUploadMaxKb(): int
+    {
+        return (int) (\App\Services\ProtectedFileService::MAX_FILE_BYTES / 1024);
+    }
+
     private const SYSTEM_TELEGRAM_UPLOAD_LIMIT = 100;
 
     private const ARCHIVE_FILE_LIMIT = 500;
@@ -60,10 +67,22 @@ class FileController extends Controller
         $dateFrom = trim((string) $request->query('date_from', ''));
         $dateTo = trim((string) $request->query('date_to', ''));
         [$dateFromCarbon, $dateToCarbon] = $this->parseDateRange($dateFrom, $dateTo);
+        $tagFilter = trim((string) $request->query('tag', ''));
         $user = $request->user();
         $activeFolder = null;
+        $activeTag = null;
 
-        $baseQuery = $user->files()->with(['folder', 'telegramStorageGroup.botToken']);
+        $baseQuery = $user->files()->with(['folder', 'telegramStorageGroup.botToken', 'tags']);
+
+        if ($tagFilter !== '') {
+            $activeTag = Tag::where('user_id', $user->id)->where('name', $tagFilter)->first();
+            if ($activeTag) {
+                $baseQuery->whereHas('tags', fn ($q) => $q->where('tags.id', $activeTag->id));
+            } else {
+                // Unknown tag → empty result, not 404
+                $baseQuery->whereRaw('1 = 0');
+            }
+        }
 
         if ($folderFilter === 'root') {
             $baseQuery->whereNull('folder_id');
@@ -92,6 +111,12 @@ class FileController extends Controller
         $filteredCount = $applyContentFilters(clone $baseQuery)->count();
 
         $folders = $user->folders()
+            ->withCount('files')
+            ->orderBy('name')
+            ->get();
+
+        $tags = Tag::query()
+            ->where('user_id', $user->id)
             ->withCount('files')
             ->orderBy('name')
             ->get();
@@ -128,8 +153,12 @@ class FileController extends Controller
             'archiveFileLimit' => self::ARCHIVE_FILE_LIMIT,
             'folderFilter' => $folderFilter,
             'folders' => $folders,
+            'tags' => $tags,
+            'activeTag' => $activeTag,
+            'tagFilter' => $tagFilter,
             'imagePreviews' => $imagePreviews,
             'telegramUploadMaxMb' => (int) ($this->telegramUploadMaxKb() / 1024),
+            'protectedUploadMaxMb' => (int) ($this->protectedUploadMaxKb() / 1024),
             'search' => $search,
             'stats' => $stats,
             'systemTelegramRemainingUploads' => $systemTelegramRemainingUploads,
@@ -148,6 +177,10 @@ class FileController extends Controller
         $user = $request->user();
         $wantsJson = $request->wantsJson() || $request->ajax();
 
+        $isProtected = $request->boolean('is_protected');
+        $maxKbPerFile = $isProtected ? $this->protectedUploadMaxKb() : $this->telegramUploadMaxKb();
+        $tagIds = $this->resolveTagIds($request->input('tags'), $user->id);
+
         $validated = $request->validate([
             'folder_id' => [
                 'nullable',
@@ -160,14 +193,27 @@ class FileController extends Controller
                 Rule::exists('telegram_storage_groups', 'id')->where('user_id', $user->id),
             ],
             'files' => ['required', 'array', 'min:1', 'max:'.self::UPLOAD_FILES_PER_REQUEST_LIMIT],
-            'files.*' => ['file', 'max:'.$this->telegramUploadMaxKb()],
+            'files.*' => ['file', 'max:'.$maxKbPerFile],
+            'is_protected' => ['nullable', 'boolean'],
+            'tags' => ['nullable', 'string', 'max:1000'],
         ], [
             'files.required' => 'Оберіть хоча б один файл для завантаження.',
             'files.max' => 'За один раз можна завантажити не більше '.self::UPLOAD_FILES_PER_REQUEST_LIMIT.' файлів.',
-            'files.*.max' => 'Максимальний розмір одного файлу для Telegram Bot API - '.(int) ($this->telegramUploadMaxKb() / 1024).' MB.',
+            'files.*.max' => $isProtected
+                ? 'Максимальний розмір одного захищеного файла — '.(int) ($maxKbPerFile / 1024).' MB.'
+                : 'Максимальний розмір одного файлу для Telegram Bot API - '.(int) ($maxKbPerFile / 1024).' MB.',
             'folder_id.exists' => 'Обрана папка недоступна.',
             'telegram_storage_group_id.exists' => 'Обрана Telegram-група недоступна.',
         ]);
+
+        // Protected files require Telegram storage (encryption + chunking has no meaning for local files)
+        // and only work for users with their own bot/group (system storage has its own quotas/limits).
+        if ($isProtected && ! $user->is_admin && empty($validated['telegram_storage_group_id'])) {
+            return $this->uploadErrorResponse($request, $wantsJson,
+                'is_protected',
+                'Захищені файли потребують вибраної власної Telegram-групи.'
+            );
+        }
 
         $folderId = $validated['folder_id'] ?? null;
         $telegramStorageGroups = $this->telegramStorageGroups($user);
@@ -239,7 +285,7 @@ class FileController extends Controller
                         ->get(($systemTelegramUsedUploads + $index) % $systemTelegramStorageGroups->count());
                 }
 
-                $createdFiles[] = $fileStorage->storeUploadedFile($user, $uploadedFile, $folderId, $targetTelegramGroup);
+                $createdFiles[] = $fileStorage->storeUploadedFile($user, $uploadedFile, $folderId, $targetTelegramGroup, $isProtected, $tagIds);
             }
         } catch (LockTimeoutException $exception) {
             return $this->uploadErrorResponse($request, $wantsJson,
@@ -418,6 +464,7 @@ class FileController extends Controller
         abort_unless((int) $file->user_id === (int) auth()->id(), 404);
         abort_unless($fileStorage->exists($file), 404);
         abort_unless($file->is_previewable, 404);
+        abort_if($file->is_protected, 404); // protected files have no inline preview
 
         $content = null;
         $isTruncated = false;
@@ -437,6 +484,7 @@ class FileController extends Controller
     {
         abort_unless((int) $file->user_id === (int) auth()->id(), 404);
         abort_unless($file->is_image, 404);
+        abort_if($file->is_protected, 404); // protected files never serve thumbnail/inline previews
         abort_unless($fileStorage->exists($file), 404);
 
         return $fileStorage->inlineResponse($file);
@@ -453,6 +501,66 @@ class FileController extends Controller
         return redirect()
             ->to($this->safeReferer($request, $fallback))
             ->with('status', 'Файл видалено.');
+    }
+
+    /**
+     * Update tags for a single file (action menu → tag editor).
+     */
+    public function updateTags(Request $request, ManagedFile $file): JsonResponse|RedirectResponse
+    {
+        abort_unless((int) $file->user_id === (int) auth()->id(), 404);
+
+        $tagIds = $this->resolveTagIds($request->input('tags'), $file->user_id);
+        $file->tags()->sync($tagIds);
+
+        $file->load('tags');
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'message' => 'Теги збережено.',
+                'tags' => $file->tags->map(fn ($t) => ['id' => $t->id, 'name' => $t->name])->values(),
+            ]);
+        }
+
+        return back()->with('status', 'Теги збережено.');
+    }
+
+    /**
+     * Parse "tag1, tag2, ..." text into normalized tag IDs for $userId.
+     * Creates missing tags. Limits to 20 tags per request (anti-abuse).
+     *
+     * @return array<int,int>
+     */
+    private function resolveTagIds(mixed $rawInput, int $userId): array
+    {
+        if ($rawInput === null || $rawInput === '') {
+            return [];
+        }
+
+        // Allow either string ("a, b, c") or array (["a", "b", "c"])
+        if (is_array($rawInput)) {
+            $rawInput = implode(',', array_filter(array_map('strval', $rawInput)));
+        }
+
+        $names = Tag::parseInput((string) $rawInput);
+
+        if ($names === []) {
+            return [];
+        }
+
+        if (count($names) > 20) {
+            $names = array_slice($names, 0, 20);
+        }
+
+        $tagIds = [];
+        foreach ($names as $name) {
+            $tag = Tag::firstOrCreate(
+                ['user_id' => $userId, 'name' => $name],
+            );
+            $tagIds[] = $tag->id;
+        }
+
+        return $tagIds;
     }
 
     private function safeReferer(Request $request, string $fallback): string
