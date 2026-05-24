@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\ManagedFile;
 use App\Services\TelegramFileStorageService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Http;
 use Throwable;
 
 class VerifyProtectedFileCommand extends Command
@@ -63,6 +64,22 @@ class VerifyProtectedFileCommand extends Command
                 if (! $bot) {
                     $this->error('  ✗ Bot record missing for chunk');
                     $errors[] = "Chunk #{$chunk->sequence}: missing bot";
+                    continue;
+                }
+
+                // Probe getFile directly so we can see EXACTLY what Telegram returns
+                $this->line('bot token id:       '.$bot->id.'  (name: '.$bot->name.')');
+                $probe = Http::asJson()
+                    ->timeout(15)
+                    ->post('https://api.telegram.org/bot'.$bot->token.'/getFile', [
+                        'file_id' => $chunk->telegram_file_id,
+                    ]);
+                $this->line('getFile HTTP:       '.$probe->status());
+                $this->line('getFile body:       '.substr((string) $probe->body(), 0, 300));
+
+                if (! $probe->successful() || ! $probe->json('ok')) {
+                    $errors[] = "Chunk #{$chunk->sequence}: getFile failed — ".substr((string) $probe->body(), 0, 200);
+                    $this->newLine();
                     continue;
                 }
 
