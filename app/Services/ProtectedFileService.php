@@ -22,7 +22,10 @@ use Throwable;
  */
 class ProtectedFileService
 {
-    public const CHUNK_SIZE_BYTES = 40 * 1024 * 1024;       // 40 MB plaintext per chunk
+    // Telegram Bot API asymmetric limit: sendDocument allows 50 MB, but getFile
+    // (download) only allows 20 MB. We MUST stay under 20 MB so chunks can be
+    // pulled back for decryption. 18 MB leaves safety margin.
+    public const CHUNK_SIZE_BYTES = 18 * 1024 * 1024;       // 18 MB plaintext per chunk
 
     public const MAX_FILE_BYTES = 500 * 1024 * 1024;        // 500 MB total per protected file
 
