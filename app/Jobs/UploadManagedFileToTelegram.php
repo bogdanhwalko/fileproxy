@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\ManagedFile;
+use App\Services\ProtectedFileService;
 use App\Services\TelegramFileStorageService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -21,13 +22,13 @@ class UploadManagedFileToTelegram implements ShouldQueue
 
     public int $tries = 3;
 
-    public int $timeout = 300;
+    public int $timeout = 1800; // 30 min — protected files with many chunks can take a while
 
     public array $backoff = [10, 60, 300];
 
     public function __construct(public ManagedFile $file) {}
 
-    public function handle(TelegramFileStorageService $telegram): void
+    public function handle(TelegramFileStorageService $telegram, ProtectedFileService $protected): void
     {
         $file = $this->file->fresh();
 
@@ -36,7 +37,11 @@ class UploadManagedFileToTelegram implements ShouldQueue
         }
 
         try {
-            $this->upload($file, $telegram);
+            if ($file->is_protected) {
+                $this->uploadProtected($file, $protected);
+            } else {
+                $this->upload($file, $telegram);
+            }
         } catch (Throwable $exception) {
             $isFinalAttempt = $this->attempts() >= $this->tries;
             $isSyncQueue = (string) config('queue.default') === 'sync';
@@ -49,6 +54,33 @@ class UploadManagedFileToTelegram implements ShouldQueue
 
             throw $exception;
         }
+    }
+
+    private function uploadProtected(ManagedFile $file, ProtectedFileService $protected): void
+    {
+        // Scatter across every storage group the user has bots for. Falls back to
+        // the per-file telegramStorageGroup if no extra groups exist.
+        $user = $file->user()->first();
+
+        if (! $user) {
+            $this->markFailed($file, 'Користувача не знайдено.');
+            return;
+        }
+
+        $groups = $user->telegramStorageGroups()->with('botToken')->get()
+            ->filter(fn ($g) => $g->botToken !== null);
+
+        if ($groups->isEmpty()) {
+            // Fall back to the originally selected group only
+            $primary = $file->telegramStorageGroup()->with('botToken')->first();
+            if (! $primary || ! $primary->botToken) {
+                $this->markFailed($file, 'Telegram-група або бот недоступні для захищеного файла.');
+                return;
+            }
+            $groups = collect([$primary]);
+        }
+
+        $protected->uploadFromPendingPath($file, $groups);
     }
 
     private function upload(ManagedFile $file, TelegramFileStorageService $telegram): void

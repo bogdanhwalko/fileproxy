@@ -16,13 +16,17 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ManagedFileStorageService
 {
-    public function __construct(private readonly TelegramFileStorageService $telegram) {}
+    public function __construct(
+        private readonly TelegramFileStorageService $telegram,
+        private readonly ProtectedFileService $protected,
+    ) {}
 
     public function storeUploadedFile(
         User $user,
         UploadedFile $uploadedFile,
         ?int $folderId = null,
-        ?TelegramStorageGroup $telegramGroup = null
+        ?TelegramStorageGroup $telegramGroup = null,
+        bool $isProtected = false
     ): ManagedFile {
         $extension = preg_replace('/[^a-z0-9]+/', '', strtolower($uploadedFile->getClientOriginalExtension())) ?? '';
         $storedName = (string) Str::uuid();
@@ -35,6 +39,8 @@ class ManagedFileStorageService
             $pendingDirectory = 'uploads-pending/'.$user->id;
             $pendingPath = $uploadedFile->storeAs($pendingDirectory, $storedName, 'local');
 
+            $size = $uploadedFile->getSize() ?: 0;
+
             $file = ManagedFile::create([
                 'user_id' => $user->id,
                 'folder_id' => $folderId,
@@ -46,8 +52,11 @@ class ManagedFileStorageService
                 'path' => $pendingPath,
                 'mime_type' => $uploadedFile->getMimeType() ?: 'application/octet-stream',
                 'extension' => $extension ?: null,
-                'size' => $uploadedFile->getSize() ?: 0,
+                'size' => $size,
                 'status' => ManagedFile::STATUS_PENDING,
+                'is_protected' => $isProtected,
+                'original_size' => $isProtected ? $size : null,
+                'chunk_count' => $isProtected ? (int) ceil($size / ProtectedFileService::CHUNK_SIZE_BYTES) : null,
             ]);
 
             UploadManagedFileToTelegram::dispatch($file);
@@ -77,6 +86,10 @@ class ManagedFileStorageService
             return false;
         }
 
+        if ($file->is_protected) {
+            return $file->chunks()->count() === (int) $file->chunk_count && $file->chunk_count > 0;
+        }
+
         if ($file->is_telegram) {
             return (bool) ($file->telegramBotToken && $file->telegram_file_id);
         }
@@ -90,6 +103,10 @@ class ManagedFileStorageService
             'Content-Type' => $file->mime_type ?: 'application/octet-stream',
             'X-Content-Type-Options' => 'nosniff',
         ];
+
+        if ($file->is_protected) {
+            return $this->protectedStreamResponse($file, HeaderUtils::DISPOSITION_ATTACHMENT, $downloadHeaders);
+        }
 
         if (! $file->is_telegram) {
             if ($accel = $this->xAccelResponse($file, HeaderUtils::DISPOSITION_ATTACHMENT)) {
@@ -106,6 +123,46 @@ class ManagedFileStorageService
             ->deleteFileAfterSend();
     }
 
+    private function protectedStreamResponse(ManagedFile $file, string $disposition, array $extraHeaders = []): StreamedResponse
+    {
+        $headers = $extraHeaders + [
+            'Content-Disposition' => HeaderUtils::makeDisposition(
+                $disposition,
+                $this->safeDownloadName($file->original_name),
+                $this->asciiDownloadFallback($file->original_name)
+            ),
+        ];
+
+        if ($file->original_size) {
+            $headers['Content-Length'] = (string) $file->original_size;
+        }
+
+        return response()->stream(function () use ($file): void {
+            @ignore_user_abort(false);
+
+            try {
+                foreach ($this->protected->streamDecrypted($file) as $plaintext) {
+                    if ($plaintext === '') {
+                        continue;
+                    }
+                    echo $plaintext;
+
+                    if (ob_get_level() > 0) {
+                        @ob_flush();
+                    }
+                    flush();
+
+                    if (connection_aborted()) {
+                        break;
+                    }
+                }
+            } catch (\Throwable $e) {
+                report($e);
+                // Stream may already have started; nothing useful to do but bail
+            }
+        }, 200, $headers);
+    }
+
     public function inlineResponse(ManagedFile $file): StreamedResponse|BinaryFileResponse|Response
     {
         $mime = $file->mime_type ?: 'application/octet-stream';
@@ -116,6 +173,10 @@ class ManagedFileStorageService
         // via a "shared image" link that opens an HTML phishing page.
         if (! $this->isSafeInlineMime($mime)) {
             return $this->downloadResponse($file);
+        }
+
+        if ($file->is_protected) {
+            return $this->protectedStreamResponse($file, HeaderUtils::DISPOSITION_INLINE, $this->inlineSecurityHeaders($mime));
         }
 
         $inlineHeaders = $this->inlineSecurityHeaders($mime);
@@ -328,7 +389,15 @@ class ManagedFileStorageService
 
     public function delete(ManagedFile $file): void
     {
-        if ($file->is_pending || $file->is_failed) {
+        if ($file->is_protected) {
+            // Remove all encrypted chunks from Telegram (best-effort)
+            $this->protected->deleteChunks($file);
+
+            // For pending protected files, the unencrypted source may still be in uploads-pending
+            if (str_starts_with((string) $file->path, 'uploads-pending/')) {
+                Storage::disk('local')->delete($file->path);
+            }
+        } elseif ($file->is_pending || $file->is_failed) {
             if ($file->path) {
                 Storage::disk('local')->delete($file->path);
             }

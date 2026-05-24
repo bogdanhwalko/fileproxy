@@ -34,6 +34,12 @@ class FileController extends Controller
         return max(1, $mb) * 1024;
     }
 
+    /** Per-file size cap for protected uploads (10× normal). */
+    private function protectedUploadMaxKb(): int
+    {
+        return (int) (\App\Services\ProtectedFileService::MAX_FILE_BYTES / 1024);
+    }
+
     private const SYSTEM_TELEGRAM_UPLOAD_LIMIT = 100;
 
     private const ARCHIVE_FILE_LIMIT = 500;
@@ -130,6 +136,7 @@ class FileController extends Controller
             'folders' => $folders,
             'imagePreviews' => $imagePreviews,
             'telegramUploadMaxMb' => (int) ($this->telegramUploadMaxKb() / 1024),
+            'protectedUploadMaxMb' => (int) ($this->protectedUploadMaxKb() / 1024),
             'search' => $search,
             'stats' => $stats,
             'systemTelegramRemainingUploads' => $systemTelegramRemainingUploads,
@@ -148,6 +155,9 @@ class FileController extends Controller
         $user = $request->user();
         $wantsJson = $request->wantsJson() || $request->ajax();
 
+        $isProtected = $request->boolean('is_protected');
+        $maxKbPerFile = $isProtected ? $this->protectedUploadMaxKb() : $this->telegramUploadMaxKb();
+
         $validated = $request->validate([
             'folder_id' => [
                 'nullable',
@@ -160,14 +170,26 @@ class FileController extends Controller
                 Rule::exists('telegram_storage_groups', 'id')->where('user_id', $user->id),
             ],
             'files' => ['required', 'array', 'min:1', 'max:'.self::UPLOAD_FILES_PER_REQUEST_LIMIT],
-            'files.*' => ['file', 'max:'.$this->telegramUploadMaxKb()],
+            'files.*' => ['file', 'max:'.$maxKbPerFile],
+            'is_protected' => ['nullable', 'boolean'],
         ], [
             'files.required' => 'Оберіть хоча б один файл для завантаження.',
             'files.max' => 'За один раз можна завантажити не більше '.self::UPLOAD_FILES_PER_REQUEST_LIMIT.' файлів.',
-            'files.*.max' => 'Максимальний розмір одного файлу для Telegram Bot API - '.(int) ($this->telegramUploadMaxKb() / 1024).' MB.',
+            'files.*.max' => $isProtected
+                ? 'Максимальний розмір одного захищеного файла — '.(int) ($maxKbPerFile / 1024).' MB.'
+                : 'Максимальний розмір одного файлу для Telegram Bot API - '.(int) ($maxKbPerFile / 1024).' MB.',
             'folder_id.exists' => 'Обрана папка недоступна.',
             'telegram_storage_group_id.exists' => 'Обрана Telegram-група недоступна.',
         ]);
+
+        // Protected files require Telegram storage (encryption + chunking has no meaning for local files)
+        // and only work for users with their own bot/group (system storage has its own quotas/limits).
+        if ($isProtected && ! $user->is_admin && empty($validated['telegram_storage_group_id'])) {
+            return $this->uploadErrorResponse($request, $wantsJson,
+                'is_protected',
+                'Захищені файли потребують вибраної власної Telegram-групи.'
+            );
+        }
 
         $folderId = $validated['folder_id'] ?? null;
         $telegramStorageGroups = $this->telegramStorageGroups($user);
@@ -239,7 +261,7 @@ class FileController extends Controller
                         ->get(($systemTelegramUsedUploads + $index) % $systemTelegramStorageGroups->count());
                 }
 
-                $createdFiles[] = $fileStorage->storeUploadedFile($user, $uploadedFile, $folderId, $targetTelegramGroup);
+                $createdFiles[] = $fileStorage->storeUploadedFile($user, $uploadedFile, $folderId, $targetTelegramGroup, $isProtected);
             }
         } catch (LockTimeoutException $exception) {
             return $this->uploadErrorResponse($request, $wantsJson,

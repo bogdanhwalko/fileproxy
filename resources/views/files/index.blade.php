@@ -51,7 +51,7 @@
             </div>
         </header>
 
-        <form class="upload-form-v2" action="{{ route('files.store') }}" method="post" enctype="multipart/form-data" data-upload-form data-fp-uploader data-status-url="{{ route('files.status', ['file' => '__id__']) }}" data-reload-url="{{ url()->full() }}" data-max-file-mb="{{ $telegramUploadMaxMb }}">
+        <form class="upload-form-v2" action="{{ route('files.store') }}" method="post" enctype="multipart/form-data" data-upload-form data-fp-uploader data-status-url="{{ route('files.status', ['file' => '__id__']) }}" data-reload-url="{{ url()->full() }}" data-max-file-mb="{{ $telegramUploadMaxMb }}" data-max-protected-mb="{{ $protectedUploadMaxMb }}">
             @csrf
 
             <label class="dropzone-v2" data-dropzone>
@@ -297,6 +297,20 @@
                     <input type="hidden" name="telegram_storage_group_id" id="telegram_storage_group_id" data-upload-dropdown-input value="{{ $storageSelected['value'] ?? '' }}">
                 </div>
             </div>
+
+            <label class="upload-protect-toggle" data-upload-protect>
+                <input type="checkbox" name="is_protected" value="1" data-upload-protect-checkbox>
+                <span class="upload-protect-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2"/>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                </span>
+                <span class="upload-protect-body">
+                    <strong>Захистити файл</strong>
+                    <span>Розбити на зашифровані частини, розкидати по групах. Максимум <strong>{{ $protectedUploadMaxMb }} MB</strong>. Працює тільки з вибраною своєю Telegram-групою.</span>
+                </span>
+            </label>
 
             @if (! $canUseLocalStorage && $telegramStorageGroups->isEmpty() && ! $systemTelegramStorageAvailable)
                 <div class="upload-warning">
@@ -610,7 +624,12 @@
                                         <div class="file-table-name">
                                             <span class="file-icon">{{ $file->type_label }}</span>
                                             <div class="file-table-title">
-                                                <strong title="{{ $file->original_name }}">{{ $file->original_name }}</strong>
+                                                <strong title="{{ $file->original_name }}">
+                                                    @if ($file->is_protected)
+                                                        <span class="file-protected-badge" title="Захищений: розбито на зашифровані частини">🔒</span>
+                                                    @endif
+                                                    {{ $file->original_name }}
+                                                </strong>
                                                 <span>{{ $file->mime_type ?? 'unknown' }}</span>
                                                 @if (! $file->is_uploaded)
                                                     <span class="file-status-badge file-status-badge-{{ $file->status }}"

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ManagedFile extends Model
 {
@@ -38,6 +39,11 @@ class ManagedFile extends Model
         'share_max_views',
         'share_views_count',
         'share_expires_at',
+        'is_protected',
+        'encryption_key',
+        'encryption_method',
+        'chunk_count',
+        'original_size',
     ];
 
     protected $casts = [
@@ -46,6 +52,10 @@ class ManagedFile extends Model
         'share_views_count' => 'integer',
         'share_expires_at' => 'datetime',
         'telegram_message_id' => 'integer',
+        'is_protected' => 'boolean',
+        'encryption_key' => 'encrypted',
+        'chunk_count' => 'integer',
+        'original_size' => 'integer',
     ];
 
     protected $attributes = [
@@ -70,6 +80,11 @@ class ManagedFile extends Model
     public function telegramStorageGroup(): BelongsTo
     {
         return $this->belongsTo(TelegramStorageGroup::class);
+    }
+
+    public function chunks(): HasMany
+    {
+        return $this->hasMany(ManagedFileChunk::class)->orderBy('sequence');
     }
 
     public function getHumanSizeAttribute(): string

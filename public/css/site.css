@@ -7479,3 +7479,72 @@ tr[data-file-item].is-selected td:first-child {
     vertical-align: middle;
     line-height: 1;
 }
+
+/* Protect file toggle (upload form) */
+.upload-protect-toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px dashed #d1d5db;
+    background: #fafbfc;
+    cursor: pointer;
+    transition: border-color 0.12s, background 0.12s;
+}
+.upload-protect-toggle:hover {
+    border-color: #818cf8;
+    background: #f5f3ff;
+}
+.upload-protect-toggle:has(input:checked) {
+    border-style: solid;
+    border-color: #4f46e5;
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.06), rgba(124, 58, 237, 0.06));
+}
+.upload-protect-toggle input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 2px 0 0 0;
+    accent-color: #4f46e5;
+    flex-shrink: 0;
+}
+.upload-protect-icon {
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    background: #eef2ff;
+    color: #4f46e5;
+    flex-shrink: 0;
+}
+.upload-protect-icon svg {
+    width: 16px;
+    height: 16px;
+}
+.upload-protect-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 13px;
+    color: #0f172a;
+}
+.upload-protect-body strong {
+    font-size: 13.5px;
+    font-weight: 600;
+}
+.upload-protect-body span {
+    color: #64748b;
+    line-height: 1.4;
+}
+
+/* Protected file badge in list */
+.file-protected-badge {
+    display: inline-block;
+    margin-right: 4px;
+    font-size: 0.9em;
+    color: #4f46e5;
+    cursor: help;
+    vertical-align: middle;
+}

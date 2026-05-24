@@ -249,6 +249,7 @@
             fd.append('files[]', item.file);
             if (formExtras.folder_id) fd.append('folder_id', formExtras.folder_id);
             if (formExtras.telegram_storage_group_id) fd.append('telegram_storage_group_id', formExtras.telegram_storage_group_id);
+            if (formExtras.is_protected) fd.append('is_protected', '1');
 
             const xhr = new XMLHttpRequest();
             xhr.open('POST', currentEndpoint, true);
@@ -514,7 +515,8 @@
         currentStatusUrlTpl = statusUrlTpl;
         currentCsrf = csrf;
 
-        const maxMbAttr = parseInt(form.dataset.maxFileMb || '', 10);
+        const isProtected = !!(form.querySelector('[data-upload-protect-checkbox]')?.checked);
+        const maxMbAttr = parseInt((isProtected ? form.dataset.maxProtectedMb : form.dataset.maxFileMb) || '', 10);
         currentMaxBytes = (Number.isFinite(maxMbAttr) && maxMbAttr > 0 ? maxMbAttr : DEFAULT_MAX_FILE_MB) * 1024 * 1024;
 
         const folderId = form.querySelector('[name="folder_id"]')?.value || '';
@@ -561,6 +563,7 @@
         processQueue({
             folder_id: folderId,
             telegram_storage_group_id: groupId,
+            is_protected: isProtected,
         });
     });
 

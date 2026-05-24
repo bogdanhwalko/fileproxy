@@ -137,12 +137,33 @@ class TelegramFileStorageService
             return false;
         }
 
+        return $this->deleteMessageRaw($bot, (string) $file->telegram_chat_id, (int) $file->telegram_message_id);
+    }
+
+    public function deleteMessageRaw(TelegramBotToken $bot, string $chatId, int $messageId): bool
+    {
         $response = $this->telegramPostJson($bot, 'deleteMessage', [
-            'chat_id' => $file->telegram_chat_id,
-            'message_id' => $file->telegram_message_id,
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
         ]);
 
         return $response->successful() && (bool) $response->json('ok', false);
+    }
+
+    /**
+     * Synchronously fetch a file's bytes from Telegram by file_id.
+     * Used by ProtectedFileService to load each encrypted chunk into memory for AEAD decryption.
+     */
+    public function downloadFileBytes(TelegramBotToken $bot, string $fileId): string
+    {
+        $filePath = $this->getTelegramFilePath($bot, $fileId);
+        $response = $this->telegramGet($this->fileUrl($bot->token, $filePath));
+
+        if (! $response->successful()) {
+            throw new RuntimeException('Could not fetch chunk bytes from Telegram (file_id='.$fileId.').');
+        }
+
+        return (string) $response->body();
     }
 
     private function getTelegramFilePath(TelegramBotToken $bot, string $fileId): string
