@@ -322,7 +322,6 @@
                     autocomplete="off"
                 >
             </div>
-
             <label class="upload-protect-toggle" data-upload-protect>
                 <input type="checkbox" name="is_protected" value="1" data-upload-protect-checkbox>
                 <span class="upload-protect-icon" aria-hidden="true">
@@ -683,7 +682,12 @@
                                         <div class="file-table-name">
                                             <span class="file-icon">{{ $file->type_label }}</span>
                                             <div class="file-table-title">
-                                                <strong title="{{ $file->original_name }}">{{ $file->original_name }}</strong>
+                                                <strong title="{{ $file->original_name }}">
+                                                    @if ($file->is_protected)
+                                                        <span class="file-protected-badge" title="Захищений: розбито на зашифровані частини">🔒</span>
+                                                    @endif
+                                                    {{ $file->original_name }}
+                                                </strong>
                                                 <span>{{ $file->mime_type ?? 'unknown' }}</span>
                                                 @if (! $file->is_uploaded)
                                                     <span class="file-status-badge file-status-badge-{{ $file->status }}"

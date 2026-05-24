@@ -192,6 +192,7 @@ class ManagedFileStorageService
         return $file;
     }
 
+
     public function exists(ManagedFile $file): bool
     {
         if ($file->is_pending || $file->is_failed) {
@@ -270,6 +271,7 @@ class ManagedFileStorageService
                 }
             } catch (\Throwable $e) {
                 report($e);
+                // Stream may already have started; nothing useful to do but bail
             }
         }, 200, $headers);
     }

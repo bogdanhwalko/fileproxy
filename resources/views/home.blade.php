@@ -96,7 +96,7 @@
             <div class="brand-mark">FP</div>
             <div>
                 <strong>FileProxy</strong>
-                <p>Сховище файлів на основі Telegram</p>
+                <p>Менеджер файлів на основі Telegram</p>
             </div>
         </a>
 
