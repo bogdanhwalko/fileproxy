@@ -30,27 +30,25 @@ class AuthenticatedSessionController extends Controller
         $phone = $phoneAuth->normalizePhone($validated['phone']);
         $this->validatePhone($phone);
 
-        $user = User::where('phone', $phone)->first();
-
-        if (! $user) {
-            throw ValidationException::withMessages([
-                'phone' => 'Користувача з таким номером телефону не знайдено.',
-            ]);
-        }
-
-        if ($user->is_blocked) {
-            throw ValidationException::withMessages([
-                'phone' => 'Ваш акаунт заблоковано адміністратором.',
-            ]);
-        }
-
+        // Anti-enumeration: never reveal whether the phone exists before code verification.
+        // Step 1 (no code yet) — issue a Telegram challenge regardless of account existence.
+        // Step 2 (code submitted) — verify the code AND lookup the user; show a generic
+        // "wrong number / code / blocked account" message for any failure path.
         if (empty($validated['telegram_code'])) {
             return $this->redirectWithTelegramChallenge($request, $phoneAuth, $phone, 'login');
         }
 
-        if (! $phoneAuth->verify((string) ($validated['challenge_token'] ?? ''), $phone, $validated['telegram_code'])) {
+        $codeValid = $phoneAuth->verify(
+            (string) ($validated['challenge_token'] ?? ''),
+            $phone,
+            $validated['telegram_code']
+        );
+
+        $user = User::where('phone', $phone)->first();
+
+        if (! $codeValid || ! $user || $user->is_blocked) {
             throw ValidationException::withMessages([
-                'telegram_code' => 'Невірний або прострочений код Telegram.',
+                'telegram_code' => 'Невірний номер, код або акаунт недоступний.',
             ]);
         }
 

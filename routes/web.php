@@ -61,8 +61,10 @@ Route::middleware(['auth', 'not.blocked'])->group(function () {
     Route::post('/files/bulk-move', [FileController::class, 'bulkMove'])->name('files.bulk-move');
     Route::get('/files/{file}/status', [FileController::class, 'status'])->name('files.status');
     Route::get('/files/{file}/preview', [FileController::class, 'preview'])->name('files.preview');
-    Route::get('/files/{file}/inline', [FileController::class, 'inline'])->name('files.inline');
-    Route::get('/files/{file}/download', [FileController::class, 'download'])->name('files.download');
+    Route::middleware('throttle:file-stream')->group(function () {
+        Route::get('/files/{file}/inline', [FileController::class, 'inline'])->name('files.inline');
+        Route::get('/files/{file}/download', [FileController::class, 'download'])->name('files.download');
+    });
     Route::post('/files/{file}/share', [ShareController::class, 'shareFile'])->name('files.share');
     Route::patch('/files/{file}/share', [ShareController::class, 'updateFileShareSettings'])->name('files.share.update');
     Route::delete('/files/{file}/share', [ShareController::class, 'unshareFile'])->name('files.share.destroy');

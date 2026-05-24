@@ -107,7 +107,10 @@ class TelegramWebhookController extends Controller
         $senderId = data_get($message, 'from.id');
         $contactUserId = data_get($contact, 'user_id');
 
-        if ($senderId && $contactUserId && (string) $senderId !== (string) $contactUserId) {
+        // Require BOTH ids and exact match. A foreign-contact vCard (manually picked from
+        // phonebook) has no contact.user_id, so without this strict check an attacker could
+        // forward a victim's phone number and have the login code delivered to their own chat.
+        if (! $senderId || ! $contactUserId || (string) $senderId !== (string) $contactUserId) {
             $telegram->sendMessage($chatId, 'Поділіться саме своїм контактом через кнопку нижче.');
             $this->requestContact($telegram, $chatId);
 

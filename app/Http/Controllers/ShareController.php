@@ -18,6 +18,8 @@ class ShareController extends Controller
 {
     private const SHARE_FOLDER_ARCHIVE_FILE_LIMIT = 200;
 
+    private const SHARE_FOLDER_ARCHIVE_BYTES_LIMIT = 524_288_000; // 500 MB total uncompressed
+
     public function shareFile(Request $request, ManagedFile $file): RedirectResponse|JsonResponse
     {
         $this->authorizeFileOwner($file);
@@ -238,6 +240,16 @@ class ShareController extends Controller
             $totalFiles > self::SHARE_FOLDER_ARCHIVE_FILE_LIMIT,
             413,
             'Архів папки обмежений до '.self::SHARE_FOLDER_ARCHIVE_FILE_LIMIT.' файлів. Власник папки має завантажити архів вручну.'
+        );
+
+        $totalBytes = (int) $folder->files()->sum('size');
+
+        abort_if(
+            $totalBytes > self::SHARE_FOLDER_ARCHIVE_BYTES_LIMIT,
+            413,
+            'Сумарний розмір файлів у папці перевищує ліміт архіву ('
+            .ManagedFile::formatBytes(self::SHARE_FOLDER_ARCHIVE_BYTES_LIMIT)
+            .'). Власник папки має завантажити архів вручну.'
         );
 
         $this->consumeFolderShareView($folder);

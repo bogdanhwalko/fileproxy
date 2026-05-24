@@ -51,6 +51,13 @@ class RouteServiceProvider extends ServiceProvider
             return Limit::perMinute(20)->by('share-download:'.$request->ip());
         });
 
+        // For dashboard inline/preview/download endpoints. With lazy-loading thumbnails
+        // a single page may legitimately fetch ~10-30 images quickly; cap at a rate that
+        // protects Telegram bots from abuse but doesn't break normal browsing.
+        RateLimiter::for('file-stream', function (Request $request) {
+            return Limit::perMinute(240)->by('file-stream:'.($request->user()?->id ?: $request->ip()));
+        });
+
         $this->routes(function () {
             Route::middleware('api')
                 ->prefix('api')

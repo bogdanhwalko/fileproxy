@@ -108,7 +108,17 @@ class ManagedFileStorageService
 
     public function inlineResponse(ManagedFile $file): StreamedResponse|BinaryFileResponse|Response
     {
-        $inlineHeaders = $this->inlineSecurityHeaders($file->mime_type ?: 'application/octet-stream');
+        $mime = $file->mime_type ?: 'application/octet-stream';
+
+        // Defense in depth: if the file's MIME isn't on the safe-inline whitelist
+        // (HTML, scripts, etc.), force the browser to download instead of render.
+        // CSP sandbox already blocks scripts, but this prevents social-engineering
+        // via a "shared image" link that opens an HTML phishing page.
+        if (! $this->isSafeInlineMime($mime)) {
+            return $this->downloadResponse($file);
+        }
+
+        $inlineHeaders = $this->inlineSecurityHeaders($mime);
 
         if (! $file->is_telegram) {
             if ($accel = $this->xAccelResponse($file, HeaderUtils::DISPOSITION_INLINE)) {
@@ -216,6 +226,41 @@ class ManagedFileStorageService
     private function inlineContentSecurityPolicy(): string
     {
         return "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox";
+    }
+
+    /**
+     * Whitelist of MIME types that are safe to render inline.
+     * Anything else (HTML, JS, SVG, executables, etc.) is forced to attachment.
+     */
+    private function isSafeInlineMime(string $mime): bool
+    {
+        $mime = strtolower(trim($mime));
+
+        if ($mime === '') {
+            return false;
+        }
+
+        // SVG can contain scripts even with sandbox in some legacy contexts — never inline.
+        if (str_contains($mime, 'svg')) {
+            return false;
+        }
+
+        $safePrefixes = ['image/', 'audio/', 'video/'];
+
+        foreach ($safePrefixes as $prefix) {
+            if (str_starts_with($mime, $prefix)) {
+                return true;
+            }
+        }
+
+        $safeExact = [
+            'application/pdf',
+            'text/plain',
+            'text/csv',
+            'text/markdown',
+        ];
+
+        return in_array($mime, $safeExact, true);
     }
 
     private function xAccelEnabled(): bool
