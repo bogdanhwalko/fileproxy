@@ -18,6 +18,7 @@ class Kernel extends ConsoleKernel
             $this->cleanupTempDirectory(storage_path('app/telegram-temp'), 3600);
             $this->cleanupTempDirectory(storage_path('app/uploads-pending'), 86400);
             $this->cleanupTempDirectory(storage_path('app/protected-chunks-tmp'), 3600);
+            $this->cleanupTempDirectory(storage_path('app/upload-sessions'), 3 * 3600);
         })->name('fileproxy:cleanup-temp')->hourly()->withoutOverlapping();
     }
 

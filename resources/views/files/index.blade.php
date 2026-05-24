@@ -549,7 +549,7 @@
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                                 </span>
                             </label>
-                            @if ($imagePreviews && $file->is_uploaded && $file->is_image)
+                            @if ($imagePreviews && $file->is_uploaded && $file->is_image && ! $file->is_protected)
                                 <a class="file-tile-preview" href="{{ route('files.preview', $file) }}" aria-label="Відкрити {{ $file->original_name }}">
                                     <img
                                         src="{{ route('files.inline', $file) }}"
@@ -562,7 +562,11 @@
                                 </a>
                             @elseif ($imagePreviews)
                                 <div class="file-tile-preview file-tile-preview-empty" aria-hidden="true">
-                                    <span>{{ $file->type_label }}</span>
+                                    @if ($file->is_protected)
+                                        <span title="Захищений файл — превʼю недоступне">🔒</span>
+                                    @else
+                                        <span>{{ $file->type_label }}</span>
+                                    @endif
                                 </div>
                             @endif
                             <div class="file-tile-head">

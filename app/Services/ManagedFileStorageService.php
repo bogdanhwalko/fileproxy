@@ -80,6 +80,91 @@ class ManagedFileStorageService
         ]);
     }
 
+    /**
+     * Create a ManagedFile record from a pre-assembled binary file on disk.
+     * Used by chunked-upload flow (FileChunkUploadController) where the final
+     * file has been built by appending many small HTTP chunks.
+     *
+     * The source file is moved into uploads-pending/{user_id}/{uuid}.{ext}.
+     */
+    public function storeAssembledFile(
+        User $user,
+        string $sourcePath,
+        string $originalName,
+        ?string $mimeType,
+        ?int $folderId,
+        ?TelegramStorageGroup $telegramGroup,
+        bool $isProtected = false
+    ): ManagedFile {
+        $rawExt = pathinfo($originalName, PATHINFO_EXTENSION);
+        $extension = preg_replace('/[^a-z0-9]+/', '', strtolower((string) $rawExt)) ?: '';
+        $storedName = (string) Str::uuid();
+        if ($extension !== '') {
+            $storedName .= ".{$extension}";
+        }
+        $size = (int) (@filesize($sourcePath) ?: 0);
+
+        if ($telegramGroup) {
+            $pendingDirectory = 'uploads-pending/'.$user->id;
+            Storage::disk('local')->makeDirectory($pendingDirectory);
+            $pendingPath = $pendingDirectory.'/'.$storedName;
+            $absDest = Storage::disk('local')->path($pendingPath);
+
+            if (! @rename($sourcePath, $absDest)) {
+                if (! @copy($sourcePath, $absDest)) {
+                    throw new \RuntimeException('Could not move assembled chunked file to uploads-pending.');
+                }
+                @unlink($sourcePath);
+            }
+
+            $file = ManagedFile::create([
+                'user_id' => $user->id,
+                'folder_id' => $folderId,
+                'storage_driver' => 'telegram',
+                'telegram_bot_token_id' => $telegramGroup->telegram_bot_token_id,
+                'telegram_storage_group_id' => $telegramGroup->id,
+                'original_name' => $originalName,
+                'stored_name' => $storedName,
+                'path' => $pendingPath,
+                'mime_type' => $mimeType ?: 'application/octet-stream',
+                'extension' => $extension ?: null,
+                'size' => $size,
+                'status' => ManagedFile::STATUS_PENDING,
+                'is_protected' => $isProtected,
+                'original_size' => $isProtected ? $size : null,
+                'chunk_count' => $isProtected ? (int) ceil($size / ProtectedFileService::CHUNK_SIZE_BYTES) : null,
+            ]);
+
+            UploadManagedFileToTelegram::dispatch($file);
+
+            return $file;
+        }
+
+        $storageDirectory = 'uploads/'.$user->id.'/'.($folderId ? "folders/{$folderId}" : 'root');
+        Storage::disk('local')->makeDirectory($storageDirectory);
+        $path = $storageDirectory.'/'.$storedName;
+        $absDest = Storage::disk('local')->path($path);
+
+        if (! @rename($sourcePath, $absDest)) {
+            if (! @copy($sourcePath, $absDest)) {
+                throw new \RuntimeException('Could not move assembled chunked file to local storage.');
+            }
+            @unlink($sourcePath);
+        }
+
+        return ManagedFile::create([
+            'user_id' => $user->id,
+            'folder_id' => $folderId,
+            'storage_driver' => 'local',
+            'original_name' => $originalName,
+            'stored_name' => $storedName,
+            'path' => $path,
+            'mime_type' => $mimeType ?: 'application/octet-stream',
+            'extension' => $extension ?: null,
+            'size' => $size,
+        ]);
+    }
+
     public function exists(ManagedFile $file): bool
     {
         if ($file->is_pending || $file->is_failed) {

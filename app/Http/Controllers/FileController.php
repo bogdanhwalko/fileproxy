@@ -440,6 +440,7 @@ class FileController extends Controller
         abort_unless((int) $file->user_id === (int) auth()->id(), 404);
         abort_unless($fileStorage->exists($file), 404);
         abort_unless($file->is_previewable, 404);
+        abort_if($file->is_protected, 404); // protected files have no inline preview
 
         $content = null;
         $isTruncated = false;
@@ -459,6 +460,7 @@ class FileController extends Controller
     {
         abort_unless((int) $file->user_id === (int) auth()->id(), 404);
         abort_unless($file->is_image, 404);
+        abort_if($file->is_protected, 404); // protected files never serve thumbnail/inline previews
         abort_unless($fileStorage->exists($file), 404);
 
         return $fileStorage->inlineResponse($file);

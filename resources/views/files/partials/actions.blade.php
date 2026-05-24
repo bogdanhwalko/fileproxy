@@ -27,7 +27,7 @@
 
         <div class="action-menu-links">
             @if ($file->is_uploaded)
-                @if ($file->is_previewable)
+                @if ($file->is_previewable && ! $file->is_protected)
                     <a class="action-line accent" href="{{ route('files.preview', $file) }}">Переглянути</a>
                 @endif
                 <a class="action-line" href="{{ route('files.download', $file) }}">Скачати</a>
