@@ -13,5 +13,6 @@ class EncryptCookies extends Middleware
      */
     protected $except = [
         'fp_per_page',
+        'archive_ready',
     ];
 }

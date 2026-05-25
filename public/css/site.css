@@ -9242,6 +9242,69 @@ body.is-admin-mode .preview-toggle.is-on:hover {
     line-height: 1.4;
 }
 
+/* ============================================================
+   Archive progress overlay — shown while the server zips files
+   for download. Hidden iframe triggers the actual download; this
+   overlay just communicates that something is happening.
+   ============================================================ */
+.fp-archive-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1150;
+    display: grid;
+    place-items: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 180ms ease;
+}
+.fp-archive-overlay.is-open {
+    opacity: 1;
+    pointer-events: auto;
+}
+.fp-archive-overlay-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(4px);
+}
+.fp-archive-overlay-card {
+    position: relative;
+    z-index: 1;
+    width: min(380px, 92vw);
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 30px 80px -20px rgba(15, 23, 42, 0.45);
+    padding: 28px 24px 20px;
+    text-align: center;
+}
+.fp-archive-spinner {
+    width: 44px;
+    height: 44px;
+    margin: 0 auto 14px;
+    border: 3px solid rgba(79, 70, 229, 0.18);
+    border-top-color: #4f46e5;
+    border-radius: 50%;
+    animation: fp-archive-spin 0.8s linear infinite;
+}
+@keyframes fp-archive-spin {
+    to { transform: rotate(360deg); }
+}
+.fp-archive-title {
+    margin: 0 0 8px;
+    font-size: 17px;
+    color: #0f172a;
+}
+.fp-archive-text {
+    margin: 0 0 18px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #64748b;
+}
+.fp-archive-overlay-card .button {
+    width: 100%;
+    justify-content: center;
+}
+
 /* ---- Compact: tighter tiles, smaller previews ---- */
 body.density-compact .file-grid {
     grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));

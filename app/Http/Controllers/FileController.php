@@ -729,7 +729,19 @@ class FileController extends Controller
 
         $downloadName = 'fileproxy-'.($folderName ?: 'export').'-'.now()->format('Y-m-d').'.zip';
 
-        return $fileStorage->downloadLocalPathResponse($zipPath, $downloadName);
+        $response = $fileStorage->downloadLocalPathResponse($zipPath, $downloadName);
+
+        // Signal the client that the archive is ready by echoing back the
+        // download_token in a short-lived cookie. The browser's archive overlay
+        // polls for this cookie and hides itself once it sees a matching value.
+        $token = (string) $request->query('download_token', '');
+        if ($token !== '' && preg_match('/^[A-Za-z0-9_-]{6,64}$/', $token)) {
+            $response->headers->setCookie(
+                cookie('archive_ready', $token, 1, '/', null, false, false, false, 'Lax')
+            );
+        }
+
+        return $response;
     }
 
     private function parseDateRange(string $from, string $to): array

@@ -2420,6 +2420,7 @@
             initLightbox();
             initQuickPreview();
             initActionSidePanel();
+            initArchiveProgress();
 
             function initProtectHint() {
                 document.addEventListener('change', (e) => {
@@ -2427,6 +2428,119 @@
                     if (! cb) return;
                     const hint = document.querySelector('[data-upload-protect-hint]');
                     if (hint) hint.toggleAttribute('hidden', ! cb.checked);
+                });
+            }
+
+            /* ====================================================
+               Archive progress overlay: ZIP generation can take a
+               while (download + zipping all files), so without
+               feedback the user thinks the button is broken.
+               Intercept the link, kick off the download in a hidden
+               iframe so the current page keeps running, show an
+               overlay with a spinner + "preparing" message, and poll
+               for the `archive_ready` cookie the server sets right
+               before streaming the response.
+               ==================================================== */
+            function initArchiveProgress() {
+                if (document.body.dataset.archiveBound) return;
+                document.body.dataset.archiveBound = '1';
+
+                const readCookie = (name) => {
+                    const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()[\]\\/+^])/g, '\\$1') + '=([^;]*)'));
+                    return m ? decodeURIComponent(m[1]) : null;
+                };
+                const clearCookie = (name) => {
+                    document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax';
+                };
+
+                let overlay = null;
+                let pollTimer = null;
+                let timeoutTimer = null;
+                let activeIframe = null;
+
+                const buildOverlay = () => {
+                    if (overlay) return;
+                    overlay = document.createElement('div');
+                    overlay.className = 'fp-archive-overlay';
+                    overlay.innerHTML = `
+                        <div class="fp-archive-overlay-backdrop"></div>
+                        <div class="fp-archive-overlay-card" role="status" aria-live="polite">
+                            <div class="fp-archive-spinner" aria-hidden="true"></div>
+                            <h3 class="fp-archive-title">Готую архів…</h3>
+                            <p class="fp-archive-text" data-archive-msg>Стискаю файли з Telegram у ZIP. Це може зайняти від кількох секунд до хвилини залежно від кількості файлів.</p>
+                            <button type="button" class="button secondary" data-archive-cancel>Скасувати очікування</button>
+                        </div>
+                    `;
+                    document.body.appendChild(overlay);
+
+                    overlay.querySelector('[data-archive-cancel]').addEventListener('click', () => {
+                        // User dismisses the overlay — the download still happens
+                        // in the background if the server eventually responds.
+                        cleanup();
+                    });
+                };
+
+                const showOverlay = () => {
+                    buildOverlay();
+                    overlay.hidden = false;
+                    requestAnimationFrame(() => overlay.classList.add('is-open'));
+                };
+
+                const cleanup = () => {
+                    clearInterval(pollTimer); pollTimer = null;
+                    clearTimeout(timeoutTimer); timeoutTimer = null;
+                    if (overlay) {
+                        overlay.classList.remove('is-open');
+                        setTimeout(() => { if (overlay) overlay.hidden = true; }, 200);
+                    }
+                    if (activeIframe) {
+                        // Leave iframe alive for a bit so the download can be picked up
+                        const ref = activeIframe;
+                        activeIframe = null;
+                        setTimeout(() => ref.remove(), 30000);
+                    }
+                };
+
+                const startDownload = (href) => {
+                    // Build a download URL with a random token so we can match the
+                    // server's cookie response back to this exact request.
+                    const token = 'a' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
+                    const url = new URL(href, window.location.origin);
+                    url.searchParams.set('download_token', token);
+
+                    // Clear any leftover archive_ready cookie from a prior run
+                    clearCookie('archive_ready');
+
+                    showOverlay();
+
+                    // Hidden iframe triggers the download without navigating the page
+                    activeIframe = document.createElement('iframe');
+                    activeIframe.style.display = 'none';
+                    activeIframe.src = url.toString();
+                    document.body.appendChild(activeIframe);
+
+                    // Poll for the cookie the server sets when the response starts
+                    pollTimer = setInterval(() => {
+                        if (readCookie('archive_ready') === token) {
+                            clearCookie('archive_ready');
+                            cleanup();
+                        }
+                    }, 400);
+
+                    // Safety timeout — give up after 5 minutes
+                    timeoutTimer = setTimeout(() => {
+                        const msg = overlay?.querySelector('[data-archive-msg]');
+                        if (msg) msg.textContent = 'Архів готується довше за очікуване. Перевірте мережу або зменшіть кількість файлів через фільтри.';
+                    }, 60000);
+                };
+
+                document.addEventListener('click', (e) => {
+                    const btn = e.target.closest('.file-archive-btn');
+                    if (! btn) return;
+                    // Respect open-in-new-tab / save-as modifiers — fall back to default
+                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                    e.preventDefault();
+                    startDownload(btn.getAttribute('href'));
                 });
             }
 
