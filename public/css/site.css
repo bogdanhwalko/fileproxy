@@ -8747,6 +8747,39 @@ tr[data-file-item].is-selected td:first-child {
     color: #fff;
 }
 
+/* Standalone preview-on/off toggle next to the density group */
+.preview-toggle {
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+    color: #64748b;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+    text-decoration: none;
+}
+.preview-toggle svg {
+    width: 15px;
+    height: 15px;
+}
+.preview-toggle:hover {
+    color: #0f172a;
+    border-color: #cbd5e1;
+}
+.preview-toggle.is-on {
+    background: #4338ca;
+    border-color: #4338ca;
+    color: #fff;
+}
+.preview-toggle.is-on:hover {
+    background: #3730a3;
+    border-color: #3730a3;
+    color: #fff;
+}
+
 /* ---- Compact: tighter tiles, smaller previews ---- */
 body.density-compact .file-grid {
     grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
@@ -9188,12 +9221,6 @@ body.fp-actionpanel-open::before {
     to { opacity: 1; }
 }
 
-/* Slight emphasis on the open trigger so it's clear which file's
-   panel is showing while everything else is dimmed. */
-body.fp-actionpanel-open .file-action-menu[open] .action-menu-trigger {
-    position: relative;
-    z-index: 1081;
-}
 
 @media (max-width: 720px) {
     body.fp-sidepanel details.file-action-menu[open] > .file-action-panel,
