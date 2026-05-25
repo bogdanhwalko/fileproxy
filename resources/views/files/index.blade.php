@@ -2744,26 +2744,31 @@
                Persisted in localStorage as fp-density; applied as a
                class on <body>, so .file-grid is styled regardless of
                AJAX re-renders that replace [data-files-region].
+               All state is kept inside initDensityToggle so the IIFE
+               can call it before the function definition without
+               hitting the TDZ on module-level `const`s.
                ==================================================== */
-            const DENSITY_KEY = 'fp-density';
-            const DENSITY_VALUES = ['comfortable', 'compact', 'list'];
-
-            function applyDensityToBody(value) {
-                const v = DENSITY_VALUES.includes(value) ? value : 'comfortable';
-                DENSITY_VALUES.forEach((d) => document.body.classList.toggle('density-' + d, d === v));
-            }
-
             function initDensityToggle() {
-                const saved = (() => {
+                const DENSITY_KEY = 'fp-density';
+                const DENSITY_VALUES = ['comfortable', 'compact', 'list'];
+
+                const applyToBody = (value) => {
+                    const v = DENSITY_VALUES.includes(value) ? value : 'comfortable';
+                    DENSITY_VALUES.forEach((d) => document.body.classList.toggle('density-' + d, d === v));
+                };
+
+                const readSaved = () => {
                     try { return localStorage.getItem(DENSITY_KEY); } catch (e) { return null; }
-                })();
-                applyDensityToBody(saved || 'comfortable');
+                };
+
+                const writeSaved = (v) => {
+                    try { localStorage.setItem(DENSITY_KEY, v); } catch (e) { /* private mode */ }
+                };
+
+                applyToBody(readSaved() || 'comfortable');
 
                 const syncButtons = () => {
-                    const current = (() => {
-                        try { return localStorage.getItem(DENSITY_KEY) || 'comfortable'; }
-                        catch (e) { return 'comfortable'; }
-                    })();
+                    const current = readSaved() || 'comfortable';
                     document.querySelectorAll('[data-density-toggle] [data-density]').forEach((btn) => {
                         btn.classList.toggle('is-active', btn.dataset.density === current);
                     });
@@ -2780,8 +2785,8 @@
                     const value = btn.dataset.density;
                     if (! DENSITY_VALUES.includes(value)) return;
 
-                    try { localStorage.setItem(DENSITY_KEY, value); } catch (err) { /* private mode */ }
-                    applyDensityToBody(value);
+                    writeSaved(value);
+                    applyToBody(value);
                     syncButtons();
                 });
 
