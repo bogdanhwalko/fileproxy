@@ -77,6 +77,8 @@ Route::middleware(['auth', 'not.blocked'])->group(function () {
     Route::patch('/files/{file}/tags', [FileController::class, 'updateTags'])->name('files.tags.update');
     Route::delete('/files/{file}', [FileController::class, 'destroy'])->name('files.destroy');
 
+    Route::get('/palette/search', [\App\Http\Controllers\PaletteController::class, 'search'])->name('palette.search');
+
     Route::post('/folders', [FolderController::class, 'store'])->name('folders.store');
     Route::patch('/folders/{folder}', [FolderController::class, 'update'])->name('folders.update');
     Route::post('/folders/{folder}/share', [ShareController::class, 'shareFolder'])->name('folders.share');

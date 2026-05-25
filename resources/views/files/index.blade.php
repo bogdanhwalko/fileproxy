@@ -661,13 +661,52 @@
                             </a>
                         @endif
                     </div>
+
+                    @if ($display === 'grid')
+                        <div class="density-toggle" role="group" aria-label="Щільність відображення" data-density-toggle>
+                            <button type="button" class="density-btn" data-density="comfortable" title="Комфортно — великі плитки">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <rect x="3" y="3" width="8" height="8" rx="1.5"/>
+                                    <rect x="13" y="3" width="8" height="8" rx="1.5"/>
+                                    <rect x="3" y="13" width="8" height="8" rx="1.5"/>
+                                    <rect x="13" y="13" width="8" height="8" rx="1.5"/>
+                                </svg>
+                            </button>
+                            <button type="button" class="density-btn" data-density="compact" title="Компактно — менші плитки">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <rect x="3" y="3" width="5" height="5" rx="1"/>
+                                    <rect x="10" y="3" width="5" height="5" rx="1"/>
+                                    <rect x="17" y="3" width="4" height="5" rx="1"/>
+                                    <rect x="3" y="10" width="5" height="5" rx="1"/>
+                                    <rect x="10" y="10" width="5" height="5" rx="1"/>
+                                    <rect x="17" y="10" width="4" height="5" rx="1"/>
+                                    <rect x="3" y="17" width="5" height="4" rx="1"/>
+                                    <rect x="10" y="17" width="5" height="4" rx="1"/>
+                                    <rect x="17" y="17" width="4" height="4" rx="1"/>
+                                </svg>
+                            </button>
+                            <button type="button" class="density-btn" data-density="list" title="Списком — один рядок на файл">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <line x1="3" y1="6" x2="21" y2="6"/>
+                                    <line x1="3" y1="12" x2="21" y2="12"/>
+                                    <line x1="3" y1="18" x2="21" y2="18"/>
+                                </svg>
+                            </button>
+                        </div>
+                    @endif
                 </div>
             </div>
 
             @if ($display === 'grid')
                 <div class="file-grid {{ $imagePreviews ? 'with-previews' : '' }}" data-file-items>
                     @forelse ($files as $file)
-                        <article class="file-tile file-tile-status-{{ $file->status }}" data-file-item data-file-id="{{ $file->id }}">
+                        <article class="file-tile file-tile-status-{{ $file->status }}" data-file-item data-file-id="{{ $file->id }}"
+                            @if (! $imagePreviews && $file->is_uploaded && $file->is_image && ! $file->is_protected)
+                                data-quickpreview-src="{{ route('files.inline', $file) }}"
+                                data-quickpreview-name="{{ $file->original_name }}"
+                                data-quickpreview-gradient="{{ $file->placeholder_gradient }}"
+                            @endif
+                        >
                             <label class="fp-select-checkbox fp-select-checkbox-tile" title="Вибрати файл">
                                 <input type="checkbox" data-fp-select aria-label="Вибрати {{ $file->original_name }}">
                                 <span class="fp-select-mark" aria-hidden="true">
@@ -675,12 +714,20 @@
                                 </span>
                             </label>
                             @if ($imagePreviews && $file->is_uploaded && $file->is_image && ! $file->is_protected)
-                                <a class="file-tile-preview" href="{{ route('files.preview', $file) }}" aria-label="Відкрити {{ $file->original_name }}">
+                                <a class="file-tile-preview" href="{{ route('files.preview', $file) }}" aria-label="Відкрити {{ $file->original_name }}" style="background-image: {{ $file->placeholder_gradient }};"
+                                    data-lightbox
+                                    data-lightbox-src="{{ route('files.inline', $file) }}"
+                                    data-lightbox-name="{{ $file->original_name }}"
+                                    data-lightbox-meta="{{ $file->human_size }} · {{ $file->mime_type ?? 'image' }}"
+                                    data-lightbox-download="{{ route('files.download', $file) }}"
+                                    data-lightbox-href="{{ route('files.preview', $file) }}"
+                                >
                                     <img
                                         src="{{ route('files.inline', $file) }}"
                                         alt="{{ $file->original_name }}"
                                         loading="lazy"
                                         decoding="async"
+                                        class="blur-up-img"
                                         data-preview-img
                                         data-type-label="{{ $file->type_label }}"
                                     >
@@ -745,7 +792,13 @@
                         </thead>
                         <tbody data-file-items>
                             @forelse ($files as $file)
-                                <tr class="file-row-status-{{ $file->status }}" data-file-item data-file-id="{{ $file->id }}">
+                                <tr class="file-row-status-{{ $file->status }}" data-file-item data-file-id="{{ $file->id }}"
+                                    @if ($file->is_uploaded && $file->is_image && ! $file->is_protected)
+                                        data-quickpreview-src="{{ route('files.inline', $file) }}"
+                                        data-quickpreview-name="{{ $file->original_name }}"
+                                        data-quickpreview-gradient="{{ $file->placeholder_gradient }}"
+                                    @endif
+                                >
                                     <td class="fp-select-cell">
                                         <label class="fp-select-checkbox" title="Вибрати файл">
                                             <input type="checkbox" data-fp-select aria-label="Вибрати {{ $file->original_name }}">
@@ -2326,6 +2379,11 @@
             initShareToggle();
             initProtectHint();
             initSidebarControls();
+            initDensityToggle();
+            initBlurUp();
+            initLightbox();
+            initQuickPreview();
+            initActionSidePanel();
 
             function initProtectHint() {
                 document.addEventListener('change', (e) => {
@@ -2334,6 +2392,401 @@
                     const hint = document.querySelector('[data-upload-protect-hint]');
                     if (hint) hint.toggleAttribute('hidden', ! cb.checked);
                 });
+            }
+
+            /* ====================================================
+               Action side-panel: keeps the existing <details>
+               markup (so all data-share / data-tags wiring still
+               works), but turns the floating panel into a fixed
+               slide-in from the right. Backdrop + scroll-lock
+               managed via a body class; the existing outside-click
+               handler in file-action-menu-script already closes it.
+               ==================================================== */
+            function initActionSidePanel() {
+                if (document.body.dataset.aspBound) return;
+                document.body.dataset.aspBound = '1';
+                document.body.classList.add('fp-sidepanel');
+
+                const sync = () => {
+                    const isOpen = !! document.querySelector('details.file-action-menu[open]');
+                    document.body.classList.toggle('fp-actionpanel-open', isOpen);
+                    document.documentElement.style.overflow = isOpen ? 'hidden' : '';
+                };
+
+                const obs = new MutationObserver(sync);
+                obs.observe(document.body, {
+                    subtree: true,
+                    attributes: true,
+                    attributeFilter: ['open'],
+                });
+
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && document.querySelector('details.file-action-menu[open]')) {
+                        document.querySelectorAll('details.file-action-menu[open]').forEach((m) => m.removeAttribute('open'));
+                    }
+                });
+
+                sync();
+            }
+
+            /* ====================================================
+               Quick-preview popover on hover (table rows + grid
+               tiles without inline previews). After a 400ms hover
+               delay we float a thumbnail anchored next to the row,
+               flipping sides if it would clip the viewport. Disabled
+               on touch devices (no real hover state).
+               ==================================================== */
+            function initQuickPreview() {
+                if (document.body.dataset.qpBound) return;
+                document.body.dataset.qpBound = '1';
+
+                // Skip if device can't hover (touch / coarse pointer)
+                if (window.matchMedia && window.matchMedia('(hover: none)').matches) return;
+
+                let pop = null;
+                let imgEl = null;
+                let labelEl = null;
+                let timer = null;
+                let currentTrigger = null;
+
+                const build = () => {
+                    if (pop) return;
+                    pop = document.createElement('div');
+                    pop.className = 'fp-quickpreview';
+                    pop.hidden = true;
+                    pop.setAttribute('aria-hidden', 'true');
+                    pop.innerHTML = `
+                        <div class="fp-quickpreview-frame">
+                            <img class="fp-quickpreview-img" alt="">
+                        </div>
+                        <div class="fp-quickpreview-label"></div>
+                    `;
+                    document.body.appendChild(pop);
+                    imgEl = pop.querySelector('.fp-quickpreview-img');
+                    labelEl = pop.querySelector('.fp-quickpreview-label');
+                };
+
+                const position = (trigger) => {
+                    if (! pop) return;
+                    const rect = trigger.getBoundingClientRect();
+                    const ph = pop.offsetHeight || 200;
+                    const pw = pop.offsetWidth || 280;
+
+                    let left = rect.right + 12;
+                    if (left + pw > window.innerWidth - 8) {
+                        left = rect.left - pw - 12; // flip to left
+                    }
+                    if (left < 8) left = 8;
+
+                    let top = rect.top + rect.height / 2 - ph / 2;
+                    if (top + ph > window.innerHeight - 8) top = window.innerHeight - ph - 8;
+                    if (top < 8) top = 8;
+
+                    pop.style.left = left + 'px';
+                    pop.style.top  = top + 'px';
+                };
+
+                const show = (trigger) => {
+                    build();
+                    currentTrigger = trigger;
+
+                    const src = trigger.dataset.quickpreviewSrc;
+                    const name = trigger.dataset.quickpreviewName || '';
+                    const grad = trigger.dataset.quickpreviewGradient || '';
+
+                    pop.querySelector('.fp-quickpreview-frame').style.backgroundImage = grad || 'none';
+                    imgEl.classList.remove('is-loaded');
+                    imgEl.alt = name;
+                    imgEl.src = src;
+                    imgEl.onload = () => imgEl.classList.add('is-loaded');
+                    labelEl.textContent = name;
+
+                    pop.hidden = false;
+                    requestAnimationFrame(() => {
+                        position(trigger);
+                        pop.classList.add('is-open');
+                    });
+                };
+
+                const hide = () => {
+                    if (! pop) return;
+                    currentTrigger = null;
+                    pop.classList.remove('is-open');
+                    clearTimeout(timer);
+                    timer = null;
+                    setTimeout(() => {
+                        if (pop && ! currentTrigger) pop.hidden = true;
+                    }, 140);
+                };
+
+                document.addEventListener('pointerover', (e) => {
+                    const trigger = e.target.closest('[data-quickpreview-src]');
+                    if (! trigger || trigger === currentTrigger) return;
+                    // Skip if pointer is hovering the lightbox / a popover itself
+                    if (e.target.closest('.fp-lightbox, .fp-quickpreview, .file-action-panel, details[open]')) return;
+
+                    clearTimeout(timer);
+                    timer = setTimeout(() => show(trigger), 400);
+                });
+
+                document.addEventListener('pointerout', (e) => {
+                    const trigger = e.target.closest('[data-quickpreview-src]');
+                    if (! trigger) return;
+                    // pointerout fires when moving to a child — ignore those
+                    if (trigger.contains(e.relatedTarget)) return;
+                    clearTimeout(timer);
+                    timer = null;
+                    if (trigger === currentTrigger) hide();
+                });
+
+                document.addEventListener('scroll', hide, true);
+                window.addEventListener('blur', hide);
+            }
+
+            /* ====================================================
+               Lightbox: click on any [data-lightbox] image preview
+               opens a full-screen viewer. Arrow keys / on-screen
+               buttons cycle through every [data-lightbox] currently
+               visible on the page in DOM order. Escape closes.
+               ==================================================== */
+            function initLightbox() {
+                if (document.body.dataset.lightboxBound) return;
+                document.body.dataset.lightboxBound = '1';
+
+                let modal = null;
+                let imgEl = null;
+                let nameEl = null;
+                let metaEl = null;
+                let linkEl = null;
+                let downloadEl = null;
+                let counterEl = null;
+                let frameEl = null;
+
+                let items = [];
+                let index = -1;
+
+                const collect = () => Array.from(document.querySelectorAll('[data-lightbox][data-lightbox-src]'));
+
+                const buildModal = () => {
+                    if (modal) return;
+                    modal = document.createElement('div');
+                    modal.className = 'fp-lightbox';
+                    modal.hidden = true;
+                    modal.innerHTML = `
+                        <div class="fp-lightbox-backdrop" data-lb-close></div>
+                        <div class="fp-lightbox-stage" role="dialog" aria-modal="true" aria-label="Перегляд зображення">
+                            <button type="button" class="fp-lightbox-close" data-lb-close aria-label="Закрити">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+                            </button>
+                            <button type="button" class="fp-lightbox-nav fp-lightbox-prev" data-lb-prev aria-label="Попереднє">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                            </button>
+                            <button type="button" class="fp-lightbox-nav fp-lightbox-next" data-lb-next aria-label="Наступне">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                            </button>
+                            <div class="fp-lightbox-frame" data-lb-frame>
+                                <img class="fp-lightbox-img" alt="">
+                            </div>
+                            <div class="fp-lightbox-caption">
+                                <div class="fp-lightbox-text">
+                                    <strong class="fp-lightbox-name"></strong>
+                                    <span class="fp-lightbox-meta"></span>
+                                </div>
+                                <div class="fp-lightbox-actions">
+                                    <span class="fp-lightbox-counter"></span>
+                                    <a class="fp-lightbox-link" href="#" target="_blank" rel="noopener">Відкрити сторінку</a>
+                                    <a class="fp-lightbox-download" href="#" download>Скачати</a>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(modal);
+
+                    imgEl = modal.querySelector('.fp-lightbox-img');
+                    nameEl = modal.querySelector('.fp-lightbox-name');
+                    metaEl = modal.querySelector('.fp-lightbox-meta');
+                    linkEl = modal.querySelector('.fp-lightbox-link');
+                    downloadEl = modal.querySelector('.fp-lightbox-download');
+                    counterEl = modal.querySelector('.fp-lightbox-counter');
+                    frameEl = modal.querySelector('[data-lb-frame]');
+
+                    modal.addEventListener('click', (e) => {
+                        if (e.target.closest('[data-lb-close]')) close();
+                        else if (e.target.closest('[data-lb-prev]')) navigate(-1);
+                        else if (e.target.closest('[data-lb-next]')) navigate(1);
+                    });
+
+                    imgEl.addEventListener('load', () => {
+                        frameEl.classList.remove('is-loading');
+                        frameEl.classList.remove('is-error');
+                    });
+                    imgEl.addEventListener('error', () => {
+                        frameEl.classList.remove('is-loading');
+                        frameEl.classList.add('is-error');
+                    });
+                };
+
+                const renderAt = (i) => {
+                    if (i < 0 || i >= items.length) return;
+                    index = i;
+                    const el = items[i];
+                    const src = el.dataset.lightboxSrc;
+                    const name = el.dataset.lightboxName || '';
+                    const meta = el.dataset.lightboxMeta || '';
+                    const href = el.dataset.lightboxHref || '#';
+                    const dl   = el.dataset.lightboxDownload || src;
+
+                    frameEl.classList.add('is-loading');
+                    frameEl.classList.remove('is-error');
+                    imgEl.removeAttribute('src');
+                    // Reassign in next frame so the load listener fires consistently
+                    requestAnimationFrame(() => {
+                        imgEl.alt = name;
+                        imgEl.src = src;
+                    });
+                    nameEl.textContent = name;
+                    metaEl.textContent = meta;
+                    linkEl.href = href;
+                    downloadEl.href = dl;
+                    counterEl.textContent = `${i + 1} / ${items.length}`;
+
+                    // Pre-warm neighbours so navigation feels instant
+                    [i - 1, i + 1].forEach((j) => {
+                        if (items[j]) {
+                            const pre = new Image();
+                            pre.decoding = 'async';
+                            pre.src = items[j].dataset.lightboxSrc;
+                        }
+                    });
+
+                    const onePage = items.length <= 1;
+                    modal.querySelector('.fp-lightbox-prev').hidden = onePage;
+                    modal.querySelector('.fp-lightbox-next').hidden = onePage;
+                };
+
+                const navigate = (dir) => {
+                    if (items.length === 0) return;
+                    const next = (index + dir + items.length) % items.length;
+                    renderAt(next);
+                };
+
+                const open = (clickedEl) => {
+                    buildModal();
+                    items = collect();
+                    if (items.length === 0) return;
+                    const start = items.indexOf(clickedEl);
+                    renderAt(start >= 0 ? start : 0);
+                    modal.hidden = false;
+                    requestAnimationFrame(() => modal.classList.add('is-open'));
+                    document.documentElement.style.overflow = 'hidden';
+                };
+
+                const close = () => {
+                    if (! modal) return;
+                    modal.classList.remove('is-open');
+                    document.documentElement.style.overflow = '';
+                    setTimeout(() => { if (modal) modal.hidden = true; }, 180);
+                };
+
+                document.addEventListener('click', (e) => {
+                    const trigger = e.target.closest('[data-lightbox][data-lightbox-src]');
+                    if (! trigger) return;
+                    // Ignore modifier clicks (open-in-new-tab etc.)
+                    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                    e.preventDefault();
+                    open(trigger);
+                });
+
+                document.addEventListener('keydown', (e) => {
+                    if (! modal || modal.hidden) return;
+                    if (e.key === 'Escape') { e.preventDefault(); close(); }
+                    else if (e.key === 'ArrowLeft') { e.preventDefault(); navigate(-1); }
+                    else if (e.key === 'ArrowRight') { e.preventDefault(); navigate(1); }
+                });
+            }
+
+            /* ====================================================
+               Blur-up image previews: each .blur-up-img starts at
+               opacity 0 over a per-file gradient (placeholder_gradient
+               accessor on the model); we add .is-loaded when it
+               actually decodes, then CSS fades it in. Already-cached
+               images (img.complete) get the class immediately.
+               ==================================================== */
+            function initBlurUp() {
+                const promote = (img) => {
+                    if (img && img.classList && ! img.classList.contains('is-loaded')) {
+                        img.classList.add('is-loaded');
+                    }
+                };
+
+                document.querySelectorAll('img.blur-up-img').forEach((img) => {
+                    if (img.complete && img.naturalWidth > 0) promote(img);
+                });
+
+                if (document.body.dataset.blurupBound) return;
+                document.body.dataset.blurupBound = '1';
+
+                document.addEventListener('load', (e) => {
+                    const img = e.target;
+                    if (img && img.tagName === 'IMG' && img.matches?.('.blur-up-img')) promote(img);
+                }, true);
+
+                // After AJAX nav, the file list is re-rendered → re-scan
+                document.addEventListener('sidebar:refresh', () => {
+                    document.querySelectorAll('img.blur-up-img').forEach((img) => {
+                        if (img.complete && img.naturalWidth > 0) promote(img);
+                    });
+                });
+            }
+
+            /* ====================================================
+               Density toggle (comfortable / compact / list).
+               Persisted in localStorage as fp-density; applied as a
+               class on <body>, so .file-grid is styled regardless of
+               AJAX re-renders that replace [data-files-region].
+               ==================================================== */
+            const DENSITY_KEY = 'fp-density';
+            const DENSITY_VALUES = ['comfortable', 'compact', 'list'];
+
+            function applyDensityToBody(value) {
+                const v = DENSITY_VALUES.includes(value) ? value : 'comfortable';
+                DENSITY_VALUES.forEach((d) => document.body.classList.toggle('density-' + d, d === v));
+            }
+
+            function initDensityToggle() {
+                const saved = (() => {
+                    try { return localStorage.getItem(DENSITY_KEY); } catch (e) { return null; }
+                })();
+                applyDensityToBody(saved || 'comfortable');
+
+                const syncButtons = () => {
+                    const current = (() => {
+                        try { return localStorage.getItem(DENSITY_KEY) || 'comfortable'; }
+                        catch (e) { return 'comfortable'; }
+                    })();
+                    document.querySelectorAll('[data-density-toggle] [data-density]').forEach((btn) => {
+                        btn.classList.toggle('is-active', btn.dataset.density === current);
+                    });
+                };
+
+                syncButtons();
+
+                if (document.body.dataset.densityBound) return;
+                document.body.dataset.densityBound = '1';
+
+                document.addEventListener('click', (e) => {
+                    const btn = e.target.closest('[data-density-toggle] [data-density]');
+                    if (! btn) return;
+                    const value = btn.dataset.density;
+                    if (! DENSITY_VALUES.includes(value)) return;
+
+                    try { localStorage.setItem(DENSITY_KEY, value); } catch (err) { /* private mode */ }
+                    applyDensityToBody(value);
+                    syncButtons();
+                });
+
+                // Re-sync active state after AJAX nav re-renders the toggle
+                document.addEventListener('sidebar:refresh', syncButtons);
             }
 
             /* ====================================================

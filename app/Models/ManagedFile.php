@@ -154,6 +154,20 @@ class ManagedFile extends Model
         return 'other';
     }
 
+    /**
+     * Deterministic 2-stop HSL gradient used as the blur-up placeholder
+     * behind every image preview. Same file → same gradient across renders.
+     */
+    public function getPlaceholderGradientAttribute(): string
+    {
+        $seed = (string) ($this->id ?? $this->original_name ?? 'x');
+        $hash = abs(crc32($seed));
+        $hue  = $hash % 360;
+        $hue2 = ($hue + 35) % 360;
+
+        return "linear-gradient(135deg, hsl({$hue}, 36%, 78%), hsl({$hue2}, 42%, 62%))";
+    }
+
     public function getIsImageAttribute(): bool
     {
         $mime = strtolower((string) $this->mime_type);

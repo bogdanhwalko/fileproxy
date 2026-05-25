@@ -60,6 +60,7 @@
     <main class="page">
         @yield('content')
     </main>
+    @include('partials.command-palette')
     <script>
         (() => {
             const prefix = '+380';

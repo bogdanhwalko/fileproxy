@@ -59,6 +59,11 @@ class User extends Authenticatable
         return $this->hasMany(FileFolder::class);
     }
 
+    public function tags(): HasMany
+    {
+        return $this->hasMany(\App\Models\Tag::class);
+    }
+
     public function telegramBotTokens(): HasMany
     {
         return $this->hasMany(TelegramBotToken::class);
