@@ -8662,10 +8662,13 @@ tr[data-file-item].is-selected td:first-child {
     color: #fff;
 }
 
-/* Hidden items: filter miss vs collapsed overflow.
-   Both use display:none; separate classes so JS can reason about them. */
+/* Hidden items: filter miss vs collapsed overflow. Both use display:none;
+   separate classes so JS can reason about them. !important is required
+   because folder rows are styled by `.folders-list-v2 .folder-row-v2`
+   (specificity 0,2,0) and tag chips by `.tag-chip` — without !important
+   those rules win and the items stay visible. */
 .sidebar-hidden { display: none !important; }
-.sidebar-collapsed { display: none; }
+.sidebar-collapsed { display: none !important; }
 
 /* When expanded, cap the list height so a 100-folder sidebar doesn't push
    the viewport. The scrollable area lives inside [data-sidebar-list]. */
