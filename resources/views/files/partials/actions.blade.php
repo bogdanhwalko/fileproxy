@@ -22,45 +22,34 @@
 >
     <summary class="button secondary action-menu-trigger">Дії</summary>
 
-    <div class="file-action-panel">
-        <div class="action-panel-head" data-action-drag-handle>
+    <div class="file-action-panel fa-panel">
+        <div class="fa-head" data-action-drag-handle>
             <strong>Дії з файлом</strong>
-            <button class="action-panel-close" type="button" data-action-close aria-label="Закрити меню">x</button>
+            <button class="action-panel-close" type="button" data-action-close aria-label="Закрити меню">✕</button>
         </div>
 
-        <div class="action-menu-links">
-            @if ($file->is_uploaded)
-                @if ($file->is_previewable && ! $file->is_protected)
-                    <a class="action-line accent" href="{{ route('files.preview', $file) }}">Переглянути</a>
-                @endif
-                <a class="action-line" href="{{ route('files.download', $file) }}">Скачати</a>
+        {{-- Quick actions: icon + label, compact row --}}
+        <div class="fa-quick">
+            @if ($file->is_uploaded && $file->is_previewable && ! $file->is_protected)
+                <a class="fa-quick-btn fa-quick-btn-accent" href="{{ route('files.preview', $file) }}" title="Переглянути">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <span>Переглянути</span>
+                </a>
             @endif
-            <form action="{{ route('files.destroy', $file) }}" method="post" data-ajax-form>
+            @if ($file->is_uploaded)
+                <a class="fa-quick-btn" href="{{ route('files.download', $file) }}" title="Скачати">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    <span>Скачати</span>
+                </a>
+            @endif
+            <form class="fa-quick-form" action="{{ route('files.destroy', $file) }}" method="post" data-ajax-form>
                 @csrf
                 @method('delete')
-                <button class="action-line danger" type="submit">{{ $file->is_uploaded ? 'Видалити' : 'Скасувати' }}</button>
+                <button class="fa-quick-btn fa-quick-btn-danger" type="submit" title="{{ $file->is_uploaded ? 'Видалити' : 'Скасувати' }}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                    <span>{{ $file->is_uploaded ? 'Видалити' : 'Скасувати' }}</span>
+                </button>
             </form>
-        </div>
-
-        <div class="action-tags-block">
-            <label for="action-tags-{{ $file->id }}" class="action-tags-label">
-                <strong>Теги</strong>
-                <span>через кому. Для незахищених теги додадуться в Telegram caption тільки при upload (зміна тут не оновлює існуючу message).</span>
-            </label>
-            <div class="action-tags-row">
-                <input
-                    id="action-tags-{{ $file->id }}"
-                    type="text"
-                    class="field action-tags-input"
-                    value="{{ $currentTagsCsv }}"
-                    placeholder="тег1, тег2"
-                    maxlength="1000"
-                    data-action-tags-input
-                    autocomplete="off"
-                >
-                <button class="button secondary" type="button" data-action-tags-save>Зберегти</button>
-            </div>
-            <p class="action-tags-message" data-action-tags-message></p>
         </div>
 
         @if (! $file->is_uploaded)
@@ -74,59 +63,100 @@
             </div>
         @endif
 
+        {{-- Tags: chip input with autosave --}}
+        <section class="fa-section" data-file-tags-container>
+            <header class="fa-section-head">
+                <span class="fa-section-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                    Теги
+                </span>
+                <span class="fa-section-state" data-action-tags-status></span>
+            </header>
+            <div class="fa-chip-field" data-action-tags-chips>
+                <input
+                    type="text"
+                    class="fa-chip-typing"
+                    data-action-tags-typing
+                    maxlength="64"
+                    placeholder="новий тег + Enter"
+                    autocomplete="off"
+                >
+            </div>
+            <input type="hidden" data-action-tags-input value="{{ $currentTagsCsv }}">
+            <p class="fa-section-message" data-action-tags-message></p>
+        </section>
+
         @if ($file->is_uploaded)
-        <div class="share-settings {{ $file->share_token ? 'is-enabled' : '' }}">
-            <div class="share-settings-head">
-                <strong>Публічний лінк</strong>
-                <span data-share-status>{{ $file->share_token ? 'Активний' : 'Вимкнено' }}</span>
-            </div>
-
-            <div class="share-disabled" data-share-disabled @if ($file->share_token) hidden @endif>
-                <button class="button secondary share-inline-button" type="button" data-share-enable>Створити лінк</button>
-            </div>
-
-            <div class="share-enabled" data-share-enabled @unless ($file->share_token) hidden @endunless>
-                <label class="share-link-field">
-                    <span>Сторінка перегляду</span>
-                    <input class="field" type="text" value="{{ $shareUrl }}" data-share-link-input readonly>
+        {{-- Public link: switch + tabs + collapsible limits --}}
+        <section class="fa-section fa-share-section {{ $file->share_token ? 'is-enabled' : '' }}">
+            <header class="fa-section-head">
+                <span class="fa-section-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                    Публічний лінк
+                </span>
+                <label class="fa-switch" title="Увімкнути / вимкнути публічний доступ">
+                    <input type="checkbox" data-share-toggle @checked($file->share_token)>
+                    <span class="fa-switch-track"><span class="fa-switch-knob"></span></span>
                 </label>
+            </header>
 
-                <div class="share-inline-actions">
-                    <a class="button secondary" href="{{ $shareUrl ?: '#' }}" target="_blank" rel="noopener" data-share-open @if (! $shareUrl) aria-disabled="true" @endif>Відкрити</a>
-                    <button class="button secondary" type="button" data-share-copy>Копіювати</button>
-                    <button class="button danger" type="button" data-share-disable>Закрити</button>
+            <div class="fa-share-body" data-share-enabled @unless ($file->share_token) hidden @endunless>
+                {{-- URL tabs --}}
+                <div class="fa-tabs" role="tablist">
+                    <button type="button" class="fa-tab is-active" data-fa-tab="page" role="tab" aria-selected="true">Сторінка</button>
+                    <button type="button" class="fa-tab" data-fa-tab="raw" role="tab" aria-selected="false">Прямий</button>
                 </div>
 
-                <label class="share-link-field share-link-field-raw">
-                    <span>Прямий лінк на файл</span>
-                    <input class="field" type="text" value="{{ $shareRawUrl }}" data-share-raw-link-input readonly>
-                </label>
-                <div class="share-inline-actions share-inline-actions-raw">
-                    <a class="button secondary" href="{{ $shareRawUrl ?: '#' }}" target="_blank" rel="noopener" data-share-raw-open @if (! $shareRawUrl) aria-disabled="true" @endif>Відкрити</a>
-                    <button class="button secondary" type="button" data-share-raw-copy>Копіювати</button>
-                </div>
-                <p class="share-raw-hint">Без сторінки сайту — лінк віддає сам файл (зручно для месенджерів, embed'ів).</p>
-
-                <div class="share-limit-grid">
-                    <label>
-                        <span>Кількість переглядів</span>
-                        <input class="field" type="number" min="1" max="1000000" name="share_max_views" value="{{ $file->share_max_views }}" placeholder="Без ліміту" data-share-max-views>
-                    </label>
-                    <label>
-                        <span>Доступний до</span>
-                        <input class="field" type="datetime-local" name="share_expires_at" value="{{ $shareExpiresInput }}" data-share-expires-at>
-                    </label>
+                <div class="fa-tab-panel" data-fa-tab-panel="page">
+                    <div class="fa-link-row">
+                        <input class="field fa-link-input" type="text" value="{{ $shareUrl }}" data-share-link-input readonly>
+                        <button type="button" class="fa-icon-btn" data-share-copy title="Копіювати">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                        </button>
+                        <a class="fa-icon-btn" href="{{ $shareUrl ?: '#' }}" target="_blank" rel="noopener" data-share-open title="Відкрити" @if (! $shareUrl) aria-disabled="true" @endif>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        </a>
+                    </div>
                 </div>
 
-                <div class="share-usage" data-share-usage>
-                    Переглядів: {{ $shareViewsLabel }} · Доступний до: {{ $shareExpiresLabel }}
+                <div class="fa-tab-panel" data-fa-tab-panel="raw" hidden>
+                    <div class="fa-link-row">
+                        <input class="field fa-link-input" type="text" value="{{ $shareRawUrl }}" data-share-raw-link-input readonly>
+                        <button type="button" class="fa-icon-btn" data-share-raw-copy title="Копіювати">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                        </button>
+                        <a class="fa-icon-btn" href="{{ $shareRawUrl ?: '#' }}" target="_blank" rel="noopener" data-share-raw-open title="Відкрити" @if (! $shareRawUrl) aria-disabled="true" @endif>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        </a>
+                    </div>
+                    <p class="fa-link-hint">Сирий файл без HTML-обгортки — для embed'ів, месенджерів.</p>
                 </div>
 
-                <button class="button secondary share-save-button" type="button" data-share-save>Зберегти ліміт</button>
+                {{-- Usage stats --}}
+                <p class="fa-usage" data-share-usage>{{ 'Переглядів: '.$shareViewsLabel.' · до: '.$shareExpiresLabel }}</p>
+
+                {{-- Collapsible limits --}}
+                <details class="fa-limits">
+                    <summary>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                        Ліміти доступу
+                    </summary>
+                    <div class="fa-limits-grid">
+                        <label>
+                            <span>Переглядів</span>
+                            <input class="field" type="number" min="1" max="1000000" name="share_max_views" value="{{ $file->share_max_views }}" placeholder="без ліміту" data-share-max-views>
+                        </label>
+                        <label>
+                            <span>Доступний до</span>
+                            <input class="field" type="datetime-local" name="share_expires_at" value="{{ $shareExpiresInput }}" data-share-expires-at>
+                        </label>
+                    </div>
+                    <button class="button secondary fa-limits-save" type="button" data-share-save>Зберегти ліміти</button>
+                </details>
             </div>
 
-            <p class="share-message" data-share-message></p>
-        </div>
+            <p class="fa-section-message" data-share-message></p>
+        </section>
         @endif
     </div>
 </details>

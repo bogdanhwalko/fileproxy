@@ -1016,20 +1016,29 @@
                     return;
                 }
 
-                const tagsSave = event.target.closest('[data-action-tags-save]');
-                if (tagsSave) {
+                const faTab = event.target.closest('[data-fa-tab]');
+                if (faTab) {
                     event.preventDefault();
-                    saveTagsForFile(tagsSave.closest('[data-file-share]'));
+                    const panel = faTab.closest('[data-file-share]');
+                    if (panel) {
+                        const key = faTab.dataset.faTab;
+                        panel.querySelectorAll('[data-fa-tab]').forEach((b) => {
+                            const active = b.dataset.faTab === key;
+                            b.classList.toggle('is-active', active);
+                            b.setAttribute('aria-selected', active ? 'true' : 'false');
+                        });
+                        panel.querySelectorAll('[data-fa-tab-panel]').forEach((p) => {
+                            p.toggleAttribute('hidden', p.dataset.faTabPanel !== key);
+                        });
+                    }
                     return;
                 }
 
-                const shareEnable = event.target.closest('[data-share-enable]');
-                const shareDisable = event.target.closest('[data-share-disable]');
                 const shareSave = event.target.closest('[data-share-save]');
                 const shareCopy = event.target.closest('[data-share-copy]');
                 const shareRawCopy = event.target.closest('[data-share-raw-copy]');
 
-                if (shareEnable || shareDisable || shareSave || shareCopy || shareRawCopy) {
+                if (shareSave || shareCopy || shareRawCopy) {
                     const panel = event.target.closest('[data-file-share]');
 
                     if (! panel) {
@@ -1049,26 +1058,16 @@
                     }
 
                     try {
-                        const activeButton = shareEnable || shareDisable || shareSave;
-                        setShareBusy(activeButton, true);
-
-                        if (shareEnable) {
-                            const data = await sendShareRequest(panel.dataset.shareUrl, 'POST');
-                            updateSharePanel(panel, data.share, data.message);
-                        } else if (shareDisable) {
-                            const data = await sendShareRequest(panel.dataset.shareDisableUrl, 'DELETE');
-                            updateSharePanel(panel, data.share, data.message);
-                        } else if (shareSave) {
-                            const data = await sendShareRequest(panel.dataset.shareSettingsUrl, 'PATCH', {
-                                share_max_views: panel.querySelector('[data-share-max-views]')?.value || null,
-                                share_expires_at: panel.querySelector('[data-share-expires-at]')?.value || null,
-                            });
-                            updateSharePanel(panel, data.share, data.message);
-                        }
+                        setShareBusy(shareSave, true);
+                        const data = await sendShareRequest(panel.dataset.shareSettingsUrl, 'PATCH', {
+                            share_max_views: panel.querySelector('[data-share-max-views]')?.value || null,
+                            share_expires_at: panel.querySelector('[data-share-expires-at]')?.value || null,
+                        });
+                        updateSharePanel(panel, data.share, data.message);
                     } catch (error) {
                         showShareMessage(panel, error.message || 'Не вдалося зберегти налаштування.', true);
                     } finally {
-                        setShareBusy(shareEnable || shareDisable || shareSave, false);
+                        setShareBusy(shareSave, false);
                     }
 
                     return;
@@ -2141,6 +2140,7 @@
                 const enabled = Boolean(share?.is_enabled);
                 const enabledBlock = panel.querySelector('[data-share-enabled]');
                 const disabledBlock = panel.querySelector('[data-share-disabled]');
+                const toggle = panel.querySelector('[data-share-toggle]');
                 const status = panel.querySelector('[data-share-status]');
                 const linkInput = panel.querySelector('[data-share-link-input]');
                 const openLink = panel.querySelector('[data-share-open]');
@@ -2148,14 +2148,15 @@
                 const expiresAt = panel.querySelector('[data-share-expires-at]');
                 const usage = panel.querySelector('[data-share-usage]');
 
+                // Legacy (.share-settings) + new (.fa-share-section) markup
                 panel.querySelector('.share-settings')?.classList.toggle('is-enabled', enabled);
+                panel.querySelector('.fa-share-section')?.classList.toggle('is-enabled', enabled);
 
-                if (enabledBlock) {
-                    enabledBlock.hidden = ! enabled;
-                }
+                if (enabledBlock) enabledBlock.hidden = ! enabled;
+                if (disabledBlock) disabledBlock.hidden = enabled;
 
-                if (disabledBlock) {
-                    disabledBlock.hidden = enabled;
+                if (toggle) {
+                    toggle.checked = enabled;
                 }
 
                 if (status) {
@@ -2254,7 +2255,181 @@
             });
 
             /* ====================================================
-               Tag chip input: convert typed text + comma/Enter into a removable chip.
+               Compact action panel: tag chip-input with autosave,
+               share toggle, and tab switching.
+               ==================================================== */
+            initActionPanelTagChips();
+            initShareToggle();
+
+            function initActionPanelTagChips() {
+                document.addEventListener('focusin', (e) => {
+                    const container = e.target.closest('[data-file-tags-container]');
+                    if (container) setupActionPanelTagChips(container);
+                });
+                // Eager setup for already-open panels (e.g. after soft-refresh)
+                document.querySelectorAll('[data-file-tags-container]').forEach(setupActionPanelTagChips);
+            }
+
+            function setupActionPanelTagChips(container) {
+                if (container.dataset.tagsInit === '1') return;
+                container.dataset.tagsInit = '1';
+
+                const chipsArea = container.querySelector('[data-action-tags-chips]');
+                const typing    = container.querySelector('[data-action-tags-typing]');
+                const hidden    = container.querySelector('[data-action-tags-input]');
+                const status    = container.querySelector('[data-action-tags-status]');
+                const message   = container.querySelector('[data-action-tags-message]');
+                const panel     = container.closest('[data-file-share]');
+                const url       = panel?.dataset.tagsUrl;
+                if (! chipsArea || ! typing || ! hidden || ! url) return;
+
+                const state = new Set();
+                let saveTimer = null;
+
+                const norm = (raw) => String(raw || '').trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 64);
+
+                function setStatus(text, kind) {
+                    if (! status) return;
+                    status.textContent = text || '';
+                    status.className = 'fa-section-state' + (kind ? ' is-' + kind : '');
+                }
+
+                function syncHidden() {
+                    hidden.value = Array.from(state).join(', ');
+                }
+
+                async function persist() {
+                    setStatus('зберігаю…', 'saving');
+                    try {
+                        const data = await sendShareRequest(url, 'PATCH', { tags: hidden.value });
+                        setStatus('✓ збережено', 'success');
+                        setTimeout(() => setStatus('', null), 1800);
+                        if (message) message.textContent = '';
+                    } catch (e) {
+                        setStatus('✗ помилка', 'error');
+                        if (message) {
+                            message.textContent = e.message || 'Не вдалося зберегти.';
+                            message.classList.add('is-error');
+                        }
+                    }
+                }
+
+                function scheduleSave() {
+                    clearTimeout(saveTimer);
+                    saveTimer = setTimeout(persist, 500);
+                }
+
+                function cssEscape(s) {
+                    return (window.CSS && CSS.escape) ? CSS.escape(s) : s.replace(/["\\]/g, '\\$&');
+                }
+
+                function renderChip(name) {
+                    const chip = document.createElement('span');
+                    chip.className = 'upload-tag-chip';
+                    chip.dataset.chipName = name;
+                    chip.innerHTML = '<span class="upload-tag-chip-text"></span><button type="button" class="upload-tag-chip-remove" aria-label="Видалити тег">✕</button>';
+                    chip.querySelector('.upload-tag-chip-text').textContent = name;
+                    chip.querySelector('.upload-tag-chip-remove').addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (state.delete(name)) {
+                            chip.remove();
+                            syncHidden();
+                            scheduleSave();
+                            typing.focus();
+                        }
+                    });
+                    chipsArea.insertBefore(chip, typing);
+                }
+
+                function addTag(raw) {
+                    const name = norm(raw);
+                    if (! name || state.has(name)) return;
+                    state.add(name);
+                    renderChip(name);
+                    syncHidden();
+                    scheduleSave();
+                }
+
+                typing.addEventListener('input', () => {
+                    const v = typing.value;
+                    if (/[,;\n]/.test(v)) {
+                        const parts = v.split(/[,;\n]/);
+                        const tail  = parts.pop();
+                        parts.forEach(addTag);
+                        typing.value = tail || '';
+                    }
+                });
+
+                typing.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === 'Tab') {
+                        if (typing.value.trim() !== '') {
+                            e.preventDefault();
+                            addTag(typing.value);
+                            typing.value = '';
+                        }
+                    } else if (e.key === 'Backspace' && typing.value === '' && state.size > 0) {
+                        const last = Array.from(state).pop();
+                        if (state.delete(last)) {
+                            const c = chipsArea.querySelector('[data-chip-name="' + cssEscape(last) + '"]');
+                            if (c) c.remove();
+                            syncHidden();
+                            scheduleSave();
+                        }
+                    }
+                });
+
+                typing.addEventListener('blur', () => {
+                    if (typing.value.trim() !== '') {
+                        addTag(typing.value);
+                        typing.value = '';
+                    }
+                });
+
+                container.addEventListener('click', (e) => {
+                    if (e.target === typing) return;
+                    if (e.target.closest('.upload-tag-chip-remove')) return;
+                    typing.focus();
+                });
+
+                // Seed chips from initial CSV (file already has tags)
+                const initial = (hidden.value || '').split(/[,;]/).map(norm).filter(Boolean);
+                initial.forEach((name) => {
+                    if (! state.has(name)) {
+                        state.add(name);
+                        renderChip(name);
+                    }
+                });
+                syncHidden();
+            }
+
+            function initShareToggle() {
+                document.addEventListener('change', async (e) => {
+                    const toggle = e.target.closest('[data-share-toggle]');
+                    if (! toggle) return;
+
+                    const panel = toggle.closest('[data-file-share]');
+                    if (! panel) return;
+
+                    toggle.disabled = true;
+
+                    try {
+                        const url = toggle.checked ? panel.dataset.shareUrl : panel.dataset.shareDisableUrl;
+                        const method = toggle.checked ? 'POST' : 'DELETE';
+                        const data = await sendShareRequest(url, method);
+                        updateSharePanel(panel, data.share, data.message);
+                    } catch (error) {
+                        // Revert checkbox on failure
+                        toggle.checked = ! toggle.checked;
+                        showShareMessage(panel, error.message || 'Не вдалося змінити стан публічного лінка.', true);
+                    } finally {
+                        toggle.disabled = false;
+                    }
+                });
+            }
+
+            /* ====================================================
+               Upload form tag chip input: convert typed text + comma/Enter into a removable chip.
                Hidden [name="tags"] stays in sync as a CSV for the form submit.
                ==================================================== */
             initTagChipInput();
