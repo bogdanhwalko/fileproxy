@@ -2757,6 +2757,7 @@
             function initDensityToggle() {
                 const DENSITY_KEY = 'fp-density';
                 const DENSITY_VALUES = ['comfortable', 'compact', 'list'];
+                const DENSITY_PER_PAGE = { comfortable: 12, compact: 24, list: 48 };
 
                 const applyToBody = (value) => {
                     const v = DENSITY_VALUES.includes(value) ? value : 'comfortable';
@@ -2771,6 +2772,16 @@
                     try { localStorage.setItem(DENSITY_KEY, v); } catch (e) { /* private mode */ }
                 };
 
+                const getCookie = (name) => {
+                    const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()[\]\\/+^])/g, '\\$1') + '=([^;]*)'));
+                    return m ? decodeURIComponent(m[1]) : null;
+                };
+
+                const setCookie = (name, value, days = 365) => {
+                    const exp = new Date(Date.now() + days * 864e5).toUTCString();
+                    document.cookie = `${name}=${encodeURIComponent(value)}; expires=${exp}; path=/; SameSite=Lax`;
+                };
+
                 applyToBody(readSaved() || 'comfortable');
 
                 const syncButtons = () => {
@@ -2781,6 +2792,20 @@
                 };
 
                 syncButtons();
+
+                // Initial sync: if localStorage density implies a different per_page
+                // than the cookie currently has (or the cookie is missing), update
+                // the cookie and re-fetch the file list so pagination matches density.
+                const initialDensity = readSaved() || 'comfortable';
+                const initialPerPage = DENSITY_PER_PAGE[initialDensity];
+                const cookiePerPage = parseInt(getCookie('fp_per_page') || '0', 10);
+                if (cookiePerPage !== initialPerPage) {
+                    setCookie('fp_per_page', String(initialPerPage));
+                    if (typeof refreshFilesPage === 'function' && document.querySelector('[data-file-items]')) {
+                        // No history push — we're just syncing initial render to density
+                        refreshFilesPage(window.location.href, false, { region: 'files' });
+                    }
+                }
 
                 if (document.body.dataset.densityBound) return;
                 document.body.dataset.densityBound = '1';
@@ -2794,6 +2819,16 @@
                     writeSaved(value);
                     applyToBody(value);
                     syncButtons();
+
+                    // Sync per_page cookie and refresh the file list AJAX-style
+                    const perPage = DENSITY_PER_PAGE[value];
+                    setCookie('fp_per_page', String(perPage));
+                    if (typeof refreshFilesPage === 'function' && document.querySelector('[data-file-items]')) {
+                        // Drop ?page to go back to first page when per_page changes
+                        const url = new URL(window.location.href);
+                        url.searchParams.delete('page');
+                        refreshFilesPage(url.toString(), true, { region: 'files' });
+                    }
                 });
 
                 // Re-sync active state after AJAX nav re-renders the toggle

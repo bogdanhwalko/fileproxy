@@ -63,6 +63,13 @@ class FileController extends Controller
             ? (string) $request->query('view')
             : 'grid';
         $imagePreviews = $display === 'grid' && $request->boolean('image_previews', true);
+
+        // per_page is driven by the density toggle (cookie set client-side):
+        // comfortable=12, compact=24, list=48. Validate strictly.
+        $perPage = (int) ($request->cookie('fp_per_page', 12));
+        if (! in_array($perPage, [12, 24, 48], true)) {
+            $perPage = 12;
+        }
         $folderFilter = (string) $request->query('folder', 'all');
         $dateFrom = trim((string) $request->query('date_from', ''));
         $dateTo = trim((string) $request->query('date_to', ''));
@@ -105,7 +112,7 @@ class FileController extends Controller
 
         $files = $applyContentFilters(clone $baseQuery)
             ->latest()
-            ->paginate(12)
+            ->paginate($perPage)
             ->withQueryString();
 
         $filteredCount = $applyContentFilters(clone $baseQuery)->count();
