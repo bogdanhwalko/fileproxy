@@ -298,41 +298,47 @@
                 </div>
             </div>
 
-            <div class="upload-tags" data-upload-tags-container>
-                <span class="upload-tags-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-                        <line x1="7" y1="7" x2="7.01" y2="7"/>
-                    </svg>
-                </span>
-                <span class="upload-tags-label-text">Теги</span>
-                <div class="upload-tags-field" data-upload-tags-chips>
-                    <input
-                        type="text"
-                        class="upload-tags-typing"
-                        data-upload-tags-typing
-                        maxlength="64"
-                        placeholder="додати тег і Enter"
-                        autocomplete="off"
-                    >
+            <div class="upload-extras">
+                <div class="upload-tags upload-tags-inline" data-upload-tags-container>
+                    <span class="upload-tags-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                            <line x1="7" y1="7" x2="7.01" y2="7"/>
+                        </svg>
+                    </span>
+                    <div class="upload-tags-field" data-upload-tags-chips>
+                        <input
+                            type="text"
+                            class="upload-tags-typing"
+                            data-upload-tags-typing
+                            maxlength="64"
+                            placeholder="додати тег + Enter"
+                            autocomplete="off"
+                        >
+                    </div>
+                    <button type="button" class="upload-tags-hint-toggle" data-upload-tags-hint
+                        title="Розділяй комою або Enter. Для незахищених файлів теги додаються як #hashtag у Telegram caption.">i</button>
+                    <input type="hidden" name="tags" value="" data-upload-tags>
                 </div>
-                <button type="button" class="upload-tags-hint-toggle" data-upload-tags-hint
-                    title="Розділяй комою або Enter. Для незахищених файлів теги додаються як #hashtag у Telegram caption.">i</button>
-                <input type="hidden" name="tags" value="" data-upload-tags>
+
+                <label class="upload-protect-switch" data-upload-protect
+                    title="Розбити на зашифровані частини, розкидати по групах. Максимум {{ $protectedUploadMaxMb }} МБ. Працює тільки з вибраною своєю Telegram-групою.">
+                    <span class="upload-protect-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2"/>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                    </span>
+                    <span class="upload-protect-label">Захистити</span>
+                    <span class="fa-switch-track"><span class="fa-switch-knob"></span></span>
+                    <input type="checkbox" name="is_protected" value="1" data-upload-protect-checkbox>
+                </label>
             </div>
-            <label class="upload-protect-toggle" data-upload-protect>
-                <input type="checkbox" name="is_protected" value="1" data-upload-protect-checkbox>
-                <span class="upload-protect-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="11" width="18" height="11" rx="2"/>
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                    </svg>
-                </span>
-                <span class="upload-protect-body">
-                    <strong>Захистити файл</strong>
-                    <span>Розбити на зашифровані частини, розкидати по групах. Максимум <strong>{{ $protectedUploadMaxMb }} MB</strong>. Працює тільки з вибраною своєю Telegram-групою.</span>
-                </span>
-            </label>
+
+            <p class="upload-protect-hint" data-upload-protect-hint hidden>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Файл буде розбито на зашифровані частини і розкидано по групах. Максимум <strong>{{ $protectedUploadMaxMb }} МБ</strong>. Дешифрується тільки на цьому сервері.
+            </p>
 
             @if (! $canUseLocalStorage && $telegramStorageGroups->isEmpty() && ! $systemTelegramStorageAvailable)
                 <div class="upload-warning">
@@ -2260,6 +2266,16 @@
                ==================================================== */
             initActionPanelTagChips();
             initShareToggle();
+            initProtectHint();
+
+            function initProtectHint() {
+                document.addEventListener('change', (e) => {
+                    const cb = e.target.closest('[data-upload-protect-checkbox]');
+                    if (! cb) return;
+                    const hint = document.querySelector('[data-upload-protect-hint]');
+                    if (hint) hint.toggleAttribute('hidden', ! cb.checked);
+                });
+            }
 
             function initActionPanelTagChips() {
                 document.addEventListener('focusin', (e) => {
