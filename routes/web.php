@@ -84,6 +84,11 @@ Route::middleware(['auth', 'not.blocked'])->group(function () {
     Route::post('/folders/{folder}/share', [ShareController::class, 'shareFolder'])->name('folders.share');
     Route::patch('/folders/{folder}/share', [ShareController::class, 'updateFolderShareSettings'])->name('folders.share.update');
     Route::delete('/folders/{folder}/share', [ShareController::class, 'unshareFolder'])->name('folders.share.destroy');
+    Route::post('/folders/{folder}/password', [FolderController::class, 'setPassword'])->name('folders.password.set');
+    Route::delete('/folders/{folder}/password', [FolderController::class, 'removePassword'])->name('folders.password.remove');
+    Route::get('/folders/{folder}/unlock', [FolderController::class, 'unlockPrompt'])->name('folders.unlock-prompt');
+    Route::post('/folders/{folder}/unlock', [FolderController::class, 'unlock'])->name('folders.unlock');
+    Route::post('/folders/{folder}/lock', [FolderController::class, 'lock'])->name('folders.lock');
     Route::delete('/folders/{folder}', [FolderController::class, 'destroy'])->name('folders.destroy');
 
     Route::get('/settings/api-tokens', [ApiTokenController::class, 'index'])->name('api-tokens.index');

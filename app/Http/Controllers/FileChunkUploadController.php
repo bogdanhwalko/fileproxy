@@ -54,6 +54,19 @@ class FileChunkUploadController extends Controller
         $uploadId    = $validated['upload_id'];
         $totalSize   = (int) $validated['total_size'];
 
+        // Force-protect uploads into a password-protected folder
+        if (! $isProtected && ! empty($validated['folder_id'])) {
+            $targetFolder = $user->folders()->find($validated['folder_id']);
+            if ($targetFolder && $targetFolder->is_password_protected) {
+                $isProtected = true;
+                if (empty($validated['telegram_storage_group_id'])) {
+                    return response()->json([
+                        'message' => 'Захищена папка вимагає завантаження у власну Telegram-групу.',
+                    ], 422);
+                }
+            }
+        }
+
         $maxBytes = $isProtected ? self::PROTECTED_TOTAL_LIMIT : ProtectedFileService::CHUNK_SIZE_BYTES * 2;
 
         if ($totalSize > $maxBytes) {

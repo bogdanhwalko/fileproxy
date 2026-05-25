@@ -8914,6 +8914,204 @@ body.is-admin-mode .preview-toggle.is-on:hover {
     }
 }
 
+/* ============================================================
+   Folder password protection — unlock prompt + sidebar lock
+   indicators + actions-panel password block.
+   ============================================================ */
+.folder-unlock {
+    display: grid;
+    place-items: center;
+    padding: 60px 24px;
+}
+.folder-unlock-card {
+    width: 100%;
+    max-width: 420px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    box-shadow: 0 24px 50px -20px rgba(15, 23, 42, 0.25);
+    padding: 32px 28px;
+    text-align: center;
+}
+.folder-unlock-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 14px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, #fef3c7, #fed7aa);
+    color: #b45309;
+    border-radius: 14px;
+}
+.folder-unlock-icon svg {
+    width: 26px;
+    height: 26px;
+}
+.folder-unlock-card h1 {
+    font-size: 20px;
+    margin: 0 0 6px;
+    color: #0f172a;
+}
+.folder-unlock-name {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: #f1f5f9;
+    border-radius: 999px;
+    font-size: 13px;
+    color: #334155;
+    margin: 4px 0 14px;
+}
+.folder-unlock-name svg {
+    width: 14px;
+    height: 14px;
+    color: #64748b;
+}
+.folder-unlock-hint {
+    font-size: 13px;
+    color: #64748b;
+    margin: 0 0 18px;
+}
+.folder-unlock-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+.folder-unlock-input {
+    text-align: center;
+    font-size: 15px;
+    letter-spacing: 0.05em;
+}
+.folder-unlock-back {
+    display: inline-block;
+    font-size: 12.5px;
+    color: #64748b;
+    text-decoration: none;
+}
+.folder-unlock-back:hover {
+    color: #0f172a;
+}
+
+/* Sidebar — locked / unlocked folder visual cue */
+.folder-row-v2.folder-row-locked .folder-item-icon {
+    background: #fef3c7;
+    color: #b45309;
+}
+.folder-row-v2.folder-row-locked .folder-item-name {
+    color: #b45309;
+}
+.folder-row-v2.folder-row-locked .folder-item-name::after {
+    content: '·';
+    color: #d97706;
+    margin-left: 4px;
+}
+.folder-row-v2.folder-row-unlocked .folder-item-icon {
+    background: #dcfce7;
+    color: #15803d;
+}
+.folder-row-v2.folder-row-unlocked::after {
+    content: '';
+    position: absolute;
+    top: 6px;
+    right: 4px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #16a34a;
+    box-shadow: 0 0 0 2px #fff;
+}
+.folder-row-v2 {
+    position: relative;
+}
+
+/* Folder action panel — password block */
+.folder-password-block {
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #f8fafc;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.folder-password-block.is-on {
+    background: linear-gradient(180deg, #fffbeb 0%, #f8fafc 70%);
+    border-color: #fcd34d;
+}
+.folder-password-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.folder-password-head strong {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #0f172a;
+}
+.folder-password-head strong svg {
+    width: 14px;
+    height: 14px;
+    color: #b45309;
+}
+.folder-password-state {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    padding: 2px 8px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+}
+.folder-password-block.is-on .folder-password-state {
+    color: #b45309;
+    background: #fef3c7;
+    border-color: #fcd34d;
+}
+.folder-password-form,
+.folder-password-remove,
+.folder-password-lock-now {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.folder-password-form label,
+.folder-password-remove label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    color: #475569;
+}
+.folder-password-form input.field,
+.folder-password-remove input.field {
+    font-size: 13px;
+    padding: 7px 9px;
+}
+.folder-password-remove {
+    padding-top: 10px;
+    border-top: 1px dashed #fcd34d;
+}
+.folder-password-lock-now {
+    padding-top: 6px;
+}
+.folder-password-hint {
+    margin: 0;
+    font-size: 11.5px;
+    color: #78350f;
+    line-height: 1.4;
+}
+.folder-password-block:not(.is-on) .folder-password-hint {
+    color: #64748b;
+}
+
 /* ---- Compact: tighter tiles, smaller previews ---- */
 body.density-compact .file-grid {
     grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));

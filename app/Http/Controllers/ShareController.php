@@ -24,6 +24,18 @@ class ShareController extends Controller
     {
         $this->authorizeFileOwner($file);
 
+        // Files inside password-protected folders can't be shared publicly —
+        // the whole point of the folder password is to keep them private.
+        $file->loadMissing('folder');
+        if ($file->folder && $file->folder->is_password_protected) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Файли з захищеної папки не можна публікувати.',
+                ], 422);
+            }
+            return back()->withErrors(['share' => 'Файли з захищеної папки не можна публікувати.']);
+        }
+
         if (! $file->share_token) {
             $file->forceFill([
                 'share_token' => $this->uniqueToken(ManagedFile::class),
@@ -398,6 +410,11 @@ class ShareController extends Controller
 
         abort_if($file->user?->is_blocked, 404);
         abort_if($file->share_is_expired || $file->share_limit_reached, 404);
+
+        // Defensive: if the file was moved into a password-protected folder
+        // after the share link was created, refuse public access. The owner
+        // can still see it after unlocking the folder.
+        abort_if($file->folder && $file->folder->is_password_protected, 404);
 
         return $file;
     }

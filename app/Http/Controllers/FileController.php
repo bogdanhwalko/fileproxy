@@ -103,6 +103,29 @@ class FileController extends Controller
             $folderFilter = 'all';
         }
 
+        // Folder password gate: if the active folder is locked, redirect to
+        // the unlock prompt instead of rendering files. Also hide files from
+        // locked folders in any non-folder-specific listing (All files, Without
+        // folder, search-across-everything, tag filters).
+        $unlock = app(\App\Services\FolderUnlockService::class);
+        if ($activeFolder && $activeFolder->is_password_protected && ! $unlock->isUnlocked($activeFolder)) {
+            return redirect()->route('folders.unlock-prompt', ['folder' => $activeFolder->id]);
+        }
+
+        $lockedFolderIds = $user->folders()
+            ->whereNotNull('password_hash')
+            ->pluck('id')
+            ->reject(fn ($id) => $unlock->isUnlocked((int) $id))
+            ->values()
+            ->all();
+
+        if (! empty($lockedFolderIds) && (! $activeFolder || in_array($activeFolder->id, $lockedFolderIds, true) === false)) {
+            $baseQuery->where(function ($q) use ($lockedFolderIds) {
+                $q->whereNull('folder_id')
+                    ->orWhereNotIn('folder_id', $lockedFolderIds);
+            });
+        }
+
         $applyContentFilters = function ($query) use ($search, $type, $dateFromCarbon, $dateToCarbon) {
             return $query
                 ->when($search !== '', fn ($query) => $this->applySearchFilter($query, $search))
@@ -150,6 +173,8 @@ class FileController extends Controller
             'root' => (int) ($aggregates->root ?? 0),
         ];
 
+        $unlockedFolderIds = array_keys($unlock->unlockedFolderIds());
+
         return view('files.index', [
             'activeFolder' => $activeFolder,
             'canUseLocalStorage' => (bool) $user->is_admin,
@@ -161,6 +186,7 @@ class FileController extends Controller
             'archiveFileLimit' => self::ARCHIVE_FILE_LIMIT,
             'folderFilter' => $folderFilter,
             'folders' => $folders,
+            'unlockedFolderIds' => $unlockedFolderIds,
             'tags' => $tags,
             'activeTag' => $activeTag,
             'tagFilter' => $tagFilter,
@@ -224,6 +250,33 @@ class FileController extends Controller
         }
 
         $folderId = $validated['folder_id'] ?? null;
+
+        // Auto-protect uploads to password-protected folders so they're stored
+        // encrypted in Telegram regardless of the user's checkbox. This requires
+        // a per-file size cap of the protected pipeline; revalidate sizes.
+        if ($folderId !== null) {
+            $targetFolder = $user->folders()->find($folderId);
+            if ($targetFolder && $targetFolder->is_password_protected && ! $isProtected) {
+                $isProtected = true;
+                $maxKbPerFile = $this->protectedUploadMaxKb();
+                foreach ($validated['files'] as $f) {
+                    if ($f->getSize() / 1024 > $maxKbPerFile) {
+                        return $this->uploadErrorResponse($request, $wantsJson,
+                            'files',
+                            'Папка захищена паролем — кожен файл шифрується. Максимум '.(int) ($maxKbPerFile / 1024).' MB на файл.'
+                        );
+                    }
+                }
+                // Protected files require user's own Telegram group
+                if (! $user->is_admin && empty($validated['telegram_storage_group_id'])) {
+                    return $this->uploadErrorResponse($request, $wantsJson,
+                        'is_protected',
+                        'Захищена папка вимагає завантаження у власну Telegram-групу.'
+                    );
+                }
+            }
+        }
+
         $telegramStorageGroups = $this->telegramStorageGroups($user);
         $telegramGroup = null;
         $systemTelegramStorageGroups = new Collection;

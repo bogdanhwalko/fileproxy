@@ -472,17 +472,33 @@
                     @endif
 
                     @foreach ($folders as $folder)
-                        @php $folderColor = $folder->color && isset(\App\Models\FileFolder::COLOR_PALETTE[$folder->color]) ? \App\Models\FileFolder::COLOR_PALETTE[$folder->color] : null; @endphp
-                        <div class="folder-row-v2 {{ $folderColor ? 'folder-row-colored' : '' }}"
+                        @php
+                            $folderColor = $folder->color && isset(\App\Models\FileFolder::COLOR_PALETTE[$folder->color]) ? \App\Models\FileFolder::COLOR_PALETTE[$folder->color] : null;
+                            $folderLocked = $folder->is_password_protected && ! in_array($folder->id, $unlockedFolderIds ?? [], true);
+                            $folderUnlocked = $folder->is_password_protected && in_array($folder->id, $unlockedFolderIds ?? [], true);
+                        @endphp
+                        <div class="folder-row-v2 {{ $folderColor ? 'folder-row-colored' : '' }} {{ $folderLocked ? 'folder-row-locked' : '' }} {{ $folderUnlocked ? 'folder-row-unlocked' : '' }}"
                             @if ($folderColor) style="--folder-color:{{ $folderColor }}" @endif
                             data-sidebar-item
                             data-name="{{ mb_strtolower($folder->name) }}"
                             data-count="{{ $folder->files_count }}">
-                            <a class="folder-item {{ $activeFolder?->id === $folder->id ? 'is-active' : '' }}" href="{{ route('files.index', ['folder' => $folder->id]) }}">
+                            <a class="folder-item {{ $activeFolder?->id === $folder->id ? 'is-active' : '' }}" href="{{ $folderLocked ? route('folders.unlock-prompt', $folder) : route('files.index', ['folder' => $folder->id]) }}">
                                 <span class="folder-item-icon" aria-hidden="true">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                                    </svg>
+                                    @if ($folder->is_password_protected)
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                            @if ($folderUnlocked)
+                                                <rect x="3" y="11" width="18" height="11" rx="2"/>
+                                                <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+                                            @else
+                                                <rect x="3" y="11" width="18" height="11" rx="2"/>
+                                                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                            @endif
+                                        </svg>
+                                    @else
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                                        </svg>
+                                    @endif
                                 </span>
                                 <span class="folder-item-name">{{ $folder->name }}</span>
                                 <span class="folder-item-count">{{ $folder->files_count }}</span>
