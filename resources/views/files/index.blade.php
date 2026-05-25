@@ -299,25 +299,23 @@
             </div>
 
             <div class="upload-tags-row">
-                <label class="upload-tags-label" for="upload-tags-input">
-                    <span class="upload-tags-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-                            <line x1="7" y1="7" x2="7.01" y2="7"/>
-                        </svg>
-                    </span>
-                    <span class="upload-tags-body">
-                        <strong>Теги</strong>
-                        <span>через кому: <code>відео, літо 2025, важливе</code>. Для незахищених файлів додаються як <code>#hashtag</code> у Telegram caption.</span>
-                    </span>
-                </label>
+                <span class="upload-tags-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                        <line x1="7" y1="7" x2="7.01" y2="7"/>
+                    </svg>
+                </span>
+                <div class="upload-tags-header">
+                    <label for="upload-tags-input"><strong>Теги</strong></label>
+                    <span class="upload-tags-hint">через кому · <code>відео, літо 2025</code> · для незахищених підставляються як <code>#hashtag</code> у Telegram</span>
+                </div>
                 <input
                     id="upload-tags-input"
                     type="text"
-                    class="field upload-tags-input"
+                    class="upload-tags-input"
                     name="tags"
                     maxlength="1000"
-                    placeholder="тег1, тег2"
+                    placeholder="тег1, тег2, ще_один_тег"
                     data-upload-tags
                     autocomplete="off"
                 >
