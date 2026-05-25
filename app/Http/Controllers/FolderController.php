@@ -22,12 +22,16 @@ class FolderController extends Controller
                 'max:100',
                 Rule::unique('file_folders', 'name')->where('user_id', $user->id),
             ],
+            'color' => ['nullable', 'string', Rule::in(array_keys(FileFolder::COLOR_PALETTE))],
         ], [
             'name.required' => 'Вкажіть назву папки.',
             'name.unique' => 'Папка з такою назвою вже існує.',
         ]);
 
-        $folder = $user->folders()->create($validated);
+        $folder = $user->folders()->create([
+            'name'  => $validated['name'],
+            'color' => FileFolder::normalizeColor($validated['color'] ?? null),
+        ]);
 
         return redirect()
             ->route('files.index', ['folder' => $folder->id])
@@ -47,16 +51,20 @@ class FolderController extends Controller
                     ->where('user_id', $request->user()->id)
                     ->ignore($folder->id),
             ],
+            'color' => ['nullable', 'string', Rule::in(array_keys(FileFolder::COLOR_PALETTE))],
         ], [
             'name.required' => 'Вкажіть назву папки.',
             'name.unique' => 'Папка з такою назвою вже існує.',
         ]);
 
-        $folder->update($validated);
+        $folder->update([
+            'name'  => $validated['name'],
+            'color' => FileFolder::normalizeColor($validated['color'] ?? null),
+        ]);
 
         return redirect()
             ->route('files.index', ['folder' => $folder->id])
-            ->with('status', 'Папку перейменовано.');
+            ->with('status', 'Папку оновлено.');
     }
 
     public function destroy(FileFolder $folder, ManagedFileStorageService $fileStorage): RedirectResponse

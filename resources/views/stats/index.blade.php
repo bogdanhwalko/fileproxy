@@ -78,6 +78,48 @@
         </div>
     </section>
 
+    @if (! empty($storageByCategory))
+        @php
+            $totalBytes = array_sum(array_column($storageByCategory, 'bytes'));
+            $stops = [];
+            $cumulative = 0;
+            foreach ($storageByCategory as $row) {
+                $start = $cumulative / max(1, $totalBytes) * 100;
+                $cumulative += $row['bytes'];
+                $end = $cumulative / max(1, $totalBytes) * 100;
+                $stops[] = $row['color'].' '.number_format($start, 4, '.', '').'% '.number_format($end, 4, '.', '').'%';
+            }
+            $conicGradient = 'conic-gradient(' . implode(', ', $stops) . ')';
+        @endphp
+        <section class="panel storage-breakdown" aria-label="Розподіл місця за типами файлів">
+            <div class="storage-breakdown-head">
+                <h2>Розподіл місця</h2>
+                <span class="storage-breakdown-total">{{ \App\Models\ManagedFile::formatBytes($totalBytes) }}</span>
+            </div>
+
+            <div class="storage-breakdown-body">
+                <div class="storage-donut" aria-hidden="true" style="--donut:{{ $conicGradient }}">
+                    <div class="storage-donut-hole">
+                        <strong>{{ count($storageByCategory) }}</strong>
+                        <span>{{ count($storageByCategory) === 1 ? 'тип' : (count($storageByCategory) < 5 ? 'типи' : 'типів') }}</span>
+                    </div>
+                </div>
+
+                <ul class="storage-breakdown-legend">
+                    @foreach ($storageByCategory as $row)
+                        @php $pct = $totalBytes > 0 ? round($row['bytes'] / $totalBytes * 100, 1) : 0; @endphp
+                        <li>
+                            <span class="legend-swatch" style="background:{{ $row['color'] }}"></span>
+                            <span class="legend-label">{{ $row['label'] }}</span>
+                            <span class="legend-bytes">{{ \App\Models\ManagedFile::formatBytes($row['bytes']) }}</span>
+                            <span class="legend-pct">{{ $pct }}%</span>
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        </section>
+    @endif
+
     <section class="stats-grid">
         <article class="panel stats-panel">
             <div class="stats-panel-header">

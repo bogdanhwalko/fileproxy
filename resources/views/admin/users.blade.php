@@ -82,7 +82,7 @@
                             <td>{{ $user->files_count }}</td>
                             <td>{{ $user->telegram_bot_tokens_count }}</td>
                             <td>{{ $user->telegram_storage_groups_count }}</td>
-                            <td class="muted">{{ $user->created_at->format('d.m.Y H:i') }}</td>
+                            <td class="muted">@reltime($user->created_at)</td>
                             <td>
                                 <div class="file-row-actions">
                                     <a class="button accent" href="{{ route('admin.users.show', $user) }}">Файли</a>

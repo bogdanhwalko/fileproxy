@@ -298,7 +298,7 @@
                                 </div>
                             @endif
                             <div class="file-tile-head">
-                                <span class="file-icon">{{ $file->type_label }}</span>
+                                <span class="file-icon file-icon-cat-{{ $file->type_category }}">{{ $file->type_label }}</span>
                                 <div class="file-tile-title">
                                     <strong title="{{ $file->original_name }}">{{ $file->original_name }}</strong>
                                     <span>{{ $file->mime_type ?? 'unknown' }}</span>
@@ -310,7 +310,7 @@
                             <div class="file-tile-meta">
                                 <span>{{ $file->folder?->name ?? 'Без папки' }}</span>
                                 <span>{{ $file->storage_label }}</span>
-                                <span>{{ $file->human_size }} · {{ $file->created_at->format('d.m.Y H:i') }}</span>
+                                <span>{{ $file->human_size }} · @reltime($file->created_at)</span>
                             </div>
                             <div class="file-tile-actions">
                                 @include('admin.partials.file-actions', ['user' => $user, 'file' => $file])
@@ -338,7 +338,7 @@
                                 <tr class="file-row-status-{{ $file->status }}" data-file-item>
                                     <td>
                                         <div class="file-table-name">
-                                            <span class="file-icon">{{ $file->type_label }}</span>
+                                            <span class="file-icon file-icon-cat-{{ $file->type_category }}">{{ $file->type_label }}</span>
                                             <div class="file-table-title">
                                                 <strong title="{{ $file->original_name }}">{{ $file->original_name }}</strong>
                                                 <span>{{ $file->mime_type ?? 'unknown' }}</span>
@@ -351,7 +351,7 @@
                                     <td class="muted">{{ $file->folder?->name ?? 'Без папки' }}</td>
                                     <td class="muted">{{ $file->storage_label }}</td>
                                     <td>{{ $file->human_size }}</td>
-                                    <td class="muted">{{ $file->created_at->format('d.m.Y H:i') }}</td>
+                                    <td class="muted">@reltime($file->created_at)</td>
                                     <td>
                                         <div class="file-row-actions">
                                             @include('admin.partials.file-actions', ['user' => $user, 'file' => $file])

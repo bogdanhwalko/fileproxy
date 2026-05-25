@@ -49,7 +49,7 @@
                         <tr>
                             <td>
                                 <div class="file-table-name">
-                                    <span class="file-icon">{{ $file->type_label }}</span>
+                                    <span class="file-icon file-icon-cat-{{ $file->type_category }}">{{ $file->type_label }}</span>
                                     <div class="file-table-title">
                                         <strong title="{{ $file->original_name }}">{{ $file->original_name }}</strong>
                                         <span>{{ $file->mime_type ?? 'unknown' }}</span>
@@ -58,7 +58,7 @@
                             </td>
                             <td class="muted">{{ $file->extension ? strtoupper($file->extension) : 'FILE' }}</td>
                             <td>{{ $file->human_size }}</td>
-                            <td class="muted">{{ $file->created_at->format('d.m.Y H:i') }}</td>
+                            <td class="muted">@reltime($file->created_at)</td>
                             <td>
                                 <div class="file-row-actions">
                                     @if ($file->is_previewable)

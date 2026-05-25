@@ -107,6 +107,53 @@ class ManagedFile extends Model
         return 'FILE';
     }
 
+    /**
+     * Coarse-grained type category used for color-coding badges in the UI.
+     * Returns one of: image, video, audio, document, spreadsheet, presentation,
+     * archive, code, design, font, ebook, other.
+     */
+    public function getTypeCategoryAttribute(): string
+    {
+        $mime = strtolower((string) $this->mime_type);
+        $ext  = strtolower((string) $this->extension);
+
+        if (str_starts_with($mime, 'image/') || in_array($ext, ['jpg','jpeg','png','gif','webp','svg','svgz','bmp','tiff','ico','heic','avif'], true)) {
+            return 'image';
+        }
+        if (str_starts_with($mime, 'video/') || in_array($ext, ['mp4','mov','avi','mkv','webm','flv','wmv','m4v','mpeg','3gp'], true)) {
+            return 'video';
+        }
+        if (str_starts_with($mime, 'audio/') || in_array($ext, ['mp3','wav','ogg','flac','aac','m4a','wma','opus'], true)) {
+            return 'audio';
+        }
+        if (in_array($ext, ['xls','xlsx','csv','ods','numbers'], true)) {
+            return 'spreadsheet';
+        }
+        if (in_array($ext, ['ppt','pptx','odp','key'], true)) {
+            return 'presentation';
+        }
+        if (in_array($ext, ['pdf','doc','docx','odt','rtf','txt','md','tex','pages'], true) || str_starts_with($mime, 'text/')) {
+            return 'document';
+        }
+        if (in_array($ext, ['zip','rar','7z','tar','gz','bz2','xz','tgz','iso'], true)) {
+            return 'archive';
+        }
+        if (in_array($ext, ['php','js','ts','jsx','tsx','py','rb','go','rs','java','c','cpp','cs','swift','kt','sh','sql','json','xml','yml','yaml','html','htm','css','scss','vue'], true)) {
+            return 'code';
+        }
+        if (in_array($ext, ['psd','ai','sketch','fig','xd','blend','obj','stl'], true)) {
+            return 'design';
+        }
+        if (in_array($ext, ['ttf','otf','woff','woff2','eot'], true)) {
+            return 'font';
+        }
+        if (in_array($ext, ['epub','mobi','fb2','azw','azw3'], true)) {
+            return 'ebook';
+        }
+
+        return 'other';
+    }
+
     public function getIsImageAttribute(): bool
     {
         $mime = strtolower((string) $this->mime_type);

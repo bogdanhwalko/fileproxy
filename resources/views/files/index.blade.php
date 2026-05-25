@@ -399,6 +399,20 @@
                 <form class="folders-form-v2" action="{{ route('folders.store') }}" method="post" data-ajax-form data-folders-form hidden>
                     @csrf
                     <input class="field" type="text" name="name" value="{{ old('name') }}" placeholder="Назва нової папки" maxlength="100" data-folders-form-input required>
+
+                    <div class="folder-color-picker" role="radiogroup" aria-label="Колір папки">
+                        <label class="folder-color-swatch folder-color-swatch-none">
+                            <input type="radio" name="color" value="" checked>
+                            <span aria-hidden="true">⌀</span>
+                        </label>
+                        @foreach (\App\Models\FileFolder::COLOR_PALETTE as $colorKey => $colorHex)
+                            <label class="folder-color-swatch" style="--swatch:{{ $colorHex }}" title="{{ ucfirst($colorKey) }}">
+                                <input type="radio" name="color" value="{{ $colorKey }}">
+                                <span aria-hidden="true"></span>
+                            </label>
+                        @endforeach
+                    </div>
+
                     <div class="folders-form-actions">
                         <button class="button secondary" type="button" data-folders-form-cancel>Скасувати</button>
                         <button class="button" type="submit">Створити</button>
@@ -435,7 +449,8 @@
                     @endif
 
                     @foreach ($folders as $folder)
-                        <div class="folder-row-v2">
+                        @php $folderColor = $folder->color && isset(\App\Models\FileFolder::COLOR_PALETTE[$folder->color]) ? \App\Models\FileFolder::COLOR_PALETTE[$folder->color] : null; @endphp
+                        <div class="folder-row-v2 {{ $folderColor ? 'folder-row-colored' : '' }}" @if ($folderColor) style="--folder-color:{{ $folderColor }}" @endif>
                             <a class="folder-item {{ $activeFolder?->id === $folder->id ? 'is-active' : '' }}" href="{{ route('files.index', ['folder' => $folder->id]) }}">
                                 <span class="folder-item-icon" aria-hidden="true">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -617,7 +632,7 @@
                                 </div>
                             @endif
                             <div class="file-tile-head">
-                                <span class="file-icon">{{ $file->type_label }}</span>
+                                <span class="file-icon file-icon-cat-{{ $file->type_category }}">{{ $file->type_label }}</span>
                                 <div class="file-tile-title">
                                     <strong title="{{ $file->original_name }}">
                                         @if ($file->is_protected)
@@ -634,14 +649,14 @@
                             <div class="file-tile-meta">
                                 <span>{{ $file->folder?->name ?? 'Без папки' }}</span>
                                 <span>{{ $file->storage_label }}</span>
-                                <span>{{ $file->human_size }} · {{ $file->created_at->format('d.m.Y H:i') }}</span>
+                                <span>{{ $file->human_size }} · @reltime($file->created_at)</span>
                             </div>
                             <div class="file-tile-actions">
                                 @include('files.partials.actions', ['file' => $file])
                             </div>
                         </article>
                     @empty
-                        <div class="empty">У цьому розділі ще немає файлів. Додайте файл через форму завантаження.</div>
+                        @include('files.partials.empty-state')
                     @endforelse
                 </div>
             @else
@@ -678,7 +693,7 @@
                                     </td>
                                     <td>
                                         <div class="file-table-name">
-                                            <span class="file-icon">{{ $file->type_label }}</span>
+                                            <span class="file-icon file-icon-cat-{{ $file->type_category }}">{{ $file->type_label }}</span>
                                             <div class="file-table-title">
                                                 <strong title="{{ $file->original_name }}">
                                                     @if ($file->is_protected)
@@ -706,7 +721,7 @@
                                     <td class="muted">{{ $file->folder?->name ?? 'Без папки' }}</td>
                                     <td class="muted">{{ $file->storage_label }}</td>
                                     <td>{{ $file->human_size }}</td>
-                                    <td class="muted">{{ $file->created_at->format('d.m.Y H:i') }}</td>
+                                    <td class="muted">@reltime($file->created_at)</td>
                                     <td>
                                         <div class="file-row-actions">
                                             @include('files.partials.actions', ['file' => $file])
@@ -716,7 +731,7 @@
                             @empty
                                 <tr>
                                     <td colspan="7">
-                                        <div class="empty">У цьому розділі ще немає файлів. Додайте файл через форму завантаження.</div>
+                                        @include('files.partials.empty-state')
                                     </td>
                                 </tr>
                             @endforelse
@@ -1876,6 +1891,12 @@
 
                 let selectors;
 
+                // Capture current file IDs so newly-arrived rows can fade-in
+                const previousFileIds = new Set();
+                document.querySelectorAll('[data-file-item][data-file-id]').forEach((row) => {
+                    previousFileIds.add(row.dataset.fileId);
+                });
+
                 if (region === 'files') {
                     // Filter / pagination — only refresh the file list region
                     selectors = ['[data-flash-area]', '[data-files-region]'];
@@ -1906,6 +1927,14 @@
 
                     if (current && next) {
                         current.replaceWith(next);
+                    }
+                });
+
+                // Mark new rows so CSS can fade them in
+                document.querySelectorAll('[data-file-item][data-file-id]').forEach((row) => {
+                    if (! previousFileIds.has(row.dataset.fileId)) {
+                        row.classList.add('fp-row-just-added');
+                        setTimeout(() => row.classList.remove('fp-row-just-added'), 1500);
                     }
                 });
 

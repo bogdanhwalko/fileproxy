@@ -31,7 +31,21 @@
                 <span>Назва папки</span>
                 <input class="field" type="text" name="name" value="{{ $folder->name }}" maxlength="100" required>
             </label>
-            <button class="button secondary" type="submit">Перейменувати</button>
+
+            <div class="folder-color-picker" role="radiogroup" aria-label="Колір папки">
+                <label class="folder-color-swatch folder-color-swatch-none">
+                    <input type="radio" name="color" value="" @checked(!$folder->color)>
+                    <span aria-hidden="true">⌀</span>
+                </label>
+                @foreach (\App\Models\FileFolder::COLOR_PALETTE as $colorKey => $colorHex)
+                    <label class="folder-color-swatch" style="--swatch:{{ $colorHex }}" title="{{ ucfirst($colorKey) }}">
+                        <input type="radio" name="color" value="{{ $colorKey }}" @checked($folder->color === $colorKey)>
+                        <span aria-hidden="true"></span>
+                    </label>
+                @endforeach
+            </div>
+
+            <button class="button secondary" type="submit">Зберегти</button>
         </form>
 
         <div class="share-settings {{ $folder->share_token ? 'is-enabled' : '' }}">
