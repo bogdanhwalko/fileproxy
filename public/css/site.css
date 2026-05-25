@@ -8572,3 +8572,136 @@ tr[data-file-item].is-selected td:first-child {
         justify-content: space-between;
     }
 }
+
+/* ============================================================
+   Sidebar controls: search + sort + collapsible folders/tags.
+   Compact toolbar above each list; collapsed lists show top N
+   and expand on demand to a scrollable area.
+   ============================================================ */
+.sidebar-controls {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px;
+    align-items: center;
+    margin: 6px 4px 8px;
+}
+.sidebar-search-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.sidebar-search-wrap svg {
+    position: absolute;
+    left: 8px;
+    width: 14px;
+    height: 14px;
+    color: #94a3b8;
+    pointer-events: none;
+}
+.sidebar-search-wrap input[type="search"] {
+    width: 100%;
+    padding: 6px 10px 6px 28px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+    font-size: 12.5px;
+    color: #0f172a;
+    transition: border-color 0.12s, background 0.12s, box-shadow 0.12s;
+}
+.sidebar-search-wrap input[type="search"]:focus {
+    outline: none;
+    background: #fff;
+    border-color: #c7d2fe;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+.sidebar-search-wrap input[type="search"]::-webkit-search-cancel-button {
+    appearance: none;
+    height: 14px;
+    width: 14px;
+    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.4' stroke-linecap='round'><line x1='6' y1='6' x2='18' y2='18'/><line x1='18' y1='6' x2='6' y2='18'/></svg>") center/contain no-repeat;
+    cursor: pointer;
+}
+.sidebar-sort {
+    display: inline-flex;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f8fafc;
+}
+.sidebar-sort button {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: #64748b;
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 1;
+    padding: 6px 8px;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+}
+.sidebar-sort button + button {
+    border-left: 1px solid #e2e8f0;
+}
+.sidebar-sort button:hover {
+    color: #0f172a;
+}
+.sidebar-sort button.is-active {
+    background: #4338ca;
+    color: #fff;
+}
+
+/* Hidden items: filter miss vs collapsed overflow.
+   Both use display:none; separate classes so JS can reason about them. */
+.sidebar-hidden { display: none !important; }
+.sidebar-collapsed { display: none; }
+
+/* When expanded, cap the list height so a 100-folder sidebar doesn't push
+   the viewport. The scrollable area lives inside [data-sidebar-list]. */
+[data-sidebar-section].sidebar-expanded [data-sidebar-list] {
+    max-height: 50vh;
+    overflow-y: auto;
+    padding-right: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+}
+[data-sidebar-section].sidebar-expanded [data-sidebar-list]::-webkit-scrollbar {
+    width: 6px;
+}
+[data-sidebar-section].sidebar-expanded [data-sidebar-list]::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.sidebar-show-all {
+    display: block;
+    width: calc(100% - 8px);
+    margin: 6px 4px 8px;
+    padding: 6px 10px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+    background: transparent;
+    color: #4338ca;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.sidebar-show-all:hover {
+    background: #eef2ff;
+    border-color: #c7d2fe;
+    color: #3730a3;
+}
+.sidebar-show-all[hidden] {
+    display: none;
+}
+
+@media (max-width: 720px) {
+    .sidebar-controls {
+        grid-template-columns: 1fr;
+    }
+    [data-sidebar-section].sidebar-expanded [data-sidebar-list] {
+        max-height: 60vh;
+    }
+}

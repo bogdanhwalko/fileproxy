@@ -425,8 +425,25 @@
                     </div>
                 </form>
 
-                <nav class="folders-list-v2" aria-label="Список папок">
-                    <a class="folder-item folder-item-pinned {{ $folderFilter === 'all' ? 'is-active' : '' }}" href="{{ route('files.index') }}">
+                <div data-sidebar-section="folders">
+                @if ($folders->count() > 8)
+                    <div class="sidebar-controls">
+                        <div class="sidebar-search-wrap">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <circle cx="11" cy="11" r="7"/>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                            </svg>
+                            <input type="search" placeholder="Пошук папок…" data-sidebar-search aria-label="Пошук папок">
+                        </div>
+                        <div class="sidebar-sort" role="group" aria-label="Сортування">
+                            <button type="button" class="is-active" data-sidebar-sort="usage" title="За кількістю файлів">↓ файли</button>
+                            <button type="button" data-sidebar-sort="alpha" title="За алфавітом">A–Я</button>
+                        </div>
+                    </div>
+                @endif
+
+                <nav class="folders-list-v2 sidebar-list" aria-label="Список папок" data-sidebar-list>
+                    <a class="folder-item folder-item-pinned {{ $folderFilter === 'all' ? 'is-active' : '' }}" href="{{ route('files.index') }}" data-sidebar-pin>
                         <span class="folder-item-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                                 <rect x="3" y="3" width="7" height="7" rx="1.5"/>
@@ -439,7 +456,7 @@
                         <span class="folder-item-count">{{ $stats['total'] }}</span>
                     </a>
 
-                    <a class="folder-item folder-item-pinned {{ $folderFilter === 'root' ? 'is-active' : '' }}" href="{{ route('files.index', ['folder' => 'root']) }}">
+                    <a class="folder-item folder-item-pinned {{ $folderFilter === 'root' ? 'is-active' : '' }}" href="{{ route('files.index', ['folder' => 'root']) }}" data-sidebar-pin>
                         <span class="folder-item-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="12" cy="12" r="9"/>
@@ -451,12 +468,16 @@
                     </a>
 
                     @if ($folders->isNotEmpty())
-                        <div class="folders-divider" aria-hidden="true"></div>
+                        <div class="folders-divider" aria-hidden="true" data-sidebar-pin></div>
                     @endif
 
                     @foreach ($folders as $folder)
                         @php $folderColor = $folder->color && isset(\App\Models\FileFolder::COLOR_PALETTE[$folder->color]) ? \App\Models\FileFolder::COLOR_PALETTE[$folder->color] : null; @endphp
-                        <div class="folder-row-v2 {{ $folderColor ? 'folder-row-colored' : '' }}" @if ($folderColor) style="--folder-color:{{ $folderColor }}" @endif>
+                        <div class="folder-row-v2 {{ $folderColor ? 'folder-row-colored' : '' }}"
+                            @if ($folderColor) style="--folder-color:{{ $folderColor }}" @endif
+                            data-sidebar-item
+                            data-name="{{ mb_strtolower($folder->name) }}"
+                            data-count="{{ $folder->files_count }}">
                             <a class="folder-item {{ $activeFolder?->id === $folder->id ? 'is-active' : '' }}" href="{{ route('files.index', ['folder' => $folder->id]) }}">
                                 <span class="folder-item-icon" aria-hidden="true">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -473,6 +494,13 @@
                     @endforeach
                 </nav>
 
+                @if ($folders->count() > 8)
+                    <button type="button" class="sidebar-show-all" data-sidebar-show-all data-collapsed-count="8" hidden>
+                        Показати всі ({{ $folders->count() - 8 }} ще) ▾
+                    </button>
+                @endif
+                </div>{{-- /data-sidebar-section=folders --}}
+
                 @if ($tags->isNotEmpty())
                     <header class="folders-header-v2 folders-header-tags">
                         <div class="folders-header-text">
@@ -480,22 +508,51 @@
                             <span class="folders-header-count">{{ $tags->count() }}</span>
                         </div>
                     </header>
-                    <nav class="tag-list" aria-label="Список тегів">
+
+                    <div data-sidebar-section="tags">
                         @if ($activeTag)
-                            <a class="tag-chip tag-chip-clear" href="{{ route('files.index', array_filter(['folder' => $folderFilter !== 'all' ? $folderFilter : null, 'view' => $display])) }}">
+                            <a class="tag-chip tag-chip-clear" href="{{ route('files.index', array_filter(['folder' => $folderFilter !== 'all' ? $folderFilter : null, 'view' => $display])) }}" data-sidebar-pin>
                                 ✕ Скинути тег
                             </a>
                         @endif
-                        @foreach ($tags as $tag)
-                            <a
-                                class="tag-chip {{ $activeTag?->id === $tag->id ? 'is-active' : '' }}"
-                                href="{{ route('files.index', array_filter(['folder' => $folderFilter !== 'all' ? $folderFilter : null, 'view' => $display, 'tag' => $tag->name])) }}"
-                            >
-                                #{{ $tag->name }}
-                                <span class="tag-chip-count">{{ $tag->files_count }}</span>
-                            </a>
-                        @endforeach
-                    </nav>
+
+                        @if ($tags->count() > 8)
+                            <div class="sidebar-controls">
+                                <div class="sidebar-search-wrap">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <circle cx="11" cy="11" r="7"/>
+                                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                                    </svg>
+                                    <input type="search" placeholder="Пошук тегів…" data-sidebar-search aria-label="Пошук тегів">
+                                </div>
+                                <div class="sidebar-sort" role="group" aria-label="Сортування">
+                                    <button type="button" class="is-active" data-sidebar-sort="usage" title="За частотою">↓ файли</button>
+                                    <button type="button" data-sidebar-sort="alpha" title="За алфавітом">A–Я</button>
+                                </div>
+                            </div>
+                        @endif
+
+                        <nav class="tag-list sidebar-list" aria-label="Список тегів" data-sidebar-list>
+                            @foreach ($tags as $tag)
+                                <a
+                                    class="tag-chip {{ $activeTag?->id === $tag->id ? 'is-active' : '' }}"
+                                    href="{{ route('files.index', array_filter(['folder' => $folderFilter !== 'all' ? $folderFilter : null, 'view' => $display, 'tag' => $tag->name])) }}"
+                                    data-sidebar-item
+                                    data-name="{{ mb_strtolower($tag->name) }}"
+                                    data-count="{{ $tag->files_count }}"
+                                >
+                                    #{{ $tag->name }}
+                                    <span class="tag-chip-count">{{ $tag->files_count }}</span>
+                                </a>
+                            @endforeach
+                        </nav>
+
+                        @if ($tags->count() > 8)
+                            <button type="button" class="sidebar-show-all" data-sidebar-show-all data-collapsed-count="8" hidden>
+                                Показати всі (+{{ $tags->count() - 8 }} ще) ▾
+                            </button>
+                        @endif
+                    </div>
                 @endif
             </section>
         </aside>
@@ -1952,6 +2009,7 @@
                 }
 
                 initDropzone();
+                document.dispatchEvent(new CustomEvent('sidebar:refresh'));
             }
 
             function syncFolderCounts(doc) {
@@ -2267,6 +2325,7 @@
             initActionPanelTagChips();
             initShareToggle();
             initProtectHint();
+            initSidebarControls();
 
             function initProtectHint() {
                 document.addEventListener('change', (e) => {
@@ -2274,6 +2333,136 @@
                     if (! cb) return;
                     const hint = document.querySelector('[data-upload-protect-hint]');
                     if (hint) hint.toggleAttribute('hidden', ! cb.checked);
+                });
+            }
+
+            /* ====================================================
+               Sidebar: search + sort + collapse for folders/tags.
+               One controller per [data-sidebar-section]; pinned items
+               (data-sidebar-pin) stay in place, active item floats to
+               top, the rest sort by usage / alpha and collapse to
+               top N until "Показати всі" is clicked.
+               ==================================================== */
+            function initSidebarControls() {
+                const setupSection = (section) => {
+                    if (section.dataset.scBound) return;
+                    section.dataset.scBound = '1';
+
+                    const list = section.querySelector('[data-sidebar-list]');
+                    if (! list) return;
+
+                    const search = section.querySelector('[data-sidebar-search]');
+                    const sortButtons = Array.from(section.querySelectorAll('[data-sidebar-sort]'));
+                    const showAllBtn = section.querySelector('[data-sidebar-show-all]');
+                    const collapsedCount = parseInt(showAllBtn?.dataset.collapsedCount || '8', 10);
+
+                    const state = {
+                        sort: 'usage',
+                        expanded: false,
+                        query: '',
+                    };
+
+                    const isItemActive = (el) =>
+                        el.classList.contains('is-active') || !! el.querySelector('.is-active');
+
+                    const items = () => Array.from(list.querySelectorAll(':scope > [data-sidebar-item]'));
+
+                    const apply = () => {
+                        const all = items();
+
+                        // Sort: active first, then by selected criterion
+                        all.sort((a, b) => {
+                            const aActive = isItemActive(a);
+                            const bActive = isItemActive(b);
+                            if (aActive && ! bActive) return -1;
+                            if (bActive && ! aActive) return 1;
+                            if (state.sort === 'alpha') {
+                                return (a.dataset.name || '').localeCompare(b.dataset.name || '', 'uk');
+                            }
+                            const ac = parseInt(a.dataset.count || '0', 10);
+                            const bc = parseInt(b.dataset.count || '0', 10);
+                            if (bc !== ac) return bc - ac;
+                            return (a.dataset.name || '').localeCompare(b.dataset.name || '', 'uk');
+                        });
+
+                        // Re-append in sorted order (pinned items stay first since they aren't [data-sidebar-item])
+                        all.forEach((el) => list.appendChild(el));
+
+                        const q = state.query.trim().toLowerCase();
+                        let visibleCount = 0;
+
+                        all.forEach((el) => {
+                            const matches = ! q || (el.dataset.name || '').includes(q);
+
+                            if (! matches) {
+                                el.classList.add('sidebar-hidden');
+                                el.classList.remove('sidebar-collapsed');
+                                return;
+                            }
+                            el.classList.remove('sidebar-hidden');
+
+                            const isActive = isItemActive(el);
+
+                            if (! state.expanded && ! q && ! isActive && visibleCount >= collapsedCount) {
+                                el.classList.add('sidebar-collapsed');
+                            } else {
+                                el.classList.remove('sidebar-collapsed');
+                                visibleCount++;
+                            }
+                        });
+
+                        if (showAllBtn) {
+                            if (q || all.length <= collapsedCount) {
+                                showAllBtn.hidden = true;
+                            } else {
+                                showAllBtn.hidden = false;
+                                if (state.expanded) {
+                                    showAllBtn.textContent = 'Згорнути ▴';
+                                } else {
+                                    const remaining = all.length - collapsedCount;
+                                    showAllBtn.textContent = `Показати всі (+${remaining} ще) ▾`;
+                                }
+                            }
+                        }
+
+                        section.classList.toggle('sidebar-expanded', state.expanded);
+                    };
+
+                    if (search) {
+                        search.addEventListener('input', () => {
+                            state.query = search.value;
+                            apply();
+                        });
+                    }
+
+                    sortButtons.forEach((btn) => {
+                        btn.addEventListener('click', () => {
+                            state.sort = btn.dataset.sidebarSort;
+                            sortButtons.forEach((b) => b.classList.toggle('is-active', b === btn));
+                            apply();
+                        });
+                    });
+
+                    if (showAllBtn) {
+                        showAllBtn.addEventListener('click', () => {
+                            state.expanded = ! state.expanded;
+                            apply();
+                        });
+                    }
+
+                    // Expose for external triggers (e.g. AJAX nav changes active item)
+                    section._scApply = apply;
+
+                    apply();
+                };
+
+                document.querySelectorAll('[data-sidebar-section]').forEach(setupSection);
+
+                // Re-apply after AJAX navigation: active state may have moved to a different item
+                document.addEventListener('sidebar:refresh', () => {
+                    document.querySelectorAll('[data-sidebar-section]').forEach((section) => {
+                        if (typeof section._scApply === 'function') section._scApply();
+                    });
                 });
             }
 
