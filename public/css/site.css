@@ -8490,12 +8490,16 @@ tr[data-file-item].is-selected td:first-child {
     white-space: nowrap;
 }
 
-.upload-protect-switch input[type="checkbox"] {
+/* Visually hide native checkbox, keep it focusable and clickable via the wrapping label */
+.upload-protect-checkbox-input {
     position: absolute;
-    width: 0;
-    height: 0;
-    opacity: 0;
-    pointer-events: none;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
 }
 
 /* Reuse .fa-switch-track / .fa-switch-knob from action-panel CSS */
@@ -8519,11 +8523,15 @@ tr[data-file-item].is-selected td:first-child {
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.3);
     transition: transform 0.2s;
 }
-.upload-protect-switch input:checked ~ .fa-switch-track {
+/* Input is now BEFORE track in DOM → sibling selector matches */
+.upload-protect-checkbox-input:checked ~ .fa-switch-track {
     background: #4f46e5;
 }
-.upload-protect-switch input:checked ~ .fa-switch-track .fa-switch-knob {
+.upload-protect-checkbox-input:checked ~ .fa-switch-track .fa-switch-knob {
     transform: translateX(14px);
+}
+.upload-protect-checkbox-input:focus-visible ~ .fa-switch-track {
+    box-shadow: 0 0 0 3px rgb(79 70 229 / 25%);
 }
 
 /* Expandable hint that appears only when protect is active */

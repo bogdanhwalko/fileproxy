@@ -323,6 +323,7 @@
 
                 <label class="upload-protect-switch" data-upload-protect
                     title="Розбити на зашифровані частини, розкидати по групах. Максимум {{ $protectedUploadMaxMb }} МБ. Працює тільки з вибраною своєю Telegram-групою.">
+                    <input type="checkbox" name="is_protected" value="1" data-upload-protect-checkbox class="upload-protect-checkbox-input">
                     <span class="upload-protect-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="3" y="11" width="18" height="11" rx="2"/>
@@ -331,7 +332,6 @@
                     </span>
                     <span class="upload-protect-label">Захистити</span>
                     <span class="fa-switch-track"><span class="fa-switch-knob"></span></span>
-                    <input type="checkbox" name="is_protected" value="1" data-upload-protect-checkbox>
                 </label>
             </div>
 
