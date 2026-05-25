@@ -298,27 +298,27 @@
                 </div>
             </div>
 
-            <div class="upload-tags-row">
+            <div class="upload-tags" data-upload-tags-container>
                 <span class="upload-tags-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
                         <line x1="7" y1="7" x2="7.01" y2="7"/>
                     </svg>
                 </span>
-                <div class="upload-tags-header">
-                    <label for="upload-tags-input"><strong>Теги</strong></label>
-                    <span class="upload-tags-hint">через кому · <code>відео, літо 2025</code> · для незахищених підставляються як <code>#hashtag</code> у Telegram</span>
+                <span class="upload-tags-label-text">Теги</span>
+                <div class="upload-tags-field" data-upload-tags-chips>
+                    <input
+                        type="text"
+                        class="upload-tags-typing"
+                        data-upload-tags-typing
+                        maxlength="64"
+                        placeholder="додати тег і Enter"
+                        autocomplete="off"
+                    >
                 </div>
-                <input
-                    id="upload-tags-input"
-                    type="text"
-                    class="upload-tags-input"
-                    name="tags"
-                    maxlength="1000"
-                    placeholder="тег1, тег2, ще_один_тег"
-                    data-upload-tags
-                    autocomplete="off"
-                >
+                <button type="button" class="upload-tags-hint-toggle" data-upload-tags-hint
+                    title="Розділяй комою або Enter. Для незахищених файлів теги додаються як #hashtag у Telegram caption.">i</button>
+                <input type="hidden" name="tags" value="" data-upload-tags>
             </div>
             <label class="upload-protect-toggle" data-upload-protect>
                 <input type="checkbox" name="is_protected" value="1" data-upload-protect-checkbox>
@@ -2223,6 +2223,130 @@
                     console.warn('fp-uploader refresh failed:', e);
                 }
             });
+
+            /* ====================================================
+               Tag chip input: convert typed text + comma/Enter into a removable chip.
+               Hidden [name="tags"] stays in sync as a CSV for the form submit.
+               ==================================================== */
+            initTagChipInput();
+
+            function initTagChipInput() {
+                document.querySelectorAll('[data-upload-tags-container]').forEach(setupOne);
+
+                function setupOne(container) {
+                    if (container.dataset.tagsInit === '1') return;
+                    container.dataset.tagsInit = '1';
+
+                    const chipsArea = container.querySelector('[data-upload-tags-chips]');
+                    const typing    = container.querySelector('[data-upload-tags-typing]');
+                    const hidden    = container.querySelector('[data-upload-tags]');
+                    if (! chipsArea || ! typing || ! hidden) return;
+
+                    const state = new Set();
+
+                    function syncHidden() {
+                        hidden.value = Array.from(state).join(', ');
+                    }
+
+                    function normalize(raw) {
+                        return String(raw || '')
+                            .trim()
+                            .toLowerCase()
+                            .replace(/\s+/g, ' ')
+                            .slice(0, 64);
+                    }
+
+                    function addTag(raw) {
+                        const name = normalize(raw);
+                        if (! name || state.has(name)) return;
+                        state.add(name);
+                        renderChip(name);
+                        syncHidden();
+                    }
+
+                    function removeTag(name) {
+                        if (! state.delete(name)) return;
+                        const chip = chipsArea.querySelector('[data-chip-name="' + cssEscape(name) + '"]');
+                        if (chip) chip.remove();
+                        syncHidden();
+                    }
+
+                    function cssEscape(s) {
+                        return (window.CSS && CSS.escape) ? CSS.escape(s) : s.replace(/["\\]/g, '\\$&');
+                    }
+
+                    function renderChip(name) {
+                        const chip = document.createElement('span');
+                        chip.className = 'upload-tag-chip';
+                        chip.dataset.chipName = name;
+                        chip.innerHTML = '<span class="upload-tag-chip-text"></span><button type="button" class="upload-tag-chip-remove" aria-label="Видалити тег">✕</button>';
+                        chip.querySelector('.upload-tag-chip-text').textContent = name;
+                        chip.querySelector('.upload-tag-chip-remove').addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            removeTag(name);
+                            typing.focus();
+                        });
+                        chipsArea.insertBefore(chip, typing);
+                    }
+
+                    function flushBuffer() {
+                        const v = typing.value;
+                        if (! v) return;
+                        const parts = v.split(/[,;\n]/);
+                        const tail  = parts.pop();
+                        parts.forEach((p) => addTag(p));
+                        typing.value = tail || '';
+                    }
+
+                    typing.addEventListener('input', flushBuffer);
+
+                    typing.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter' || e.key === 'Tab') {
+                            if (typing.value.trim() !== '') {
+                                e.preventDefault();
+                                addTag(typing.value);
+                                typing.value = '';
+                            }
+                        } else if (e.key === 'Backspace' && typing.value === '' && state.size > 0) {
+                            const last = Array.from(state).pop();
+                            removeTag(last);
+                        }
+                    });
+
+                    typing.addEventListener('blur', () => {
+                        if (typing.value.trim() !== '') {
+                            addTag(typing.value);
+                            typing.value = '';
+                        }
+                    });
+
+                    // Click anywhere in the container focuses the typing input
+                    container.addEventListener('click', (e) => {
+                        if (e.target === typing) return;
+                        if (e.target.closest('.upload-tag-chip-remove')) return;
+                        typing.focus();
+                    });
+
+                    // Form submit fallback: ensure unflushed text is captured
+                    const form = container.closest('form');
+                    if (form) {
+                        form.addEventListener('submit', () => {
+                            if (typing.value.trim() !== '') {
+                                addTag(typing.value);
+                                typing.value = '';
+                            }
+                            syncHidden();
+                        }, true); // capture, runs before uploader.js submit handler
+                    }
+
+                    // Seed initial value (e.g. when form is re-rendered with old input)
+                    const initial = hidden.value || '';
+                    if (initial) {
+                        initial.split(/[,;]/).forEach((p) => addTag(p));
+                    }
+                }
+            }
 
             /* ====================================================
                Image preview fallback: when a tile thumbnail fails to load

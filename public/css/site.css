@@ -7551,99 +7551,135 @@ tr[data-file-item].is-selected td:first-child {
 
 /* === Tags === */
 
-/* Upload form: tag input — matches .upload-control card style */
-.upload-tags-row {
-    display: grid;
-    grid-template-columns: 44px minmax(0, 1fr);
-    gap: 14px;
+/* Upload form: compact tag chip-input */
+.upload-tags {
+    display: flex;
     align-items: center;
-    margin-top: 14px;
-    padding: 12px 14px;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 6px 10px 6px 8px;
     border: 1px solid var(--line, #e2e8f0);
-    border-radius: 12px;
+    border-radius: 10px;
     background: var(--surface, #fff);
-    transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+    transition: border-color 160ms ease, box-shadow 160ms ease;
+    cursor: text;
 }
-.upload-tags-row:focus-within {
+.upload-tags:hover { border-color: var(--line-strong, #cbd5e1); }
+.upload-tags:focus-within {
     border-color: var(--primary, #4f46e5);
-    background: var(--surface, #fff);
-    box-shadow: 0 0 0 4px rgb(79 70 229 / 12%);
+    box-shadow: 0 0 0 3px rgb(79 70 229 / 12%);
 }
 
 .upload-tags-icon {
-    grid-row: span 2;
-    align-self: start;
-    width: 44px;
-    height: 44px;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
     display: grid;
     place-items: center;
-    border-radius: 11px;
+    border-radius: 7px;
     background: #fef3c7;
     color: #b45309;
 }
-.upload-tags-icon svg { width: 22px; height: 22px; }
+.upload-tags-icon svg { width: 16px; height: 16px; }
 
-.upload-tags-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    min-width: 0;
-}
-.upload-tags-header strong {
-    color: var(--muted, #64748b);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-}
-.upload-tags-hint {
+.upload-tags-label-text {
+    flex-shrink: 0;
     color: var(--muted, #64748b);
     font-size: 11.5px;
-    line-height: 1.45;
-    text-align: right;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.upload-tags-field {
     flex: 1;
-    min-width: 0;
+    min-width: 140px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 6px;
+    padding: 2px 0;
 }
-.upload-tags-hint code {
-    background: #e2e8f0;
-    color: #334155;
-    padding: 1px 6px;
-    border-radius: 4px;
+
+.upload-tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 4px 2px 9px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #4338ca;
+    font-size: 12.5px;
+    font-weight: 500;
+    line-height: 1.3;
+    max-width: 100%;
+    overflow: hidden;
+}
+.upload-tag-chip-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.upload-tag-chip-remove {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    background: rgba(67, 56, 202, 0.14);
+    color: #4338ca;
+    border-radius: 50%;
+    cursor: pointer;
     font-size: 11px;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    line-height: 1;
+    padding: 0;
+    transition: background 0.12s, transform 0.12s;
+}
+.upload-tag-chip-remove:hover {
+    background: rgba(67, 56, 202, 0.32);
+    transform: scale(1.06);
 }
 
-.upload-tags-input {
-    grid-column: 2;
-    width: 100%;
-    padding: 8px 12px;
-    border: 1px solid var(--line, #e2e8f0);
-    border-radius: 9px;
-    background: var(--surface-subtle, #f8fafc);
+.upload-tags-typing {
+    flex: 1;
+    min-width: 80px;
+    border: 0;
+    background: transparent;
     font: inherit;
-    font-size: 14px;
+    font-size: 13.5px;
     color: var(--ink, #0f172a);
-    transition: border-color 160ms ease, background 160ms ease;
-}
-.upload-tags-input::placeholder { color: #94a3b8; }
-.upload-tags-input:hover { border-color: var(--line-strong, #cbd5e1); }
-.upload-tags-input:focus {
+    padding: 4px 2px;
     outline: none;
-    border-color: var(--primary, #4f46e5);
-    background: var(--surface, #fff);
+}
+.upload-tags-typing::placeholder { color: #94a3b8; }
+
+.upload-tags-hint-toggle {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    background: transparent;
+    color: #94a3b8;
+    border-radius: 50%;
+    cursor: help;
+    font-size: 11.5px;
+    font-style: italic;
+    font-weight: 700;
+    line-height: 1;
+    padding: 0;
+    transition: background 0.12s, color 0.12s;
+}
+.upload-tags-hint-toggle:hover {
+    background: #f1f5f9;
+    color: #475569;
 }
 
-@media (max-width: 720px) {
-    .upload-tags-row {
-        grid-template-columns: 36px minmax(0, 1fr);
-        gap: 10px;
-        padding: 10px 12px;
-    }
-    .upload-tags-icon { width: 36px; height: 36px; }
-    .upload-tags-icon svg { width: 18px; height: 18px; }
-    .upload-tags-header { flex-direction: column; align-items: flex-start; gap: 2px; }
-    .upload-tags-hint { text-align: left; }
+@media (max-width: 540px) {
+    .upload-tags-label-text { display: none; }
 }
 
 /* Sidebar tag list */
