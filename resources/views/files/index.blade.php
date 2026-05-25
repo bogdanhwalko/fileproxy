@@ -647,21 +647,6 @@
                         </a>
                     @endif
 
-                    <div class="view-toggle" aria-label="Вигляд списку файлів">
-                        <a class="button secondary {{ $display === 'table' ? 'active' : '' }}" href="{{ route('files.index', array_merge(request()->except(['page', 'view', 'image_previews']), ['view' => 'table'])) }}">Таблиця</a>
-                        <a class="button secondary {{ $display === 'grid' ? 'active' : '' }}" href="{{ route('files.index', array_merge(request()->except(['page', 'view']), ['view' => 'grid'])) }}">Плитки</a>
-                        @if ($display === 'grid')
-                            <a
-                                class="button secondary {{ $imagePreviews ? 'active' : '' }}"
-                                href="{{ route('files.index', $imagePreviews
-                                    ? array_merge(request()->except(['page', 'image_previews']), ['view' => 'grid'])
-                                    : array_merge(request()->except(['page']), ['view' => 'grid', 'image_previews' => 1])) }}"
-                            >
-                                {{ $imagePreviews ? 'Фото увімкнено' : 'Передзавантажити фото' }}
-                            </a>
-                        @endif
-                    </div>
-
                     @if ($display === 'grid')
                         <div class="density-toggle" role="group" aria-label="Щільність відображення" data-density-toggle>
                             <button type="button" class="density-btn" data-density="comfortable" title="Комфортно — великі плитки">

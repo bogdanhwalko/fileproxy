@@ -61,8 +61,8 @@ class FileController extends Controller
         $type = (string) $request->query('type', 'all');
         $display = in_array($request->query('view'), ['table', 'grid'], true)
             ? (string) $request->query('view')
-            : 'table';
-        $imagePreviews = $display === 'grid' && $request->boolean('image_previews');
+            : 'grid';
+        $imagePreviews = $display === 'grid' && $request->boolean('image_previews', true);
         $folderFilter = (string) $request->query('folder', 'all');
         $dateFrom = trim((string) $request->query('date_from', ''));
         $dateTo = trim((string) $request->query('date_to', ''));

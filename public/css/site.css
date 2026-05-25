@@ -8670,22 +8670,11 @@ tr[data-file-item].is-selected td:first-child {
 .sidebar-hidden { display: none !important; }
 .sidebar-collapsed { display: none !important; }
 
-/* When expanded, cap the list height so a 100-folder sidebar doesn't push
-   the viewport. The scrollable area lives inside [data-sidebar-list]. */
-[data-sidebar-section].sidebar-expanded [data-sidebar-list] {
-    max-height: 50vh;
-    overflow-y: auto;
-    padding-right: 4px;
-    scrollbar-width: thin;
-    scrollbar-color: #cbd5e1 transparent;
-}
-[data-sidebar-section].sidebar-expanded [data-sidebar-list]::-webkit-scrollbar {
-    width: 6px;
-}
-[data-sidebar-section].sidebar-expanded [data-sidebar-list]::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 4px;
-}
+/* When expanded, let the list grow naturally — the page itself scrolls if
+   the sidebar gets long. An earlier version capped the list at 50vh with
+   an internal scrollbar, but on screens where 50vh fits exactly the
+   "visible" item count, items beyond that landed below an invisible fold
+   and the "Show all" button looked like it did nothing. */
 
 .sidebar-show-all {
     display: block;
@@ -8714,9 +8703,6 @@ tr[data-file-item].is-selected td:first-child {
 @media (max-width: 720px) {
     .sidebar-controls {
         grid-template-columns: 1fr;
-    }
-    [data-sidebar-section].sidebar-expanded [data-sidebar-list] {
-        max-height: 60vh;
     }
 }
 
