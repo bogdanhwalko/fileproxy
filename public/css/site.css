@@ -8780,6 +8780,140 @@ tr[data-file-item].is-selected td:first-child {
     color: #fff;
 }
 
+/* ============================================================
+   Admin-mode visual indicator: when an admin is viewing another
+   user's storage, we tint the page with an amber/red accent so
+   it's impossible to confuse with one's own file list. Activated
+   by `body.is-admin-mode` (set by admin/user.blade.php).
+   ============================================================ */
+.admin-mode-banner {
+    position: sticky;
+    top: 0;
+    z-index: 1070;
+    background: linear-gradient(135deg, #b91c1c 0%, #c2410c 100%);
+    color: #fff;
+    box-shadow: 0 4px 14px -6px rgba(185, 28, 28, 0.55);
+}
+.admin-mode-banner-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 8px 18px;
+    font-size: 13px;
+}
+.admin-mode-banner-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+}
+.admin-mode-banner-badge svg {
+    width: 13px;
+    height: 13px;
+}
+.admin-mode-banner-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.admin-mode-banner-text strong {
+    font-weight: 600;
+}
+.admin-mode-banner-meta {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 12px;
+    margin-left: 4px;
+}
+.admin-mode-banner-exit {
+    color: #fff;
+    text-decoration: none;
+    font-size: 12.5px;
+    padding: 5px 12px;
+    background: rgba(0, 0, 0, 0.18);
+    border-radius: 6px;
+    flex-shrink: 0;
+    transition: background 0.12s;
+}
+.admin-mode-banner-exit:hover {
+    background: rgba(0, 0, 0, 0.35);
+}
+
+/* Subtle amber tint on page background + top accent stripe */
+body.is-admin-mode {
+    background: linear-gradient(180deg, #fef3ec 0%, transparent 240px), #f8fafc;
+}
+body.is-admin-mode .page {
+    border-top: 0;
+}
+
+/* Re-tint the user chip (was "Active/Blocked" status) so it pops */
+body.is-admin-mode .user-chip-v2 {
+    background: rgba(185, 28, 28, 0.08);
+    border-color: rgba(185, 28, 28, 0.28);
+    color: #991b1b;
+}
+body.is-admin-mode .user-chip-v2 .user-chip-avatar {
+    background: linear-gradient(135deg, #b91c1c, #c2410c);
+    color: #fff;
+}
+
+/* Topbar subtitle + ribbon under topbar reading "admin mode" */
+body.is-admin-mode .app-topbar {
+    border-bottom: 2px solid #b91c1c;
+}
+
+/* Sidebar active folder uses red accent instead of indigo */
+body.is-admin-mode .folder-item.is-active {
+    background: linear-gradient(135deg, #b91c1c 0%, #c2410c 100%);
+    box-shadow: 0 6px 14px rgba(185, 28, 28, 0.25);
+}
+
+/* Filter "Фільтрувати" button + primary CTAs in admin mode */
+body.is-admin-mode .button:not(.secondary):not(.accent):not(.danger) {
+    background: linear-gradient(135deg, #b91c1c 0%, #c2410c 100%);
+    border-color: #991b1b;
+}
+body.is-admin-mode .button:not(.secondary):not(.accent):not(.danger):hover {
+    filter: brightness(1.08);
+}
+
+/* Density toggle active button shifts from indigo to red */
+body.is-admin-mode .density-btn.is-active {
+    background: #b91c1c;
+}
+body.is-admin-mode .preview-toggle.is-on {
+    background: #b91c1c;
+    border-color: #b91c1c;
+}
+body.is-admin-mode .preview-toggle.is-on:hover {
+    background: #991b1b;
+    border-color: #991b1b;
+}
+
+@media (max-width: 640px) {
+    .admin-mode-banner-inner {
+        padding: 8px 12px;
+        gap: 8px;
+    }
+    .admin-mode-banner-meta {
+        display: none;
+    }
+    .admin-mode-banner-exit .nav-button-label {
+        display: none;
+    }
+}
+
 /* ---- Compact: tighter tiles, smaller previews ---- */
 body.density-compact .file-grid {
     grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));

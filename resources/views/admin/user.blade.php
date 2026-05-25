@@ -5,7 +5,28 @@
 
 @include('partials.file-action-menu-script')
 
+@push('head')
+    <style>body { --fp-admin-mode: 1; }</style>
+@endpush
+
 @section('content')
+    <div class="admin-mode-banner" role="status" aria-label="Адмін-режим">
+        <div class="admin-mode-banner-inner">
+            <span class="admin-mode-banner-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 2 4 5v6c0 5 3.5 9.5 8 11 4.5-1.5 8-6 8-11V5l-8-3z"/>
+                </svg>
+                АДМІН
+            </span>
+            <span class="admin-mode-banner-text">
+                Ви переглядаєте файли користувача
+                <strong>{{ $user->name }}</strong>
+                <span class="admin-mode-banner-meta">· {{ $user->email }}</span>
+            </span>
+            <a class="admin-mode-banner-exit" href="{{ route('admin.users.index') }}">← До користувачів</a>
+        </div>
+    </div>
+
     <x-app-topbar
         :title="$user->name"
         :subtitle="($user->phone ?? 'phone not set').' · '.$user->email"
@@ -471,6 +492,9 @@
 (() => {
     if (window.__fpAdminDensityBound) return;
     window.__fpAdminDensityBound = true;
+
+    // Flag this page as admin-mode so site.css can shift accent colors
+    document.body.classList.add('is-admin-mode');
 
     const DENSITY_KEY = 'fp-density';
     const DENSITY_VALUES = ['comfortable', 'compact', 'list'];
