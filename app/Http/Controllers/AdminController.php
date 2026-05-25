@@ -56,8 +56,15 @@ class AdminController extends Controller
         $type = (string) $request->query('type', 'all');
         $display = in_array($request->query('view'), ['table', 'grid'], true)
             ? (string) $request->query('view')
-            : 'table';
-        $imagePreviews = $display === 'grid' && $request->boolean('image_previews');
+            : 'grid';
+        $imagePreviews = $display === 'grid' && $request->boolean('image_previews', false);
+
+        // per_page driven by client-side density toggle (cookie fp_per_page):
+        // comfortable=12, compact=18, list=30. Validate strictly.
+        $perPage = (int) ($request->cookie('fp_per_page', 12));
+        if (! in_array($perPage, [12, 18, 30], true)) {
+            $perPage = 12;
+        }
         $folderFilter = (string) $request->query('folder', 'all');
         $dateFrom = trim((string) $request->query('date_from', ''));
         $dateTo = trim((string) $request->query('date_to', ''));
@@ -96,7 +103,7 @@ class AdminController extends Controller
 
         $files = $applyContentFilters(clone $baseQuery)
             ->latest()
-            ->paginate(20)
+            ->paginate($perPage)
             ->withQueryString();
 
         $filteredCount = $applyContentFilters(clone $baseQuery)->count();

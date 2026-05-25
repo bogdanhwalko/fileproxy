@@ -267,20 +267,59 @@
             <div class="file-view-bar">
                 <span data-file-summary data-total="{{ $files->total() }}">Показано {{ $files->count() }} з {{ $files->total() }}</span>
                 <div class="file-view-bar-actions">
-                    <div class="view-toggle" aria-label="Вигляд списку файлів">
-                        <a class="button secondary {{ $display === 'table' ? 'active' : '' }}" href="{{ route('admin.users.show', array_merge(['user' => $user], request()->except(['page', 'view', 'image_previews']), ['view' => 'table'])) }}">Таблиця</a>
-                        <a class="button secondary {{ $display === 'grid' ? 'active' : '' }}" href="{{ route('admin.users.show', array_merge(['user' => $user], request()->except(['page', 'view']), ['view' => 'grid'])) }}">Плитки</a>
-                        @if ($display === 'grid')
-                            <a
-                                class="button secondary {{ $imagePreviews ? 'active' : '' }}"
-                                href="{{ route('admin.users.show', $imagePreviews
-                                    ? array_merge(['user' => $user], request()->except(['page', 'image_previews']), ['view' => 'grid'])
-                                    : array_merge(['user' => $user], request()->except(['page']), ['view' => 'grid', 'image_previews' => 1])) }}"
-                            >
-                                {{ $imagePreviews ? 'Фото увімкнено' : 'Передзавантажити фото' }}
-                            </a>
-                        @endif
-                    </div>
+                    @if ($display === 'grid')
+                        <div class="density-toggle" role="group" aria-label="Щільність відображення" data-density-toggle>
+                            <button type="button" class="density-btn" data-density="comfortable" title="Комфортно — великі плитки">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <rect x="3" y="3" width="8" height="8" rx="1.5"/>
+                                    <rect x="13" y="3" width="8" height="8" rx="1.5"/>
+                                    <rect x="3" y="13" width="8" height="8" rx="1.5"/>
+                                    <rect x="13" y="13" width="8" height="8" rx="1.5"/>
+                                </svg>
+                            </button>
+                            <button type="button" class="density-btn" data-density="compact" title="Компактно — менші плитки">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <rect x="3" y="3" width="5" height="5" rx="1"/>
+                                    <rect x="10" y="3" width="5" height="5" rx="1"/>
+                                    <rect x="17" y="3" width="4" height="5" rx="1"/>
+                                    <rect x="3" y="10" width="5" height="5" rx="1"/>
+                                    <rect x="10" y="10" width="5" height="5" rx="1"/>
+                                    <rect x="17" y="10" width="4" height="5" rx="1"/>
+                                    <rect x="3" y="17" width="5" height="4" rx="1"/>
+                                    <rect x="10" y="17" width="5" height="4" rx="1"/>
+                                    <rect x="17" y="17" width="4" height="4" rx="1"/>
+                                </svg>
+                            </button>
+                            <button type="button" class="density-btn" data-density="list" title="Списком — один рядок на файл">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <line x1="3" y1="6" x2="21" y2="6"/>
+                                    <line x1="3" y1="12" x2="21" y2="12"/>
+                                    <line x1="3" y1="18" x2="21" y2="18"/>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <a
+                            class="preview-toggle {{ $imagePreviews ? 'is-on' : 'is-off' }}"
+                            href="{{ route('admin.users.show', array_merge(['user' => $user], request()->except(['page', 'image_previews']), ['image_previews' => $imagePreviews ? 0 : 1])) }}"
+                            title="{{ $imagePreviews ? 'Вимкнути передперегляд фото' : 'Увімкнути передперегляд фото' }}"
+                            aria-label="{{ $imagePreviews ? 'Вимкнути передперегляд фото' : 'Увімкнути передперегляд фото' }}"
+                        >
+                            @if ($imagePreviews)
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                    <circle cx="12" cy="12" r="3"/>
+                                </svg>
+                            @else
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                                    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                                    <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/>
+                                    <line x1="1" y1="1" x2="23" y2="23"/>
+                                </svg>
+                            @endif
+                        </a>
+                    @endif
                 </div>
             </div>
 
@@ -426,3 +465,79 @@
         </section>
     </section>
 @endsection
+
+@push('scripts')
+<script>
+(() => {
+    if (window.__fpAdminDensityBound) return;
+    window.__fpAdminDensityBound = true;
+
+    const DENSITY_KEY = 'fp-density';
+    const DENSITY_VALUES = ['comfortable', 'compact', 'list'];
+    const DENSITY_PER_PAGE = { comfortable: 12, compact: 18, list: 30 };
+
+    const applyToBody = (v) => {
+        const value = DENSITY_VALUES.includes(v) ? v : 'comfortable';
+        DENSITY_VALUES.forEach((d) => document.body.classList.toggle('density-' + d, d === value));
+    };
+    const readSaved = () => {
+        try { return localStorage.getItem(DENSITY_KEY); } catch (e) { return null; }
+    };
+    const writeSaved = (v) => {
+        try { localStorage.setItem(DENSITY_KEY, v); } catch (e) {}
+    };
+    const getCookie = (name) => {
+        const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()[\]\\/+^])/g, '\\$1') + '=([^;]*)'));
+        return m ? decodeURIComponent(m[1]) : null;
+    };
+    const setCookie = (name, value, days = 365) => {
+        const exp = new Date(Date.now() + days * 864e5).toUTCString();
+        document.cookie = `${name}=${encodeURIComponent(value)}; expires=${exp}; path=/; SameSite=Lax`;
+    };
+    const syncButtons = () => {
+        const current = readSaved() || 'comfortable';
+        document.querySelectorAll('[data-density-toggle] [data-density]').forEach((btn) => {
+            btn.classList.toggle('is-active', btn.dataset.density === current);
+        });
+    };
+
+    applyToBody(readSaved() || 'comfortable');
+    syncButtons();
+
+    // Sync per_page cookie on first load if density implies a different size
+    const wanted = DENSITY_PER_PAGE[readSaved() || 'comfortable'];
+    const current = parseInt(getCookie('fp_per_page') || '0', 10);
+    if (current !== wanted) {
+        setCookie('fp_per_page', String(wanted));
+        // Drop ?page so we land back on page 1 with the new per_page
+        const url = new URL(window.location.href);
+        if (url.searchParams.has('page')) url.searchParams.delete('page');
+        // Avoid infinite reloads: only reload once per session via a flag
+        if (! sessionStorage.getItem('fp_per_page_synced')) {
+            sessionStorage.setItem('fp_per_page_synced', '1');
+            window.location.replace(url.toString());
+            return;
+        }
+    } else {
+        sessionStorage.removeItem('fp_per_page_synced');
+    }
+
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-density-toggle] [data-density]');
+        if (! btn) return;
+        const value = btn.dataset.density;
+        if (! DENSITY_VALUES.includes(value)) return;
+
+        writeSaved(value);
+        applyToBody(value);
+        syncButtons();
+        setCookie('fp_per_page', String(DENSITY_PER_PAGE[value]));
+
+        const url = new URL(window.location.href);
+        url.searchParams.delete('page');
+        sessionStorage.setItem('fp_per_page_synced', '1');
+        window.location.assign(url.toString());
+    });
+})();
+</script>
+@endpush
