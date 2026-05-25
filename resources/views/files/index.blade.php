@@ -2757,7 +2757,7 @@
             function initDensityToggle() {
                 const DENSITY_KEY = 'fp-density';
                 const DENSITY_VALUES = ['comfortable', 'compact', 'list'];
-                const DENSITY_PER_PAGE = { comfortable: 12, compact: 24, list: 48 };
+                const DENSITY_PER_PAGE = { comfortable: 12, compact: 18, list: 30 };
 
                 const applyToBody = (value) => {
                     const v = DENSITY_VALUES.includes(value) ? value : 'comfortable';

@@ -62,12 +62,13 @@ class FileController extends Controller
         $display = in_array($request->query('view'), ['table', 'grid'], true)
             ? (string) $request->query('view')
             : 'grid';
-        $imagePreviews = $display === 'grid' && $request->boolean('image_previews', true);
+        $imagePreviews = $display === 'grid' && $request->boolean('image_previews', false);
 
         // per_page is driven by the density toggle (cookie set client-side):
-        // comfortable=12, compact=24, list=48. Validate strictly.
+        // comfortable=12, compact=18, list=30. Reduced from 24/48 to keep page
+        // weight reasonable when previews are toggled on. Validate strictly.
         $perPage = (int) ($request->cookie('fp_per_page', 12));
-        if (! in_array($perPage, [12, 24, 48], true)) {
+        if (! in_array($perPage, [12, 18, 30], true)) {
             $perPage = 12;
         }
         $folderFilter = (string) $request->query('folder', 'all');
