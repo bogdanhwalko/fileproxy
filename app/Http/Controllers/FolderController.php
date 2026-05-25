@@ -13,7 +13,7 @@ use Illuminate\View\View;
 
 class FolderController extends Controller
 {
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, FolderUnlockService $unlock): RedirectResponse
     {
         $user = $request->user();
 
@@ -25,9 +25,11 @@ class FolderController extends Controller
                 Rule::unique('file_folders', 'name')->where('user_id', $user->id),
             ],
             'color' => ['nullable', 'string', Rule::in(array_keys(FileFolder::COLOR_PALETTE))],
+            'password' => ['nullable', 'string', 'min:4', 'max:128'],
         ], [
             'name.required' => 'Вкажіть назву папки.',
             'name.unique' => 'Папка з такою назвою вже існує.',
+            'password.min' => 'Пароль має бути не менш ніж 4 символи.',
         ]);
 
         $folder = $user->folders()->create([
@@ -35,9 +37,18 @@ class FolderController extends Controller
             'color' => FileFolder::normalizeColor($validated['color'] ?? null),
         ]);
 
+        $status = 'Папку створено.';
+
+        if (! empty($validated['password'])) {
+            $folder->setFolderPassword($validated['password']);
+            $folder->save();
+            $unlock->unlock($folder);
+            $status = 'Папку створено та захищено паролем.';
+        }
+
         return redirect()
             ->route('files.index', ['folder' => $folder->id])
-            ->with('status', 'Папку створено.');
+            ->with('status', $status);
     }
 
     public function update(Request $request, FileFolder $folder): RedirectResponse
@@ -70,27 +81,31 @@ class FolderController extends Controller
     }
 
     /**
-     * Set or replace the folder password. If the folder already has one,
-     * the current password is required.
+     * Change the password of an already-protected folder. Adding a password
+     * to a folder that doesn't have one is intentionally not allowed —
+     * the password can only be set at folder creation. This avoids users
+     * thinking existing files become encrypted retroactively.
      */
     public function setPassword(Request $request, FileFolder $folder, FolderUnlockService $unlock): RedirectResponse
     {
         abort_unless((int) $folder->user_id === (int) $request->user()->id, 404);
 
-        $rules = [
-            'password' => ['required', 'string', 'min:4', 'max:128'],
-        ];
-        if ($folder->is_password_protected) {
-            $rules['current_password'] = ['required', 'string'];
+        if (! $folder->is_password_protected) {
+            return redirect()
+                ->route('files.index', ['folder' => $folder->id])
+                ->withErrors(['password' => 'Пароль можна встановити лише під час створення папки. Створіть нову захищену папку та перенесіть туди файли.']);
         }
 
-        $validated = $request->validate($rules, [
+        $validated = $request->validate([
+            'current_password' => ['required', 'string'],
+            'password' => ['required', 'string', 'min:4', 'max:128'],
+        ], [
             'password.required' => 'Вкажіть новий пароль.',
             'password.min' => 'Пароль має бути не менш ніж 4 символи.',
             'current_password.required' => 'Введіть поточний пароль.',
         ]);
 
-        if ($folder->is_password_protected && ! $folder->verifyFolderPassword($validated['current_password'])) {
+        if (! $folder->verifyFolderPassword($validated['current_password'])) {
             return redirect()
                 ->route('files.index', ['folder' => $folder->id])
                 ->withErrors(['current_password' => 'Поточний пароль невірний.']);
@@ -98,13 +113,11 @@ class FolderController extends Controller
 
         $folder->setFolderPassword($validated['password']);
         $folder->save();
-
-        // Auto-unlock for the current session so the user can immediately work
         $unlock->unlock($folder);
 
         return redirect()
             ->route('files.index', ['folder' => $folder->id])
-            ->with('status', 'Пароль збережено. Папка захищена.');
+            ->with('status', 'Пароль оновлено.');
     }
 
     /**

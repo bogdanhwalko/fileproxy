@@ -419,6 +419,20 @@
                         @endforeach
                     </div>
 
+                    <details class="folders-form-password" data-folders-form-password>
+                        <summary>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <rect x="3" y="11" width="18" height="11" rx="2"/>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                            </svg>
+                            <span>Захистити папку паролем</span>
+                        </summary>
+                        <div class="folders-form-password-body">
+                            <input class="field" type="password" name="password" minlength="4" maxlength="128" placeholder="Пароль (мінімум 4 символи)" autocomplete="new-password">
+                            <p class="folders-form-password-hint">Файли в захищеній папці автоматично шифруються AES-GCM перед відправкою у Telegram. Пароль не можна додати пізніше — лише прибрати або змінити.</p>
+                        </div>
+                    </details>
+
                     <div class="folders-form-actions">
                         <button class="button secondary" type="button" data-folders-form-cancel>Скасувати</button>
                         <button class="button" type="submit">Створити</button>

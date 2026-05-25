@@ -91,59 +91,59 @@
             <p class="share-message" data-share-message></p>
         </div>
 
-        <div class="folder-password-block {{ $folder->is_password_protected ? 'is-on' : '' }}">
-            <div class="folder-password-head">
-                <strong>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <rect x="3" y="11" width="18" height="11" rx="2"/>
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                    </svg>
-                    Пароль папки
-                </strong>
-                <span class="folder-password-state">
-                    {{ $folder->is_password_protected ? 'Захищено' : 'Без пароля' }}
-                </span>
-            </div>
+        @if ($folder->is_password_protected)
+            <div class="folder-password-block is-on">
+                <div class="folder-password-head">
+                    <strong>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <rect x="3" y="11" width="18" height="11" rx="2"/>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                        Пароль папки
+                    </strong>
+                    <span class="folder-password-state">Захищено</span>
+                </div>
 
-            <form action="{{ route('folders.password.set', $folder) }}" method="post" class="folder-password-form">
-                @csrf
-                @if ($folder->is_password_protected)
-                    <label>
-                        <span>Поточний пароль</span>
-                        <input class="field" type="password" name="current_password" required autocomplete="current-password">
-                    </label>
-                @endif
-                <label>
-                    <span>{{ $folder->is_password_protected ? 'Новий пароль' : 'Пароль' }}</span>
-                    <input class="field" type="password" name="password" minlength="4" maxlength="128" required autocomplete="new-password">
-                </label>
-                <button class="button secondary" type="submit">
-                    {{ $folder->is_password_protected ? 'Змінити пароль' : 'Встановити пароль' }}
-                </button>
-            </form>
+                <details class="folder-password-section">
+                    <summary>Змінити пароль</summary>
+                    <form action="{{ route('folders.password.set', $folder) }}" method="post" class="folder-password-form">
+                        @csrf
+                        <label>
+                            <span>Поточний пароль</span>
+                            <input class="field" type="password" name="current_password" required autocomplete="current-password">
+                        </label>
+                        <label>
+                            <span>Новий пароль</span>
+                            <input class="field" type="password" name="password" minlength="4" maxlength="128" required autocomplete="new-password">
+                        </label>
+                        <button class="button secondary" type="submit">Зберегти новий пароль</button>
+                    </form>
+                </details>
 
-            @if ($folder->is_password_protected)
-                <form action="{{ route('folders.password.remove', $folder) }}" method="post" class="folder-password-remove">
-                    @csrf
-                    @method('delete')
-                    <label>
-                        <span>Поточний пароль</span>
-                        <input class="field" type="password" name="current_password" required autocomplete="current-password">
-                    </label>
-                    <button class="action-line danger" type="submit">Зняти пароль</button>
-                </form>
+                <details class="folder-password-section">
+                    <summary>Зняти пароль</summary>
+                    <form action="{{ route('folders.password.remove', $folder) }}" method="post" class="folder-password-form">
+                        @csrf
+                        @method('delete')
+                        <label>
+                            <span>Поточний пароль</span>
+                            <input class="field" type="password" name="current_password" required autocomplete="current-password">
+                        </label>
+                        <button class="button secondary danger-outline" type="submit">Зняти пароль</button>
+                    </form>
+                </details>
 
                 <form action="{{ route('folders.lock', $folder) }}" method="post" class="folder-password-lock-now">
                     @csrf
                     <button class="button secondary" type="submit">Заблокувати зараз</button>
                 </form>
-            @endif
 
-            <p class="folder-password-hint">
-                Нові файли, завантажені в захищену папку, автоматично шифруються AES-GCM перед відправкою в Telegram.
-                Існуючі файли лишаються незмінними.
-            </p>
-        </div>
+                <p class="folder-password-hint">
+                    Файли в захищеній папці шифруються AES-GCM перед відправкою в Telegram.
+                    Пароль можна змінити або зняти, але не встановити заново — лише при створенні папки.
+                </p>
+            </div>
+        @endif
 
         <form action="{{ route('folders.destroy', $folder) }}" method="post" data-ajax-form>
             @csrf
