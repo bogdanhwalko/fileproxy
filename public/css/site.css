@@ -8928,23 +8928,17 @@ body.density-list .file-status-badge {
 .fp-lightbox-stage {
     position: relative;
     z-index: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
     width: min(100vw, 1400px);
     height: 100vh;
-    padding: 24px;
+    padding: 24px 24px 76px; /* extra bottom reserves room for the absolutely-positioned caption */
     box-sizing: border-box;
 }
 .fp-lightbox-frame {
     position: relative;
-    flex: 1 1 auto;
     width: 100%;
+    height: 100%;
     display: grid;
     place-items: center;
-    min-height: 0;
 }
 .fp-lightbox-img {
     max-width: 100%;
@@ -9026,7 +9020,11 @@ body.density-list .file-status-badge {
 }
 
 .fp-lightbox-caption {
-    width: 100%;
+    position: absolute;
+    left: 24px;
+    right: 24px;
+    bottom: 16px;
+    z-index: 2;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -9034,7 +9032,10 @@ body.density-list .file-status-badge {
     flex-wrap: wrap;
     color: #e2e8f0;
     font-size: 13px;
-    padding: 0 4px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(8px);
 }
 .fp-lightbox-text {
     display: flex;
