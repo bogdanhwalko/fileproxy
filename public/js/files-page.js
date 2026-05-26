@@ -1,0 +1,2658 @@
+        (() => {
+            if (! document.querySelector('[data-file-items]')) {
+                return;
+            }
+
+            initDropzone();
+
+            window.addEventListener('popstate', () => {
+                refreshFilesPage(window.location.href, false);
+            });
+
+            document.addEventListener('submit', async (event) => {
+                // Upload form is handled exclusively by uploader.js (corner widget).
+                // The old inline pipeline (uploadFiles/uploadSingleFile/setUploadProgress)
+                // is intentionally not invoked here — both handlers would otherwise fire
+                // the same submit, causing duplicate uploads.
+
+                const filterForm = event.target.closest('[data-ajax-filter]');
+
+                if (filterForm) {
+                    event.preventDefault();
+
+                    const url = new URL(filterForm.action, window.location.origin);
+                    new FormData(filterForm).forEach((value, key) => {
+                        if (value !== '') {
+                            url.searchParams.set(key, value);
+                        }
+                    });
+                    url.searchParams.delete('page');
+
+                    refreshFilesPage(url.toString(), true, { region: 'files' });
+
+                    return;
+                }
+
+                const jumpForm = event.target.closest('[data-pagination-jump]');
+
+                if (jumpForm) {
+                    event.preventDefault();
+
+                    const baseUrl = jumpForm.dataset.baseUrl || jumpForm.action || window.location.href;
+                    const pageInput = jumpForm.querySelector('input[name="page"]');
+                    const target = parseInt(pageInput?.value || '1', 10);
+                    const max = parseInt(pageInput?.max || '1', 10);
+                    const page = Math.max(1, Math.min(max || 1, isNaN(target) ? 1 : target));
+
+                    const url = new URL(baseUrl, window.location.origin);
+
+                    new URL(window.location.href).searchParams.forEach((value, key) => {
+                        if (key !== 'page' && value !== '') {
+                            url.searchParams.set(key, value);
+                        }
+                    });
+
+                    if (page > 1) {
+                        url.searchParams.set('page', page);
+                    } else {
+                        url.searchParams.delete('page');
+                    }
+
+                    refreshFilesPage(url.toString(), true, { region: 'files' });
+
+                    return;
+                }
+
+                const ajaxForm = event.target.closest('[data-ajax-form]');
+
+                if (ajaxForm) {
+                    event.preventDefault();
+                    submitAjaxForm(ajaxForm);
+                }
+            });
+
+            document.addEventListener('click', async (event) => {
+                const actionTrigger = event.target.closest('.action-menu-trigger');
+
+                if (actionTrigger) {
+                    const currentMenu = actionTrigger.closest('[data-file-share]');
+
+                    document.querySelectorAll('[data-file-share][open]').forEach((menu) => {
+                        if (menu !== currentMenu) {
+                            menu.removeAttribute('open');
+                        }
+                    });
+
+                    requestAnimationFrame(() => {
+                        if (currentMenu?.open) {
+                            positionActionPanel(currentMenu, actionTrigger);
+                        }
+                    });
+
+                    return;
+                }
+
+                const actionClose = event.target.closest('[data-action-close]');
+
+                if (actionClose) {
+                    event.preventDefault();
+                    actionClose.closest('[data-file-share]')?.removeAttribute('open');
+
+                    return;
+                }
+
+                const faTab = event.target.closest('[data-fa-tab]');
+                if (faTab) {
+                    event.preventDefault();
+                    const panel = faTab.closest('[data-file-share]');
+                    if (panel) {
+                        const key = faTab.dataset.faTab;
+                        panel.querySelectorAll('[data-fa-tab]').forEach((b) => {
+                            const active = b.dataset.faTab === key;
+                            b.classList.toggle('is-active', active);
+                            b.setAttribute('aria-selected', active ? 'true' : 'false');
+                        });
+                        panel.querySelectorAll('[data-fa-tab-panel]').forEach((p) => {
+                            p.toggleAttribute('hidden', p.dataset.faTabPanel !== key);
+                        });
+                    }
+                    return;
+                }
+
+                const shareSave = event.target.closest('[data-share-save]');
+                const shareCopy = event.target.closest('[data-share-copy]');
+                const shareRawCopy = event.target.closest('[data-share-raw-copy]');
+
+                if (shareSave || shareCopy || shareRawCopy) {
+                    const panel = event.target.closest('[data-file-share]');
+
+                    if (! panel) {
+                        return;
+                    }
+
+                    event.preventDefault();
+
+                    if (shareCopy) {
+                        copyShareLink(panel, '[data-share-link-input]');
+                        return;
+                    }
+
+                    if (shareRawCopy) {
+                        copyShareLink(panel, '[data-share-raw-link-input]');
+                        return;
+                    }
+
+                    try {
+                        setShareBusy(shareSave, true);
+                        const data = await sendShareRequest(panel.dataset.shareSettingsUrl, 'PATCH', {
+                            share_max_views: panel.querySelector('[data-share-max-views]')?.value || null,
+                            share_expires_at: panel.querySelector('[data-share-expires-at]')?.value || null,
+                        });
+                        updateSharePanel(panel, data.share, data.message);
+                    } catch (error) {
+                        showShareMessage(panel, error.message || 'Не вдалося зберегти налаштування.', true);
+                    } finally {
+                        setShareBusy(shareSave, false);
+                    }
+
+                    return;
+                }
+
+                if (! event.target.closest('[data-file-share]')) {
+                    document.querySelectorAll('[data-file-share][open]').forEach((menu) => {
+                        menu.removeAttribute('open');
+                    });
+                }
+
+                const paginationLink = event.target.closest('.pagination-page:not(.is-disabled)');
+
+                if (paginationLink) {
+                    event.preventDefault();
+
+                    if (paginationLink.getAttribute('href') && paginationLink.getAttribute('href') !== '#') {
+                        refreshFilesPage(paginationLink.href, true, { region: 'files' });
+                    }
+
+                    return;
+                }
+
+                const navigationLink = event.target.closest('.folder-item, .folder-link, .view-toggle a, .filter-reset');
+
+                if (navigationLink && ! navigationLink.target && ! navigationLink.hasAttribute('data-no-ajax')) {
+                    event.preventDefault();
+                    refreshFilesPage(navigationLink.href, true, { region: 'files' });
+                }
+            });
+
+            document.addEventListener('pointerdown', (event) => {
+                const handle = event.target.closest('[data-action-drag-handle]');
+
+                if (! handle || event.target.closest('[data-action-close]')) {
+                    return;
+                }
+
+                const panel = handle.closest('.file-action-panel');
+
+                if (! panel) {
+                    return;
+                }
+
+                event.preventDefault();
+
+                const rect = panel.getBoundingClientRect();
+                const offsetX = event.clientX - rect.left;
+                const offsetY = event.clientY - rect.top;
+
+                const movePanel = (moveEvent) => {
+                    moveEvent.preventDefault();
+
+                    setPanelPosition(panel, moveEvent.clientX - offsetX, moveEvent.clientY - offsetY);
+                };
+
+                const stopDragging = () => {
+                    document.removeEventListener('pointermove', movePanel);
+                    document.removeEventListener('pointerup', stopDragging);
+                    document.removeEventListener('pointercancel', stopDragging);
+                };
+
+                document.addEventListener('pointermove', movePanel);
+                document.addEventListener('pointerup', stopDragging, { once: true });
+                document.addEventListener('pointercancel', stopDragging, { once: true });
+            });
+
+            async function submitAjaxForm(form) {
+                const submitter = form.querySelector('[type="submit"]');
+                const owningRow = form.closest('[data-file-item]');
+                const owningMenu = form.closest('[data-file-share]');
+
+                // Close the action menu immediately — its position:fixed panel
+                // can otherwise leak into viewport and cause scrollbars while
+                // the parent row pulses.
+                if (owningMenu) {
+                    owningMenu.removeAttribute('open');
+                }
+
+                // Visually mark the file row as leaving so user sees immediate feedback.
+                if (owningRow) {
+                    owningRow.classList.add('is-leaving');
+                    owningRow.setAttribute('aria-busy', 'true');
+                }
+
+                try {
+                    setShareBusy(submitter, true);
+
+                    const response = await fetch(form.action, {
+                        method: (form.method || 'POST').toUpperCase(),
+                        headers: {
+                            'Accept': 'text/html',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: new FormData(form),
+                    });
+                    const html = await response.text();
+
+                    if (! response.ok) {
+                        throw new Error(extractErrorFromHtml(html) || 'Дію не виконано.');
+                    }
+
+                    const toastMessage = extractStatusFromHtml(html);
+
+                    replaceFilesPageFromHtml(html, response.url || window.location.href, true);
+
+                    if (toastMessage) {
+                        showToast(toastMessage);
+                    }
+
+                    handleEmptyPageAfterMutation();
+                } catch (error) {
+                    // Restore the row — delete didn't go through
+                    if (owningRow) {
+                        owningRow.classList.remove('is-leaving');
+                        owningRow.removeAttribute('aria-busy');
+                    }
+                    showToast(error.message || 'Дію не виконано.', 'error');
+                } finally {
+                    setShareBusy(submitter, false);
+                }
+            }
+
+            // Якщо після видалення список порожній і ми не на 1-й сторінці —
+            // тихо переходимо на page-1.
+            function handleEmptyPageAfterMutation() {
+                const region = document.querySelector('[data-files-region]');
+                if (! region) return;
+
+                const items = region.querySelector('[data-file-items]');
+                if (! items) return;
+
+                // .file-card-item (table) і .file-tile (grid) — обидва мають [data-file-item]
+                const hasAny = items.querySelector('[data-file-item]');
+                if (hasAny) return;
+
+                const currentUrl = new URL(window.location.href);
+                const currentPage = parseInt(currentUrl.searchParams.get('page') || '1', 10);
+
+                if (currentPage > 1) {
+                    currentUrl.searchParams.set('page', String(currentPage - 1));
+                    refreshFilesPage(currentUrl.toString(), true, { region: 'files' });
+                }
+            }
+
+            function extractStatusFromHtml(html) {
+                const doc = new DOMParser().parseFromString(html || '', 'text/html');
+                const status = doc.querySelector('[data-flash-area] .status');
+                return status ? status.textContent.trim() : '';
+            }
+
+            // Toast layer + helper
+            function showToast(message, type) {
+                if (! message) return;
+
+                let layer = document.querySelector('[data-toast-layer]');
+                if (! layer) {
+                    layer = document.createElement('div');
+                    layer.dataset.toastLayer = '';
+                    layer.className = 'fp-toast-layer';
+                    // Safety: inline styles in case site.css is cached without toast rules
+                    layer.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:80;display:flex;flex-direction:column;gap:10px;pointer-events:none;width:min(380px,calc(100vw - 32px))';
+                    document.body.appendChild(layer);
+                }
+
+                const toast = document.createElement('div');
+                toast.className = 'fp-toast' + (type === 'error' ? ' is-error' : '');
+                // Safety baseline (fallback if site.css cache is stale)
+                toast.style.cssText = 'pointer-events:auto;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 14px;background:#fff;color:#0f172a;border:1px solid #e2e8f0;border-left:4px solid '+(type==='error'?'#dc2626':'#16a34a')+';border-radius:12px;box-shadow:0 16px 38px -18px rgba(15,23,42,.45);font-size:14px;line-height:1.4;opacity:0;transform:translateY(12px);transition:opacity .2s,transform .2s';
+                toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
+                toast.innerHTML = `
+                    <span class="fp-toast-icon" aria-hidden="true">
+                        ${type === 'error'
+                            ? '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
+                            : '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'}
+                    </span>
+                    <span class="fp-toast-message"></span>
+                    <button type="button" class="fp-toast-close" aria-label="Закрити">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                `;
+                toast.querySelector('.fp-toast-message').textContent = message;
+
+                // Safety: constrain icon/close button if site.css is stale
+                const iconEl = toast.querySelector('.fp-toast-icon');
+                if (iconEl) {
+                    iconEl.style.cssText = 'width:22px;height:22px;flex-shrink:0;display:grid;place-items:center;color:'+(type==='error'?'#dc2626':'#16a34a');
+                }
+                const closeEl = toast.querySelector('.fp-toast-close');
+                if (closeEl) {
+                    closeEl.style.cssText = 'background:transparent;border:0;cursor:pointer;width:26px;height:26px;border-radius:6px;display:grid;place-items:center;color:#94a3b8';
+                }
+
+                layer.appendChild(toast);
+
+                requestAnimationFrame(() => {
+                    toast.classList.add('is-visible');
+                    toast.style.opacity = '1';
+                    toast.style.transform = 'translateY(0)';
+                });
+
+                const dismiss = () => {
+                    toast.classList.remove('is-visible');
+                    toast.classList.add('is-leaving');
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateY(6px)';
+                    setTimeout(() => toast.remove(), 250);
+                };
+
+                toast.querySelector('.fp-toast-close').addEventListener('click', dismiss);
+                setTimeout(dismiss, type === 'error' ? 6000 : 3500);
+            }
+
+            function initDropzone() {
+                const dropzone = document.querySelector('[data-dropzone]');
+                const input = document.querySelector('[data-upload-input]');
+
+                if (! dropzone || ! input) {
+                    return;
+                }
+
+                if (! dropzone.dataset.bound) {
+                    dropzone.dataset.bound = '1';
+
+                    ['dragenter', 'dragover'].forEach((type) => {
+                        dropzone.addEventListener(type, (event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            dropzone.classList.add('is-dragover');
+                        });
+                    });
+
+                    ['dragleave', 'drop'].forEach((type) => {
+                        dropzone.addEventListener(type, (event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+
+                            if (type === 'dragleave' && dropzone.contains(event.relatedTarget)) {
+                                return;
+                            }
+
+                            dropzone.classList.remove('is-dragover');
+                        });
+                    });
+
+                    dropzone.addEventListener('drop', (event) => {
+                        const dropped = event.dataTransfer?.files;
+
+                        if (! dropped?.length) {
+                            return;
+                        }
+
+                        const transfer = new DataTransfer();
+
+                        Array.from(input.files || []).forEach((existing) => transfer.items.add(existing));
+                        Array.from(dropped).forEach((file) => transfer.items.add(file));
+
+                        input.files = transfer.files;
+                        renderSelectedFiles();
+                    });
+
+                    input.addEventListener('change', renderSelectedFiles);
+                }
+
+                document.addEventListener('click', handleSelectedListClick);
+                renderSelectedFiles();
+                initUploadControls();
+                initFlatpickr();
+                initFoldersAddToggle();
+            }
+
+            function initFoldersAddToggle() {
+                if (document.body.dataset.foldersToggleBound) return;
+                document.body.dataset.foldersToggleBound = '1';
+
+                document.addEventListener('click', (event) => {
+                    const toggle = event.target.closest('[data-folders-add-toggle]');
+
+                    if (toggle) {
+                        event.preventDefault();
+                        const form = document.querySelector('[data-folders-form]');
+
+                        if (form) {
+                            const isOpen = ! form.hidden;
+                            form.hidden = isOpen;
+                            toggle.classList.toggle('is-active', ! isOpen);
+                            if (! isOpen) {
+                                form.querySelector('[data-folders-form-input]')?.focus();
+                            }
+                        }
+
+                        return;
+                    }
+
+                    const cancel = event.target.closest('[data-folders-form-cancel]');
+
+                    if (cancel) {
+                        event.preventDefault();
+                        const form = document.querySelector('[data-folders-form]');
+                        const tog = document.querySelector('[data-folders-add-toggle]');
+                        if (form) form.hidden = true;
+                        if (tog) tog.classList.remove('is-active');
+                        return;
+                    }
+                });
+            }
+
+            function initFlatpickr() {
+                if (typeof window.flatpickr !== 'function') {
+                    window.setTimeout(initFlatpickr, 200);
+                    return;
+                }
+
+                document.querySelectorAll('[data-flatpickr-range]').forEach((input) => {
+                    if (input._flatpickr) {
+                        input._flatpickr.destroy();
+                    }
+
+                    const wrapper = input.closest('.filter-daterange');
+                    const fromInput = wrapper?.querySelector('[data-flatpickr-from]');
+                    const toInput = wrapper?.querySelector('[data-flatpickr-to]');
+
+                    const initial = [];
+
+                    if (input.dataset.initialFrom) initial.push(input.dataset.initialFrom);
+                    if (input.dataset.initialTo) initial.push(input.dataset.initialTo);
+
+                    window.flatpickr(input, {
+                        mode: 'range',
+                        dateFormat: 'Y-m-d',
+                        altInput: true,
+                        altFormat: 'd.m.Y',
+                        locale: window.flatpickr?.l10ns?.uk || 'default',
+                        maxDate: 'today',
+                        defaultDate: initial.length ? initial : null,
+                        showMonths: window.matchMedia('(min-width: 720px)').matches ? 2 : 1,
+                        onChange: (dates) => {
+                            const fmt = (d) => {
+                                if (! d) return '';
+                                const y = d.getFullYear();
+                                const m = String(d.getMonth() + 1).padStart(2, '0');
+                                const day = String(d.getDate()).padStart(2, '0');
+                                return `${y}-${m}-${day}`;
+                            };
+
+                            if (fromInput) fromInput.value = fmt(dates[0]);
+                            if (toInput) toInput.value = fmt(dates[1] || dates[0]);
+                        },
+                    });
+                });
+            }
+
+            function initUploadControls() {
+                if (! document.body.dataset.uploadDropdownBound) {
+                    document.body.dataset.uploadDropdownBound = '1';
+
+                    restoreLastStorageChoice();
+
+                    document.addEventListener('click', (event) => {
+                        const trigger = event.target.closest('[data-upload-dropdown-trigger]');
+
+                        if (trigger) {
+                            event.preventDefault();
+                            const dropdown = trigger.closest('[data-upload-dropdown]');
+                            const isOpen = dropdown.classList.contains('is-open');
+                            closeAllUploadDropdowns();
+                            if (! isOpen) openUploadDropdown(dropdown);
+                            return;
+                        }
+
+                        const option = event.target.closest('[data-upload-dropdown-option]');
+
+                        if (option) {
+                            event.preventDefault();
+                            selectUploadDropdownOption(option);
+                            return;
+                        }
+
+                        if (! event.target.closest('[data-upload-dropdown]')) {
+                            closeAllUploadDropdowns();
+                        }
+                    });
+
+                    document.addEventListener('keydown', (event) => {
+                        if (event.key === 'Escape') closeAllUploadDropdowns();
+                    });
+                }
+            }
+
+            function openUploadDropdown(dropdown) {
+                dropdown.classList.add('is-open');
+                const trigger = dropdown.querySelector('[data-upload-dropdown-trigger]');
+                const menu = dropdown.querySelector('[data-upload-dropdown-menu]');
+                if (trigger) trigger.setAttribute('aria-expanded', 'true');
+                if (menu) menu.hidden = false;
+            }
+
+            function closeAllUploadDropdowns() {
+                document.querySelectorAll('[data-upload-dropdown].is-open').forEach((dropdown) => {
+                    dropdown.classList.remove('is-open');
+                    const trigger = dropdown.querySelector('[data-upload-dropdown-trigger]');
+                    const menu = dropdown.querySelector('[data-upload-dropdown-menu]');
+                    if (trigger) trigger.setAttribute('aria-expanded', 'false');
+                    if (menu) menu.hidden = true;
+                });
+            }
+
+            function restoreLastStorageChoice() {
+                try {
+                    const savedId = window.localStorage?.getItem('fp_last_storage_group_id');
+                    if (! savedId) return;
+
+                    const storageDropdown = document.querySelector('.upload-control-storage[data-upload-dropdown]');
+                    if (! storageDropdown) return;
+
+                    // Don't override an explicit "old value" from server (e.g. validation re-render)
+                    const oldValue = storageDropdown.querySelector('[data-upload-dropdown-input]')?.value || '';
+                    if (oldValue && oldValue !== '') return;
+
+                    const option = storageDropdown.querySelector(`[data-upload-dropdown-option][data-value="${CSS.escape(savedId)}"]`);
+                    if (option) {
+                        selectUploadDropdownOption(option);
+                    }
+                } catch (_) {
+                    // localStorage may throw in private mode / sandboxed contexts
+                }
+            }
+
+            function selectUploadDropdownOption(option) {
+                const dropdown = option.closest('[data-upload-dropdown]');
+                if (! dropdown) return;
+
+                const value = option.dataset.value;
+                const label = option.querySelector('strong')?.textContent || '';
+
+                const input = dropdown.querySelector('[data-upload-dropdown-input]');
+                const valueSpan = dropdown.querySelector('[data-upload-dropdown-value]');
+
+                if (input) input.value = value;
+                if (valueSpan) valueSpan.textContent = label;
+
+                dropdown.querySelectorAll('[data-upload-dropdown-option]').forEach((opt) => {
+                    opt.classList.toggle('is-selected', opt === option);
+                    opt.setAttribute('aria-selected', opt === option ? 'true' : 'false');
+                });
+
+                closeAllUploadDropdowns();
+            }
+
+            function handleSelectedListClick(event) {
+                const removeBtn = event.target.closest('[data-upload-remove]');
+
+                if (removeBtn) {
+                    event.preventDefault();
+                    removeFileFromInput(parseInt(removeBtn.dataset.uploadRemove, 10));
+                    return;
+                }
+
+                const clearBtn = event.target.closest('[data-upload-clear]');
+
+                if (clearBtn) {
+                    event.preventDefault();
+                    const input = document.querySelector('[data-upload-input]');
+
+                    if (input) {
+                        input.value = '';
+                        renderSelectedFiles();
+                    }
+                }
+            }
+
+            function removeFileFromInput(index) {
+                const input = document.querySelector('[data-upload-input]');
+
+                if (! input?.files) {
+                    return;
+                }
+
+                const transfer = new DataTransfer();
+
+                Array.from(input.files).forEach((file, fileIndex) => {
+                    if (fileIndex !== index) {
+                        transfer.items.add(file);
+                    }
+                });
+
+                input.files = transfer.files;
+                renderSelectedFiles();
+            }
+
+            function renderSelectedFiles() {
+                const input = document.querySelector('[data-upload-input]');
+                const wrapper = document.querySelector('[data-upload-selected]');
+                const list = document.querySelector('[data-upload-list]');
+                const countLabel = document.querySelector('[data-upload-count]');
+                const totalLabel = document.querySelector('[data-upload-total-size]');
+                const submitLabel = document.querySelector('[data-upload-submit-label]');
+
+                if (! input || ! wrapper || ! list) {
+                    return;
+                }
+
+                const files = Array.from(input.files || []);
+                const form = document.querySelector('[data-upload-form]');
+
+                if (files.length === 0) {
+                    wrapper.hidden = true;
+                    list.innerHTML = '';
+
+                    if (submitLabel) {
+                        submitLabel.textContent = 'Завантажити';
+                    }
+
+                    if (form) form.classList.remove('has-files');
+
+                    return;
+                }
+
+                if (form) form.classList.add('has-files');
+
+                wrapper.hidden = false;
+                list.innerHTML = '';
+
+                let totalSize = 0;
+
+                files.forEach((file, index) => {
+                    totalSize += file.size;
+
+                    const item = document.createElement('li');
+                    item.className = 'upload-selected-item';
+                    item.dataset.uploadItem = index;
+                    item.dataset.state = 'idle';
+                    item.innerHTML = `
+                        <span class="upload-selected-icon">${escapeHtml(fileBadge(file))}</span>
+                        <span class="upload-selected-name">
+                            <strong title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</strong>
+                            <span class="upload-selected-status" data-upload-status>${escapeHtml(file.type || 'unknown')}</span>
+                        </span>
+                        <span class="upload-selected-size">${escapeHtml(formatBytes(file.size))}</span>
+                        <span class="upload-selected-state" data-upload-state aria-hidden="true">
+                            <svg class="upload-state-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                                <path d="M12 3a9 9 0 1 0 9 9"/>
+                            </svg>
+                            <svg class="upload-state-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="5 12 10 17 19 7"/>
+                            </svg>
+                            <svg class="upload-state-error" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+                                <line x1="6" y1="6" x2="18" y2="18"/>
+                                <line x1="18" y1="6" x2="6" y2="18"/>
+                            </svg>
+                        </span>
+                        <button type="button" class="upload-selected-remove" data-upload-remove="${index}" aria-label="Видалити ${escapeHtml(file.name)}">×</button>
+                        <span class="upload-item-progress" data-upload-item-progress>
+                            <span class="upload-item-progress-bar" data-upload-item-bar></span>
+                        </span>
+                    `;
+                    list.appendChild(item);
+                });
+
+                if (countLabel) {
+                    countLabel.textContent = files.length;
+                }
+
+                if (totalLabel) {
+                    totalLabel.textContent = formatBytes(totalSize);
+                }
+
+                if (submitLabel) {
+                    submitLabel.textContent = files.length === 1
+                        ? 'Завантажити 1 файл'
+                        : `Завантажити ${files.length} файли`;
+                }
+            }
+
+            function fileBadge(file) {
+                const type = (file.type || '').toLowerCase();
+                const name = (file.name || '').toLowerCase();
+                const ext = name.includes('.') ? name.split('.').pop() : '';
+
+                if (type.startsWith('image/')) return 'IMG';
+                if (type.startsWith('video/') || ['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext)) return 'VID';
+                if (type.startsWith('audio/') || ['mp3', 'ogg', 'wav', 'm4a'].includes(ext)) return 'AUD';
+                if (['pdf'].includes(ext)) return 'PDF';
+                if (['doc', 'docx', 'odt', 'rtf'].includes(ext)) return 'DOC';
+                if (['xls', 'xlsx', 'csv'].includes(ext)) return 'XLS';
+                if (['ppt', 'pptx'].includes(ext)) return 'PPT';
+                if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return 'ZIP';
+                if (['txt', 'md', 'log'].includes(ext)) return 'TXT';
+
+                return ext ? ext.slice(0, 4).toUpperCase() : 'FILE';
+            }
+
+            function formatBytes(bytes) {
+                if (! Number.isFinite(bytes) || bytes <= 0) {
+                    return '0 B';
+                }
+
+                const units = ['B', 'KB', 'MB', 'GB'];
+                let value = bytes;
+                let unit = 0;
+
+                while (value >= 1024 && unit < units.length - 1) {
+                    value /= 1024;
+                    unit++;
+                }
+
+                return `${value < 10 && unit > 0 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`;
+            }
+
+            async function uploadFiles(form) {
+                const fileInput = form.querySelector('input[type="file"]');
+                const files = Array.from(fileInput?.files || []);
+
+                if (! files.length) {
+                    showPageFlash('Оберіть хоча б один файл для завантаження.', true);
+                    return;
+                }
+
+                const submitter = form.querySelector('[type="submit"]');
+                const folderId = form.querySelector('[name="folder_id"]')?.value || '';
+                const storageId = form.querySelector('[name="telegram_storage_group_id"]')?.value || '';
+                const csrfToken = form.querySelector('[name="_token"]')?.value || '';
+
+                setShareBusy(submitter, true);
+                form.classList.add('is-uploading');
+
+                files.forEach((_, index) => setUploadItemState(index, 'queued'));
+                setUploadProgress(form, 0, `Очікування... 0 / ${files.length}`);
+
+                let succeeded = 0;
+                let failed = 0;
+                let lastResponseHtml = null;
+                let lastResponseUrl = null;
+                const failures = [];
+
+                for (let i = 0; i < files.length; i++) {
+                    setUploadProgress(
+                        form,
+                        Math.round((i / files.length) * 100),
+                        `Завантаження ${i + 1} з ${files.length}: ${files[i].name}`
+                    );
+
+                    try {
+                        const result = await uploadSingleFile(form.action, files[i], i, {
+                            folderId,
+                            storageId,
+                            csrfToken,
+                        });
+
+                        succeeded++;
+                        lastResponseHtml = result.html;
+                        lastResponseUrl = result.url;
+                        setUploadItemState(i, 'done');
+                    } catch (error) {
+                        failed++;
+                        failures.push(`${files[i].name}: ${error.message}`);
+                        setUploadItemState(i, 'error', 0, error.message);
+                    }
+                }
+
+                setShareBusy(submitter, false);
+                form.classList.remove('is-uploading');
+
+                const finalLabel = failed === 0
+                    ? `Готово. Завантажено ${succeeded} ${pluralFiles(succeeded)}.`
+                    : `Завершено: ${succeeded} з ${files.length}. Помилок: ${failed}.`;
+
+                setUploadProgress(form, 100, finalLabel);
+
+                if (failed > 0) {
+                    showPageFlash(failures.slice(0, 3).join('; ') + (failures.length > 3 ? '...' : ''), true);
+                }
+
+                if (succeeded > 0) {
+                    window.setTimeout(() => {
+                        if (lastResponseHtml) {
+                            replaceFilesPageFromHtml(lastResponseHtml, lastResponseUrl || window.location.href, true);
+                        } else {
+                            refreshFilesPage(window.location.href, false);
+                        }
+                    }, 600);
+                }
+            }
+
+            function uploadSingleFile(action, file, index, options) {
+                return new Promise((resolve, reject) => {
+                    const formData = new FormData();
+
+                    formData.append('files[]', file);
+                    formData.append('_token', options.csrfToken);
+
+                    if (options.folderId) {
+                        formData.append('folder_id', options.folderId);
+                    }
+
+                    if (options.storageId) {
+                        formData.append('telegram_storage_group_id', options.storageId);
+                    }
+
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', action);
+                    xhr.setRequestHeader('Accept', 'text/html');
+                    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+                    setUploadItemState(index, 'uploading', 0);
+
+                    xhr.upload.addEventListener('progress', (event) => {
+                        if (! event.lengthComputable) {
+                            return;
+                        }
+
+                        const percent = Math.max(1, Math.min(95, (event.loaded / event.total) * 95));
+                        setUploadItemState(index, 'uploading', percent);
+                    });
+
+                    xhr.upload.addEventListener('load', () => {
+                        setUploadItemState(index, 'processing', 98);
+                    });
+
+                    xhr.onload = () => {
+                        if (xhr.status < 200 || xhr.status >= 300) {
+                            const error = extractErrorFromHtml(xhr.responseText) || `HTTP ${xhr.status}`;
+                            reject(new Error(error));
+                            return;
+                        }
+
+                        resolve({
+                            html: xhr.responseText,
+                            url: xhr.responseURL,
+                        });
+                    };
+
+                    xhr.onerror = () => reject(new Error('Помилка мережі'));
+                    xhr.ontimeout = () => reject(new Error('Перевищено час очікування'));
+
+                    xhr.send(formData);
+                });
+            }
+
+            function setUploadItemState(index, state, percent, statusText) {
+                const item = document.querySelector(`[data-upload-item="${index}"]`);
+
+                if (! item) {
+                    return;
+                }
+
+                item.dataset.state = state;
+
+                const bar = item.querySelector('[data-upload-item-bar]');
+                const status = item.querySelector('[data-upload-status]');
+
+                if (bar) {
+                    if (state === 'done') {
+                        bar.style.width = '100%';
+                    } else if (state === 'error' || state === 'idle' || state === 'queued') {
+                        bar.style.width = state === 'queued' ? '0%' : (state === 'error' ? '100%' : '0%');
+                    } else if (typeof percent === 'number') {
+                        bar.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+                    }
+                }
+
+                if (status) {
+                    const labels = {
+                        idle: '',
+                        queued: 'У черзі',
+                        uploading: typeof percent === 'number' ? `Завантаження ${Math.round(percent)}%` : 'Завантаження...',
+                        processing: 'Обробка на сервері...',
+                        done: 'Готово ✓',
+                        error: statusText || 'Помилка завантаження',
+                    };
+
+                    if (labels[state] !== undefined) {
+                        status.textContent = labels[state];
+                    }
+                }
+            }
+
+            function pluralFiles(count) {
+                const mod10 = count % 10;
+                const mod100 = count % 100;
+
+                if (mod10 === 1 && mod100 !== 11) return 'файл';
+                if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) return 'файли';
+
+                return 'файлів';
+            }
+
+            async function refreshFilesPage(url, pushHistory, options = {}) {
+                const region = options.region || null;
+                const filesRegion = document.querySelector('[data-files-region]');
+
+                if (region === 'files' && filesRegion) {
+                    filesRegion.classList.add('is-loading');
+                }
+
+                try {
+                    const response = await fetch(url, {
+                        headers: {
+                            'Accept': 'text/html',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                    });
+                    const html = await response.text();
+
+                    if (! response.ok) {
+                        throw new Error(extractErrorFromHtml(html) || 'Не вдалося оновити сторінку.');
+                    }
+
+                    replaceFilesPageFromHtml(html, response.url || url, pushHistory, options);
+                } catch (error) {
+                    showPageFlash(error.message || 'Не вдалося оновити сторінку.', true);
+                } finally {
+                    document.querySelector('[data-files-region]')?.classList.remove('is-loading');
+                }
+            }
+
+            function replaceFilesPageFromHtml(html, url, pushHistory, options = {}) {
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                const region = options.region || null;
+
+                let selectors;
+
+                // Capture current file IDs so newly-arrived rows can fade-in
+                const previousFileIds = new Set();
+                document.querySelectorAll('[data-file-item][data-file-id]').forEach((row) => {
+                    previousFileIds.add(row.dataset.fileId);
+                });
+
+                if (region === 'files') {
+                    // Filter / pagination — only refresh the file list region
+                    selectors = ['[data-flash-area]', '[data-files-region]'];
+
+                    // Sync active state on folder list without re-fetching it
+                    const nextActive = doc.querySelector('.folder-item.is-active');
+                    const nextHref = nextActive?.getAttribute('href');
+                    document.querySelectorAll('.folder-item').forEach((item) => {
+                        const isActive = nextHref && item.getAttribute('href') === nextHref;
+                        item.classList.toggle('is-active', !! isActive);
+                    });
+
+                    // Sync per-folder file count badges from the new HTML.
+                    // After upload or navigation, the counts in the sidebar must reflect reality.
+                    syncFolderCounts(doc);
+
+                    // Sync the upload form's folder_id so subsequent uploads land in the currently
+                    // viewed folder. The hidden input + visible dropdown value + selected option all update.
+                    syncUploadFolderSelection(doc);
+                } else {
+                    // Full swap (after upload, etc.)
+                    selectors = ['[data-flash-area]', '.upload-panel', '.workspace'];
+                }
+
+                selectors.forEach((selector) => {
+                    const current = document.querySelector(selector);
+                    const next = doc.querySelector(selector);
+
+                    if (current && next) {
+                        current.replaceWith(next);
+                    }
+                });
+
+                // Mark new rows so CSS can fade them in
+                document.querySelectorAll('[data-file-item][data-file-id]').forEach((row) => {
+                    if (! previousFileIds.has(row.dataset.fileId)) {
+                        row.classList.add('fp-row-just-added');
+                        setTimeout(() => row.classList.remove('fp-row-just-added'), 1500);
+                    }
+                });
+
+                document.querySelectorAll('[data-file-share][open]').forEach((menu) => {
+                    menu.removeAttribute('open');
+                });
+
+                if (pushHistory && url && url !== window.location.href) {
+                    window.history.pushState({}, '', url);
+                }
+
+                initDropzone();
+                document.dispatchEvent(new CustomEvent('sidebar:refresh'));
+            }
+
+            function syncFolderCounts(doc) {
+                // Map href → count from the freshly fetched doc, then apply to current sidebar.
+                const fresh = new Map();
+                doc.querySelectorAll('.folder-item').forEach((item) => {
+                    const href = item.getAttribute('href');
+                    const countEl = item.querySelector('.folder-item-count');
+                    if (href && countEl) {
+                        fresh.set(href, countEl.textContent.trim());
+                    }
+                });
+
+                document.querySelectorAll('.folder-item').forEach((item) => {
+                    const href = item.getAttribute('href');
+                    const countEl = item.querySelector('.folder-item-count');
+                    if (href && countEl && fresh.has(href)) {
+                        const next = fresh.get(href);
+                        if (countEl.textContent.trim() !== next) {
+                            countEl.textContent = next;
+                            countEl.classList.add('folder-item-count-bump');
+                            setTimeout(() => countEl.classList.remove('folder-item-count-bump'), 700);
+                        }
+                    }
+                });
+            }
+
+            function syncUploadFolderSelection(doc) {
+                const nextInput = doc.querySelector('[data-upload-dropdown-input][name="folder_id"]');
+                const nextValueEl = doc.querySelector('.upload-control-folder [data-upload-dropdown-value]');
+                if (! nextInput) return;
+
+                const currentInput = document.querySelector('[data-upload-dropdown-input][name="folder_id"]');
+                const currentValueEl = document.querySelector('.upload-control-folder [data-upload-dropdown-value]');
+                const currentDropdown = document.querySelector('.upload-control-folder [data-upload-dropdown-menu]');
+                if (! currentInput) return;
+
+                const newValue = nextInput.value || '';
+                if (currentInput.value !== newValue) {
+                    currentInput.value = newValue;
+                    currentInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+
+                if (currentValueEl && nextValueEl) {
+                    currentValueEl.textContent = nextValueEl.textContent;
+                }
+
+                if (currentDropdown) {
+                    currentDropdown.querySelectorAll('[data-upload-dropdown-option]').forEach((opt) => {
+                        const isSelected = (opt.dataset.value || '') === newValue;
+                        opt.classList.toggle('is-selected', isSelected);
+                        opt.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+                    });
+                }
+            }
+
+            function setUploadProgress(form, percent, label) {
+                const progress = form.querySelector('[data-upload-progress]');
+
+                if (! progress) {
+                    return;
+                }
+
+                const normalized = Math.max(0, Math.min(100, Math.round(percent)));
+                const bar = progress.querySelector('[data-upload-progress-bar]');
+                const percentLabel = progress.querySelector('[data-upload-progress-percent]');
+                const textLabel = progress.querySelector('[data-upload-progress-label]');
+
+                progress.hidden = false;
+
+                if (bar) {
+                    bar.style.width = `${normalized}%`;
+                }
+
+                if (percentLabel) {
+                    percentLabel.textContent = `${normalized}%`;
+                }
+
+                if (textLabel) {
+                    textLabel.textContent = label;
+                }
+            }
+
+            function extractErrorFromHtml(html) {
+                const doc = new DOMParser().parseFromString(html || '', 'text/html');
+                const errorItems = Array.from(doc.querySelectorAll('.errors li')).map((item) => item.textContent.trim());
+
+                return errorItems[0] || doc.querySelector('.errors')?.textContent.trim() || '';
+            }
+
+            function showPageFlash(message, isError) {
+                let flash = document.querySelector('[data-flash-area]');
+
+                if (! flash) {
+                    flash = document.createElement('div');
+                    flash.dataset.flashArea = '';
+                    document.querySelector('.topbar')?.after(flash);
+                }
+
+                flash.innerHTML = isError
+                    ? `<div class="errors"><strong>Перевірте дію.</strong><ul><li>${escapeHtml(message)}</li></ul></div>`
+                    : `<div class="status">${escapeHtml(message)}</div>`;
+            }
+
+            function escapeHtml(value) {
+                const div = document.createElement('div');
+                div.textContent = value;
+
+                return div.innerHTML;
+            }
+
+            async function saveTagsForFile(panel) {
+                if (! panel) return;
+                const url = panel.dataset.tagsUrl;
+                const input = panel.querySelector('[data-action-tags-input]');
+                const msg = panel.querySelector('[data-action-tags-message]');
+                if (! url || ! input) return;
+
+                const button = panel.querySelector('[data-action-tags-save]');
+                if (button) button.disabled = true;
+                if (msg) { msg.textContent = ''; msg.classList.remove('is-error'); }
+
+                try {
+                    const data = await sendShareRequest(url, 'PATCH', { tags: input.value });
+                    if (msg) msg.textContent = data.message || 'Збережено.';
+                    // Soft-refresh file list so chips update inline (and sidebar count)
+                    try { refreshFilesPage(window.location.href, false, { region: 'files' }); } catch (_) {}
+                } catch (e) {
+                    if (msg) { msg.textContent = e.message || 'Не вдалося зберегти.'; msg.classList.add('is-error'); }
+                } finally {
+                    if (button) button.disabled = false;
+                }
+            }
+
+            async function sendShareRequest(url, method, payload = null) {
+                const response = await fetch(url, {
+                    method,
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: payload ? JSON.stringify(payload) : null,
+                });
+                const data = await response.json().catch(() => ({}));
+
+                if (! response.ok) {
+                    const firstError = data.errors ? Object.values(data.errors).flat()[0] : null;
+                    throw new Error(firstError || data.message || 'Запит не виконано.');
+                }
+
+                return data;
+            }
+
+            function positionActionPanel(menu, trigger) {
+                const panel = menu.querySelector('.file-action-panel');
+
+                if (! panel || ! trigger) {
+                    return;
+                }
+
+                panel.style.removeProperty('--action-panel-left');
+                panel.style.removeProperty('--action-panel-top');
+
+                const triggerRect = trigger.getBoundingClientRect();
+                const panelRect = panel.getBoundingClientRect();
+                const gap = 8;
+                let left = triggerRect.right - panelRect.width;
+                let top = triggerRect.bottom + gap;
+
+                if (top + panelRect.height > window.innerHeight - gap) {
+                    top = triggerRect.top - panelRect.height - gap;
+                }
+
+                setPanelPosition(panel, left, top);
+            }
+
+            function setPanelPosition(panel, left, top) {
+                const margin = 12;
+                const rect = panel.getBoundingClientRect();
+                const width = rect.width || Math.min(390, window.innerWidth - margin * 2);
+                const height = rect.height || Math.min(560, window.innerHeight - margin * 2);
+                const maxLeft = Math.max(margin, window.innerWidth - width - margin);
+                const maxTop = Math.max(margin, window.innerHeight - height - margin);
+
+                panel.style.setProperty('--action-panel-left', `${Math.min(Math.max(left, margin), maxLeft)}px`);
+                panel.style.setProperty('--action-panel-top', `${Math.min(Math.max(top, margin), maxTop)}px`);
+            }
+
+            function updateSharePanel(panel, share, message) {
+                const enabled = Boolean(share?.is_enabled);
+                const enabledBlock = panel.querySelector('[data-share-enabled]');
+                const disabledBlock = panel.querySelector('[data-share-disabled]');
+                const toggle = panel.querySelector('[data-share-toggle]');
+                const status = panel.querySelector('[data-share-status]');
+                const linkInput = panel.querySelector('[data-share-link-input]');
+                const openLink = panel.querySelector('[data-share-open]');
+                const maxViews = panel.querySelector('[data-share-max-views]');
+                const expiresAt = panel.querySelector('[data-share-expires-at]');
+                const usage = panel.querySelector('[data-share-usage]');
+
+                // Legacy (.share-settings) + new (.fa-share-section) markup
+                panel.querySelector('.share-settings')?.classList.toggle('is-enabled', enabled);
+                panel.querySelector('.fa-share-section')?.classList.toggle('is-enabled', enabled);
+
+                if (enabledBlock) enabledBlock.hidden = ! enabled;
+                if (disabledBlock) disabledBlock.hidden = enabled;
+
+                if (toggle) {
+                    toggle.checked = enabled;
+                }
+
+                if (status) {
+                    status.textContent = share?.status_label || (enabled ? 'Активний' : 'Вимкнено');
+                }
+
+                if (linkInput) {
+                    linkInput.value = share?.url || '';
+                }
+
+                if (openLink) {
+                    openLink.href = share?.url || '#';
+                    openLink.toggleAttribute('aria-disabled', ! share?.url);
+                }
+
+                const rawLinkInput = panel.querySelector('[data-share-raw-link-input]');
+                const rawOpenLink  = panel.querySelector('[data-share-raw-open]');
+                if (rawLinkInput) {
+                    rawLinkInput.value = share?.raw_url || '';
+                }
+                if (rawOpenLink) {
+                    rawOpenLink.href = share?.raw_url || '#';
+                    rawOpenLink.toggleAttribute('aria-disabled', ! share?.raw_url);
+                }
+
+                if (maxViews) {
+                    maxViews.value = share?.share_max_views ?? '';
+                }
+
+                if (expiresAt) {
+                    expiresAt.value = share?.share_expires_at_input || '';
+                }
+
+                if (usage) {
+                    usage.textContent = share?.usage_label || 'Переглядів: 0 / без ліміту · Доступний до: без дати';
+                }
+
+                showShareMessage(panel, message || 'Збережено.', false);
+            }
+
+            function copyShareLink(panel, selector = '[data-share-link-input]') {
+                const input = panel.querySelector(selector);
+
+                if (! input?.value) {
+                    showShareMessage(panel, 'Спочатку створіть публічний лінк.', true);
+                    return;
+                }
+
+                if (navigator.clipboard?.writeText) {
+                    navigator.clipboard.writeText(input.value)
+                        .then(() => showShareMessage(panel, 'Лінк скопійовано.', false))
+                        .catch(() => fallbackCopy(input, panel));
+                    return;
+                }
+
+                fallbackCopy(input, panel);
+            }
+
+            function fallbackCopy(input, panel) {
+                input.focus();
+                input.select();
+                document.execCommand('copy');
+                showShareMessage(panel, 'Лінк скопійовано.', false);
+            }
+
+            function showShareMessage(panel, message, isError) {
+                const target = panel.querySelector('[data-share-message]');
+
+                if (! target) {
+                    return;
+                }
+
+                target.textContent = message;
+                target.classList.toggle('is-error', isError);
+            }
+
+            function setShareBusy(target, isBusy) {
+                if (! target) {
+                    return;
+                }
+
+                target.toggleAttribute('disabled', isBusy);
+                target.setAttribute('aria-busy', isBusy ? 'true' : 'false');
+            }
+
+            /* ====================================================
+               Listen for uploader.js "all done" → soft refresh file list
+               (no full page reload — preserves scroll, action menus, etc.)
+               ==================================================== */
+            window.addEventListener('fp-uploader:refresh-needed', () => {
+                try {
+                    refreshFilesPage(window.location.href, false, { region: 'files' });
+                } catch (e) {
+                    console.warn('fp-uploader refresh failed:', e);
+                }
+            });
+
+            /* ====================================================
+               Compact action panel: tag chip-input with autosave,
+               share toggle, and tab switching.
+               ==================================================== */
+            initActionPanelTagChips();
+            initShareToggle();
+            initProtectHint();
+            initSidebarControls();
+            initDensityToggle();
+            initBlurUp();
+            initLightbox();
+            initQuickPreview();
+            initActionSidePanel();
+            initArchiveProgress();
+            initUploadShellDrop();
+
+            function initProtectHint() {
+                document.addEventListener('change', (e) => {
+                    const cb = e.target.closest('[data-upload-protect-checkbox]');
+                    if (! cb) return;
+                    const hint = document.querySelector('[data-upload-protect-hint]');
+                    if (hint) hint.toggleAttribute('hidden', ! cb.checked);
+                });
+            }
+
+            /* ====================================================
+               Upload shell drag-and-drop: the upload <details> is
+               collapsed by default, but the trigger promises drag
+               support. Listen for dragenter on the shell — if files
+               are being dragged: open the details, highlight, and
+               on drop transfer files into the real input + fire a
+               'change' event so the existing renderSelectedFiles
+               picks them up.
+               ==================================================== */
+            function initUploadShellDrop() {
+                if (document.body.dataset.usDropBound) return;
+                document.body.dataset.usDropBound = '1';
+
+                const shell = document.querySelector('[data-upload-shell]');
+                if (! shell) return;
+                const trigger = shell.querySelector('.upload-shell-trigger');
+                const input = shell.querySelector('[data-upload-input]');
+                if (! trigger || ! input) return;
+
+                const hasFiles = (e) => {
+                    const types = e.dataTransfer?.types;
+                    if (! types) return false;
+                    return Array.from(types).includes('Files');
+                };
+
+                const ensureOpen = () => {
+                    if (! shell.open) shell.open = true;
+                };
+
+                // Allow drops on the shell (trigger or anywhere in the shell)
+                shell.addEventListener('dragenter', (e) => {
+                    if (! hasFiles(e)) return;
+                    e.preventDefault();
+                    ensureOpen();
+                    trigger.classList.add('is-drag-target');
+                });
+
+                shell.addEventListener('dragover', (e) => {
+                    if (! hasFiles(e)) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'copy';
+                });
+
+                shell.addEventListener('dragleave', (e) => {
+                    // Only clear when leaving the shell entirely
+                    if (e.relatedTarget && shell.contains(e.relatedTarget)) return;
+                    trigger.classList.remove('is-drag-target');
+                });
+
+                shell.addEventListener('drop', (e) => {
+                    if (! hasFiles(e)) return;
+                    e.preventDefault();
+                    trigger.classList.remove('is-drag-target');
+                    ensureOpen();
+
+                    const dropped = e.dataTransfer.files;
+                    if (! dropped || ! dropped.length) return;
+
+                    // Append to existing selection (matching renderSelectedFiles behavior)
+                    const transfer = new DataTransfer();
+                    Array.from(input.files || []).forEach((f) => transfer.items.add(f));
+                    Array.from(dropped).forEach((f) => transfer.items.add(f));
+                    input.files = transfer.files;
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+            }
+
+            /* ====================================================
+               Archive progress overlay: ZIP generation can take a
+               while (download + zipping all files), so without
+               feedback the user thinks the button is broken.
+               Intercept the link, kick off the download in a hidden
+               iframe so the current page keeps running, show an
+               overlay with a spinner + "preparing" message, and poll
+               for the `archive_ready` cookie the server sets right
+               before streaming the response.
+               ==================================================== */
+            function initArchiveProgress() {
+                if (document.body.dataset.archiveBound) return;
+                document.body.dataset.archiveBound = '1';
+
+                const readCookie = (name) => {
+                    const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()[\]\\/+^])/g, '\\$1') + '=([^;]*)'));
+                    return m ? decodeURIComponent(m[1]) : null;
+                };
+                const clearCookie = (name) => {
+                    document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax';
+                };
+
+                let overlay = null;
+                let pollTimer = null;
+                let timeoutTimer = null;
+                let activeIframe = null;
+
+                const buildOverlay = () => {
+                    if (overlay) return;
+                    overlay = document.createElement('div');
+                    overlay.className = 'fp-archive-overlay';
+                    overlay.innerHTML = `
+                        <div class="fp-archive-overlay-backdrop"></div>
+                        <div class="fp-archive-overlay-card" role="status" aria-live="polite">
+                            <div class="fp-archive-spinner" aria-hidden="true"></div>
+                            <h3 class="fp-archive-title">Готую архів…</h3>
+                            <p class="fp-archive-text" data-archive-msg>Стискаю файли з Telegram у ZIP. Це може зайняти від кількох секунд до хвилини залежно від кількості файлів.</p>
+                            <button type="button" class="button secondary" data-archive-cancel>Скасувати очікування</button>
+                        </div>
+                    `;
+                    document.body.appendChild(overlay);
+
+                    overlay.querySelector('[data-archive-cancel]').addEventListener('click', () => {
+                        // User dismisses the overlay — the download still happens
+                        // in the background if the server eventually responds.
+                        cleanup();
+                    });
+                };
+
+                const showOverlay = () => {
+                    buildOverlay();
+                    overlay.hidden = false;
+                    requestAnimationFrame(() => overlay.classList.add('is-open'));
+                };
+
+                const cleanup = () => {
+                    clearInterval(pollTimer); pollTimer = null;
+                    clearTimeout(timeoutTimer); timeoutTimer = null;
+                    if (overlay) {
+                        overlay.classList.remove('is-open');
+                        setTimeout(() => { if (overlay) overlay.hidden = true; }, 200);
+                    }
+                    if (activeIframe) {
+                        // Leave iframe alive for a bit so the download can be picked up
+                        const ref = activeIframe;
+                        activeIframe = null;
+                        setTimeout(() => ref.remove(), 30000);
+                    }
+                };
+
+                const startDownload = (href) => {
+                    // Build a download URL with a random token so we can match the
+                    // server's cookie response back to this exact request.
+                    const token = 'a' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
+                    const url = new URL(href, window.location.origin);
+                    url.searchParams.set('download_token', token);
+
+                    // Clear any leftover archive_ready cookie from a prior run
+                    clearCookie('archive_ready');
+
+                    showOverlay();
+
+                    // Hidden iframe triggers the download without navigating the page
+                    activeIframe = document.createElement('iframe');
+                    activeIframe.style.display = 'none';
+                    activeIframe.src = url.toString();
+                    document.body.appendChild(activeIframe);
+
+                    // Poll for the cookie the server sets when the response starts
+                    pollTimer = setInterval(() => {
+                        if (readCookie('archive_ready') === token) {
+                            clearCookie('archive_ready');
+                            cleanup();
+                        }
+                    }, 400);
+
+                    // Safety timeout — give up after 5 minutes
+                    timeoutTimer = setTimeout(() => {
+                        const msg = overlay?.querySelector('[data-archive-msg]');
+                        if (msg) msg.textContent = 'Архів готується довше за очікуване. Перевірте мережу або зменшіть кількість файлів через фільтри.';
+                    }, 60000);
+                };
+
+                document.addEventListener('click', (e) => {
+                    const btn = e.target.closest('.file-archive-btn');
+                    if (! btn) return;
+                    // Respect open-in-new-tab / save-as modifiers — fall back to default
+                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                    e.preventDefault();
+                    startDownload(btn.getAttribute('href'));
+                });
+            }
+
+            /* ====================================================
+               Action side-panel: keeps the existing <details>
+               markup (so all data-share / data-tags wiring still
+               works), but turns the floating panel into a fixed
+               slide-in from the right. Backdrop + scroll-lock
+               managed via a body class; the existing outside-click
+               handler in file-action-menu-script already closes it.
+               ==================================================== */
+            function initActionSidePanel() {
+                if (document.body.dataset.aspBound) return;
+                document.body.dataset.aspBound = '1';
+                document.body.classList.add('fp-sidepanel');
+
+                const sync = () => {
+                    const isOpen = !! document.querySelector('details.file-action-menu[open]');
+                    document.body.classList.toggle('fp-actionpanel-open', isOpen);
+                    document.documentElement.style.overflow = isOpen ? 'hidden' : '';
+                };
+
+                const obs = new MutationObserver(sync);
+                obs.observe(document.body, {
+                    subtree: true,
+                    attributes: true,
+                    attributeFilter: ['open'],
+                });
+
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && document.querySelector('details.file-action-menu[open]')) {
+                        document.querySelectorAll('details.file-action-menu[open]').forEach((m) => m.removeAttribute('open'));
+                    }
+                });
+
+                sync();
+            }
+
+            /* ====================================================
+               Quick-preview popover on hover (table rows + grid
+               tiles without inline previews). After a 400ms hover
+               delay we float a thumbnail anchored next to the row,
+               flipping sides if it would clip the viewport. Disabled
+               on touch devices (no real hover state).
+               ==================================================== */
+            function initQuickPreview() {
+                if (document.body.dataset.qpBound) return;
+                document.body.dataset.qpBound = '1';
+
+                // Skip if device can't hover (touch / coarse pointer)
+                if (window.matchMedia && window.matchMedia('(hover: none)').matches) return;
+
+                let pop = null;
+                let imgEl = null;
+                let labelEl = null;
+                let timer = null;
+                let currentTrigger = null;
+
+                const build = () => {
+                    if (pop) return;
+                    pop = document.createElement('div');
+                    pop.className = 'fp-quickpreview';
+                    pop.hidden = true;
+                    pop.setAttribute('aria-hidden', 'true');
+                    pop.innerHTML = `
+                        <div class="fp-quickpreview-frame">
+                            <img class="fp-quickpreview-img" alt="">
+                        </div>
+                        <div class="fp-quickpreview-label"></div>
+                    `;
+                    document.body.appendChild(pop);
+                    imgEl = pop.querySelector('.fp-quickpreview-img');
+                    labelEl = pop.querySelector('.fp-quickpreview-label');
+                };
+
+                const position = (trigger) => {
+                    if (! pop) return;
+                    const rect = trigger.getBoundingClientRect();
+                    const ph = pop.offsetHeight || 200;
+                    const pw = pop.offsetWidth || 280;
+
+                    let left = rect.right + 12;
+                    if (left + pw > window.innerWidth - 8) {
+                        left = rect.left - pw - 12; // flip to left
+                    }
+                    if (left < 8) left = 8;
+
+                    let top = rect.top + rect.height / 2 - ph / 2;
+                    if (top + ph > window.innerHeight - 8) top = window.innerHeight - ph - 8;
+                    if (top < 8) top = 8;
+
+                    pop.style.left = left + 'px';
+                    pop.style.top  = top + 'px';
+                };
+
+                const show = (trigger) => {
+                    build();
+                    currentTrigger = trigger;
+
+                    const src = trigger.dataset.quickpreviewSrc;
+                    const name = trigger.dataset.quickpreviewName || '';
+                    const grad = trigger.dataset.quickpreviewGradient || '';
+
+                    pop.querySelector('.fp-quickpreview-frame').style.backgroundImage = grad || 'none';
+                    imgEl.classList.remove('is-loaded');
+                    imgEl.alt = name;
+                    imgEl.src = src;
+                    imgEl.onload = () => imgEl.classList.add('is-loaded');
+                    labelEl.textContent = name;
+
+                    pop.hidden = false;
+                    requestAnimationFrame(() => {
+                        position(trigger);
+                        pop.classList.add('is-open');
+                    });
+                };
+
+                const hide = () => {
+                    if (! pop) return;
+                    currentTrigger = null;
+                    pop.classList.remove('is-open');
+                    clearTimeout(timer);
+                    timer = null;
+                    setTimeout(() => {
+                        if (pop && ! currentTrigger) pop.hidden = true;
+                    }, 140);
+                };
+
+                document.addEventListener('pointerover', (e) => {
+                    const trigger = e.target.closest('[data-quickpreview-src]');
+                    if (! trigger || trigger === currentTrigger) return;
+                    // Skip if pointer is hovering the lightbox / a popover itself
+                    if (e.target.closest('.fp-lightbox, .fp-quickpreview, .file-action-panel, details[open]')) return;
+
+                    clearTimeout(timer);
+                    timer = setTimeout(() => show(trigger), 400);
+                });
+
+                document.addEventListener('pointerout', (e) => {
+                    const trigger = e.target.closest('[data-quickpreview-src]');
+                    if (! trigger) return;
+                    // pointerout fires when moving to a child — ignore those
+                    if (trigger.contains(e.relatedTarget)) return;
+                    clearTimeout(timer);
+                    timer = null;
+                    if (trigger === currentTrigger) hide();
+                });
+
+                document.addEventListener('scroll', hide, true);
+                window.addEventListener('blur', hide);
+            }
+
+            /* ====================================================
+               Lightbox: click on any [data-lightbox] image preview
+               opens a full-screen viewer. Arrow keys / on-screen
+               buttons cycle through every [data-lightbox] currently
+               visible on the page in DOM order. Escape closes.
+               ==================================================== */
+            function initLightbox() {
+                if (document.body.dataset.lightboxBound) return;
+                document.body.dataset.lightboxBound = '1';
+
+                let modal = null;
+                let imgEl = null;
+                let nameEl = null;
+                let metaEl = null;
+                let linkEl = null;
+                let downloadEl = null;
+                let counterEl = null;
+                let frameEl = null;
+
+                let items = [];
+                let index = -1;
+
+                const collect = () => Array.from(document.querySelectorAll('[data-lightbox][data-lightbox-src]'));
+
+                const buildModal = () => {
+                    if (modal) return;
+                    modal = document.createElement('div');
+                    modal.className = 'fp-lightbox';
+                    modal.hidden = true;
+                    modal.innerHTML = `
+                        <div class="fp-lightbox-backdrop" data-lb-close></div>
+                        <div class="fp-lightbox-stage" role="dialog" aria-modal="true" aria-label="Перегляд зображення">
+                            <button type="button" class="fp-lightbox-close" data-lb-close aria-label="Закрити">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+                            </button>
+                            <button type="button" class="fp-lightbox-nav fp-lightbox-prev" data-lb-prev aria-label="Попереднє">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                            </button>
+                            <button type="button" class="fp-lightbox-nav fp-lightbox-next" data-lb-next aria-label="Наступне">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                            </button>
+                            <div class="fp-lightbox-frame" data-lb-frame>
+                                <img class="fp-lightbox-img" alt="">
+                            </div>
+                            <div class="fp-lightbox-caption">
+                                <div class="fp-lightbox-text">
+                                    <strong class="fp-lightbox-name"></strong>
+                                    <span class="fp-lightbox-meta"></span>
+                                </div>
+                                <div class="fp-lightbox-actions">
+                                    <span class="fp-lightbox-counter"></span>
+                                    <a class="fp-lightbox-link" href="#" target="_blank" rel="noopener">Відкрити сторінку</a>
+                                    <a class="fp-lightbox-download" href="#" download>Скачати</a>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(modal);
+
+                    imgEl = modal.querySelector('.fp-lightbox-img');
+                    nameEl = modal.querySelector('.fp-lightbox-name');
+                    metaEl = modal.querySelector('.fp-lightbox-meta');
+                    linkEl = modal.querySelector('.fp-lightbox-link');
+                    downloadEl = modal.querySelector('.fp-lightbox-download');
+                    counterEl = modal.querySelector('.fp-lightbox-counter');
+                    frameEl = modal.querySelector('[data-lb-frame]');
+
+                    modal.addEventListener('click', (e) => {
+                        if (e.target.closest('[data-lb-close]')) close();
+                        else if (e.target.closest('[data-lb-prev]')) navigate(-1);
+                        else if (e.target.closest('[data-lb-next]')) navigate(1);
+                    });
+
+                    imgEl.addEventListener('load', () => {
+                        frameEl.classList.remove('is-loading');
+                        frameEl.classList.remove('is-error');
+                    });
+                    imgEl.addEventListener('error', () => {
+                        frameEl.classList.remove('is-loading');
+                        frameEl.classList.add('is-error');
+                    });
+                };
+
+                const renderAt = (i) => {
+                    if (i < 0 || i >= items.length) return;
+                    index = i;
+                    const el = items[i];
+                    const src = el.dataset.lightboxSrc;
+                    const name = el.dataset.lightboxName || '';
+                    const meta = el.dataset.lightboxMeta || '';
+                    const href = el.dataset.lightboxHref || '#';
+                    const dl   = el.dataset.lightboxDownload || src;
+
+                    frameEl.classList.add('is-loading');
+                    frameEl.classList.remove('is-error');
+                    imgEl.removeAttribute('src');
+                    // Reassign in next frame so the load listener fires consistently
+                    requestAnimationFrame(() => {
+                        imgEl.alt = name;
+                        imgEl.src = src;
+                    });
+                    nameEl.textContent = name;
+                    metaEl.textContent = meta;
+                    linkEl.href = href;
+                    downloadEl.href = dl;
+                    counterEl.textContent = `${i + 1} / ${items.length}`;
+
+                    // Pre-warm neighbours so navigation feels instant
+                    [i - 1, i + 1].forEach((j) => {
+                        if (items[j]) {
+                            const pre = new Image();
+                            pre.decoding = 'async';
+                            pre.src = items[j].dataset.lightboxSrc;
+                        }
+                    });
+
+                    const onePage = items.length <= 1;
+                    modal.querySelector('.fp-lightbox-prev').hidden = onePage;
+                    modal.querySelector('.fp-lightbox-next').hidden = onePage;
+                };
+
+                const navigate = (dir) => {
+                    if (items.length === 0) return;
+                    const next = (index + dir + items.length) % items.length;
+                    renderAt(next);
+                };
+
+                const open = (clickedEl) => {
+                    buildModal();
+                    items = collect();
+                    if (items.length === 0) return;
+                    const start = items.indexOf(clickedEl);
+                    renderAt(start >= 0 ? start : 0);
+                    modal.hidden = false;
+                    requestAnimationFrame(() => modal.classList.add('is-open'));
+                    document.documentElement.style.overflow = 'hidden';
+                };
+
+                const close = () => {
+                    if (! modal) return;
+                    modal.classList.remove('is-open');
+                    document.documentElement.style.overflow = '';
+                    setTimeout(() => { if (modal) modal.hidden = true; }, 180);
+                };
+
+                document.addEventListener('click', (e) => {
+                    const trigger = e.target.closest('[data-lightbox][data-lightbox-src]');
+                    if (! trigger) return;
+                    // Ignore modifier clicks (open-in-new-tab etc.)
+                    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                    e.preventDefault();
+                    open(trigger);
+                });
+
+                document.addEventListener('keydown', (e) => {
+                    if (! modal || modal.hidden) return;
+                    if (e.key === 'Escape') { e.preventDefault(); close(); }
+                    else if (e.key === 'ArrowLeft') { e.preventDefault(); navigate(-1); }
+                    else if (e.key === 'ArrowRight') { e.preventDefault(); navigate(1); }
+                });
+            }
+
+            /* ====================================================
+               Blur-up image previews: each .blur-up-img starts at
+               opacity 0 over a per-file gradient (placeholder_gradient
+               accessor on the model); we add .is-loaded when it
+               actually decodes, then CSS fades it in. Already-cached
+               images (img.complete) get the class immediately.
+               ==================================================== */
+            function initBlurUp() {
+                const promote = (img) => {
+                    if (img && img.classList && ! img.classList.contains('is-loaded')) {
+                        img.classList.add('is-loaded');
+                    }
+                };
+
+                document.querySelectorAll('img.blur-up-img').forEach((img) => {
+                    if (img.complete && img.naturalWidth > 0) promote(img);
+                });
+
+                if (document.body.dataset.blurupBound) return;
+                document.body.dataset.blurupBound = '1';
+
+                document.addEventListener('load', (e) => {
+                    const img = e.target;
+                    if (img && img.tagName === 'IMG' && img.matches?.('.blur-up-img')) promote(img);
+                }, true);
+
+                // After AJAX nav, the file list is re-rendered → re-scan
+                document.addEventListener('sidebar:refresh', () => {
+                    document.querySelectorAll('img.blur-up-img').forEach((img) => {
+                        if (img.complete && img.naturalWidth > 0) promote(img);
+                    });
+                });
+            }
+
+            /* ====================================================
+               Density toggle (comfortable / compact / list).
+               Persisted in localStorage as fp-density; applied as a
+               class on <body>, so .file-grid is styled regardless of
+               AJAX re-renders that replace [data-files-region].
+               All state is kept inside initDensityToggle so the IIFE
+               can call it before the function definition without
+               hitting the TDZ on module-level `const`s.
+               ==================================================== */
+            function initDensityToggle() {
+                const DENSITY_KEY = 'fp-density';
+                const DENSITY_VALUES = ['comfortable', 'compact', 'list'];
+                const DENSITY_PER_PAGE = { comfortable: 12, compact: 18, list: 30 };
+
+                const applyToBody = (value) => {
+                    const v = DENSITY_VALUES.includes(value) ? value : 'comfortable';
+                    DENSITY_VALUES.forEach((d) => document.body.classList.toggle('density-' + d, d === v));
+                };
+
+                const readSaved = () => {
+                    try { return localStorage.getItem(DENSITY_KEY); } catch (e) { return null; }
+                };
+
+                const writeSaved = (v) => {
+                    try { localStorage.setItem(DENSITY_KEY, v); } catch (e) { /* private mode */ }
+                };
+
+                const getCookie = (name) => {
+                    const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()[\]\\/+^])/g, '\\$1') + '=([^;]*)'));
+                    return m ? decodeURIComponent(m[1]) : null;
+                };
+
+                const setCookie = (name, value, days = 365) => {
+                    const exp = new Date(Date.now() + days * 864e5).toUTCString();
+                    document.cookie = `${name}=${encodeURIComponent(value)}; expires=${exp}; path=/; SameSite=Lax`;
+                };
+
+                applyToBody(readSaved() || 'comfortable');
+
+                const syncButtons = () => {
+                    const current = readSaved() || 'comfortable';
+                    document.querySelectorAll('[data-density-toggle] [data-density]').forEach((btn) => {
+                        btn.classList.toggle('is-active', btn.dataset.density === current);
+                    });
+                };
+
+                syncButtons();
+
+                // Initial sync: if localStorage density implies a different per_page
+                // than the cookie currently has (or the cookie is missing), update
+                // the cookie and re-fetch the file list so pagination matches density.
+                const initialDensity = readSaved() || 'comfortable';
+                const initialPerPage = DENSITY_PER_PAGE[initialDensity];
+                const cookiePerPage = parseInt(getCookie('fp_per_page') || '0', 10);
+                if (cookiePerPage !== initialPerPage) {
+                    setCookie('fp_per_page', String(initialPerPage));
+                    if (typeof refreshFilesPage === 'function' && document.querySelector('[data-file-items]')) {
+                        // No history push — we're just syncing initial render to density
+                        refreshFilesPage(window.location.href, false, { region: 'files' });
+                    }
+                }
+
+                if (document.body.dataset.densityBound) return;
+                document.body.dataset.densityBound = '1';
+
+                document.addEventListener('click', (e) => {
+                    const btn = e.target.closest('[data-density-toggle] [data-density]');
+                    if (! btn) return;
+                    const value = btn.dataset.density;
+                    if (! DENSITY_VALUES.includes(value)) return;
+
+                    writeSaved(value);
+                    applyToBody(value);
+                    syncButtons();
+
+                    // Sync per_page cookie and refresh the file list AJAX-style
+                    const perPage = DENSITY_PER_PAGE[value];
+                    setCookie('fp_per_page', String(perPage));
+                    if (typeof refreshFilesPage === 'function' && document.querySelector('[data-file-items]')) {
+                        // Drop ?page to go back to first page when per_page changes
+                        const url = new URL(window.location.href);
+                        url.searchParams.delete('page');
+                        refreshFilesPage(url.toString(), true, { region: 'files' });
+                    }
+                });
+
+                // Re-sync active state after AJAX nav re-renders the toggle
+                document.addEventListener('sidebar:refresh', syncButtons);
+            }
+
+            /* ====================================================
+               Sidebar: search + sort + collapse for folders/tags.
+               One controller per [data-sidebar-section]; pinned items
+               (data-sidebar-pin) stay in place, active item floats to
+               top, the rest sort by usage / alpha and collapse to
+               top N until "Показати всі" is clicked.
+               ==================================================== */
+            function initSidebarControls() {
+                const setupSection = (section) => {
+                    if (section.dataset.scBound) return;
+                    section.dataset.scBound = '1';
+
+                    const list = section.querySelector('[data-sidebar-list]');
+                    if (! list) return;
+
+                    const search = section.querySelector('[data-sidebar-search]');
+                    const sortButtons = Array.from(section.querySelectorAll('[data-sidebar-sort]'));
+                    const showAllBtn = section.querySelector('[data-sidebar-show-all]');
+                    const collapsedCount = parseInt(showAllBtn?.dataset.collapsedCount || '8', 10);
+
+                    const state = {
+                        sort: 'usage',
+                        expanded: false,
+                        query: '',
+                    };
+
+                    const isItemActive = (el) =>
+                        el.classList.contains('is-active') || !! el.querySelector('.is-active');
+
+                    const items = () => Array.from(list.querySelectorAll(':scope > [data-sidebar-item]'));
+
+                    const apply = () => {
+                        const all = items();
+
+                        // Sort: active first, then by selected criterion
+                        all.sort((a, b) => {
+                            const aActive = isItemActive(a);
+                            const bActive = isItemActive(b);
+                            if (aActive && ! bActive) return -1;
+                            if (bActive && ! aActive) return 1;
+                            if (state.sort === 'alpha') {
+                                return (a.dataset.name || '').localeCompare(b.dataset.name || '', 'uk');
+                            }
+                            const ac = parseInt(a.dataset.count || '0', 10);
+                            const bc = parseInt(b.dataset.count || '0', 10);
+                            if (bc !== ac) return bc - ac;
+                            return (a.dataset.name || '').localeCompare(b.dataset.name || '', 'uk');
+                        });
+
+                        // Re-append in sorted order (pinned items stay first since they aren't [data-sidebar-item])
+                        all.forEach((el) => list.appendChild(el));
+
+                        const q = state.query.trim().toLowerCase();
+                        let visibleCount = 0;
+
+                        all.forEach((el) => {
+                            const matches = ! q || (el.dataset.name || '').includes(q);
+
+                            if (! matches) {
+                                el.classList.add('sidebar-hidden');
+                                el.classList.remove('sidebar-collapsed');
+                                return;
+                            }
+                            el.classList.remove('sidebar-hidden');
+
+                            const isActive = isItemActive(el);
+
+                            if (! state.expanded && ! q && ! isActive && visibleCount >= collapsedCount) {
+                                el.classList.add('sidebar-collapsed');
+                            } else {
+                                el.classList.remove('sidebar-collapsed');
+                                visibleCount++;
+                            }
+                        });
+
+                        if (showAllBtn) {
+                            if (q || all.length <= collapsedCount) {
+                                showAllBtn.hidden = true;
+                            } else {
+                                showAllBtn.hidden = false;
+                                if (state.expanded) {
+                                    showAllBtn.textContent = 'Згорнути ▴';
+                                } else {
+                                    const remaining = all.length - collapsedCount;
+                                    showAllBtn.textContent = `Показати всі (+${remaining} ще) ▾`;
+                                }
+                            }
+                        }
+
+                        section.classList.toggle('sidebar-expanded', state.expanded);
+                    };
+
+                    if (search) {
+                        search.addEventListener('input', () => {
+                            state.query = search.value;
+                            apply();
+                        });
+                    }
+
+                    sortButtons.forEach((btn) => {
+                        btn.addEventListener('click', () => {
+                            state.sort = btn.dataset.sidebarSort;
+                            sortButtons.forEach((b) => b.classList.toggle('is-active', b === btn));
+                            apply();
+                        });
+                    });
+
+                    if (showAllBtn) {
+                        showAllBtn.addEventListener('click', () => {
+                            state.expanded = ! state.expanded;
+                            apply();
+                        });
+                    }
+
+                    // Expose for external triggers (e.g. AJAX nav changes active item)
+                    section._scApply = apply;
+
+                    apply();
+                };
+
+                document.querySelectorAll('[data-sidebar-section]').forEach(setupSection);
+
+                // Re-apply after AJAX navigation: active state may have moved to a different item
+                document.addEventListener('sidebar:refresh', () => {
+                    document.querySelectorAll('[data-sidebar-section]').forEach((section) => {
+                        if (typeof section._scApply === 'function') section._scApply();
+                    });
+                });
+            }
+
+            function initActionPanelTagChips() {
+                document.addEventListener('focusin', (e) => {
+                    const container = e.target.closest('[data-file-tags-container]');
+                    if (container) setupActionPanelTagChips(container);
+                });
+                // Eager setup for already-open panels (e.g. after soft-refresh)
+                document.querySelectorAll('[data-file-tags-container]').forEach(setupActionPanelTagChips);
+            }
+
+            function setupActionPanelTagChips(container) {
+                if (container.dataset.tagsInit === '1') return;
+                container.dataset.tagsInit = '1';
+
+                const chipsArea = container.querySelector('[data-action-tags-chips]');
+                const typing    = container.querySelector('[data-action-tags-typing]');
+                const hidden    = container.querySelector('[data-action-tags-input]');
+                const status    = container.querySelector('[data-action-tags-status]');
+                const message   = container.querySelector('[data-action-tags-message]');
+                const panel     = container.closest('[data-file-share]');
+                const url       = panel?.dataset.tagsUrl;
+                if (! chipsArea || ! typing || ! hidden || ! url) return;
+
+                const state = new Set();
+                let saveTimer = null;
+
+                const norm = (raw) => String(raw || '').trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 64);
+
+                function setStatus(text, kind) {
+                    if (! status) return;
+                    status.textContent = text || '';
+                    status.className = 'fa-section-state' + (kind ? ' is-' + kind : '');
+                }
+
+                function syncHidden() {
+                    hidden.value = Array.from(state).join(', ');
+                }
+
+                async function persist() {
+                    setStatus('зберігаю…', 'saving');
+                    try {
+                        const data = await sendShareRequest(url, 'PATCH', { tags: hidden.value });
+                        setStatus('✓ збережено', 'success');
+                        setTimeout(() => setStatus('', null), 1800);
+                        if (message) message.textContent = '';
+                    } catch (e) {
+                        setStatus('✗ помилка', 'error');
+                        if (message) {
+                            message.textContent = e.message || 'Не вдалося зберегти.';
+                            message.classList.add('is-error');
+                        }
+                    }
+                }
+
+                function scheduleSave() {
+                    clearTimeout(saveTimer);
+                    saveTimer = setTimeout(persist, 500);
+                }
+
+                function cssEscape(s) {
+                    return (window.CSS && CSS.escape) ? CSS.escape(s) : s.replace(/["\\]/g, '\\$&');
+                }
+
+                function renderChip(name) {
+                    const chip = document.createElement('span');
+                    chip.className = 'upload-tag-chip';
+                    chip.dataset.chipName = name;
+                    chip.innerHTML = '<span class="upload-tag-chip-text"></span><button type="button" class="upload-tag-chip-remove" aria-label="Видалити тег">✕</button>';
+                    chip.querySelector('.upload-tag-chip-text').textContent = name;
+                    chip.querySelector('.upload-tag-chip-remove').addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (state.delete(name)) {
+                            chip.remove();
+                            syncHidden();
+                            scheduleSave();
+                            typing.focus();
+                        }
+                    });
+                    chipsArea.insertBefore(chip, typing);
+                }
+
+                function addTag(raw) {
+                    const name = norm(raw);
+                    if (! name || state.has(name)) return;
+                    state.add(name);
+                    renderChip(name);
+                    syncHidden();
+                    scheduleSave();
+                }
+
+                typing.addEventListener('input', () => {
+                    const v = typing.value;
+                    if (/[,;\n]/.test(v)) {
+                        const parts = v.split(/[,;\n]/);
+                        const tail  = parts.pop();
+                        parts.forEach(addTag);
+                        typing.value = tail || '';
+                    }
+                });
+
+                typing.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === 'Tab') {
+                        if (typing.value.trim() !== '') {
+                            e.preventDefault();
+                            addTag(typing.value);
+                            typing.value = '';
+                        }
+                    } else if (e.key === 'Backspace' && typing.value === '' && state.size > 0) {
+                        const last = Array.from(state).pop();
+                        if (state.delete(last)) {
+                            const c = chipsArea.querySelector('[data-chip-name="' + cssEscape(last) + '"]');
+                            if (c) c.remove();
+                            syncHidden();
+                            scheduleSave();
+                        }
+                    }
+                });
+
+                typing.addEventListener('blur', () => {
+                    if (typing.value.trim() !== '') {
+                        addTag(typing.value);
+                        typing.value = '';
+                    }
+                });
+
+                container.addEventListener('click', (e) => {
+                    if (e.target === typing) return;
+                    if (e.target.closest('.upload-tag-chip-remove')) return;
+                    typing.focus();
+                });
+
+                // Seed chips from initial CSV (file already has tags)
+                const initial = (hidden.value || '').split(/[,;]/).map(norm).filter(Boolean);
+                initial.forEach((name) => {
+                    if (! state.has(name)) {
+                        state.add(name);
+                        renderChip(name);
+                    }
+                });
+                syncHidden();
+            }
+
+            function initShareToggle() {
+                document.addEventListener('change', async (e) => {
+                    const toggle = e.target.closest('[data-share-toggle]');
+                    if (! toggle) return;
+
+                    const panel = toggle.closest('[data-file-share]');
+                    if (! panel) return;
+
+                    toggle.disabled = true;
+
+                    try {
+                        const url = toggle.checked ? panel.dataset.shareUrl : panel.dataset.shareDisableUrl;
+                        const method = toggle.checked ? 'POST' : 'DELETE';
+                        const data = await sendShareRequest(url, method);
+                        updateSharePanel(panel, data.share, data.message);
+                    } catch (error) {
+                        // Revert checkbox on failure
+                        toggle.checked = ! toggle.checked;
+                        showShareMessage(panel, error.message || 'Не вдалося змінити стан публічного лінка.', true);
+                    } finally {
+                        toggle.disabled = false;
+                    }
+                });
+            }
+
+            /* ====================================================
+               Upload form tag chip input: convert typed text + comma/Enter into a removable chip.
+               Hidden [name="tags"] stays in sync as a CSV for the form submit.
+               ==================================================== */
+            initTagChipInput();
+
+            function initTagChipInput() {
+                document.querySelectorAll('[data-upload-tags-container]').forEach(setupOne);
+
+                function setupOne(container) {
+                    if (container.dataset.tagsInit === '1') return;
+                    container.dataset.tagsInit = '1';
+
+                    const chipsArea = container.querySelector('[data-upload-tags-chips]');
+                    const typing    = container.querySelector('[data-upload-tags-typing]');
+                    const hidden    = container.querySelector('[data-upload-tags]');
+                    if (! chipsArea || ! typing || ! hidden) return;
+
+                    const state = new Set();
+
+                    function syncHidden() {
+                        hidden.value = Array.from(state).join(', ');
+                    }
+
+                    function normalize(raw) {
+                        return String(raw || '')
+                            .trim()
+                            .toLowerCase()
+                            .replace(/\s+/g, ' ')
+                            .slice(0, 64);
+                    }
+
+                    function addTag(raw) {
+                        const name = normalize(raw);
+                        if (! name || state.has(name)) return;
+                        state.add(name);
+                        renderChip(name);
+                        syncHidden();
+                    }
+
+                    function removeTag(name) {
+                        if (! state.delete(name)) return;
+                        const chip = chipsArea.querySelector('[data-chip-name="' + cssEscape(name) + '"]');
+                        if (chip) chip.remove();
+                        syncHidden();
+                    }
+
+                    function cssEscape(s) {
+                        return (window.CSS && CSS.escape) ? CSS.escape(s) : s.replace(/["\\]/g, '\\$&');
+                    }
+
+                    function renderChip(name) {
+                        const chip = document.createElement('span');
+                        chip.className = 'upload-tag-chip';
+                        chip.dataset.chipName = name;
+                        chip.innerHTML = '<span class="upload-tag-chip-text"></span><button type="button" class="upload-tag-chip-remove" aria-label="Видалити тег">✕</button>';
+                        chip.querySelector('.upload-tag-chip-text').textContent = name;
+                        chip.querySelector('.upload-tag-chip-remove').addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            removeTag(name);
+                            typing.focus();
+                        });
+                        chipsArea.insertBefore(chip, typing);
+                    }
+
+                    function flushBuffer() {
+                        const v = typing.value;
+                        if (! v) return;
+                        const parts = v.split(/[,;\n]/);
+                        const tail  = parts.pop();
+                        parts.forEach((p) => addTag(p));
+                        typing.value = tail || '';
+                    }
+
+                    typing.addEventListener('input', flushBuffer);
+
+                    typing.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter' || e.key === 'Tab') {
+                            if (typing.value.trim() !== '') {
+                                e.preventDefault();
+                                addTag(typing.value);
+                                typing.value = '';
+                            }
+                        } else if (e.key === 'Backspace' && typing.value === '' && state.size > 0) {
+                            const last = Array.from(state).pop();
+                            removeTag(last);
+                        }
+                    });
+
+                    typing.addEventListener('blur', () => {
+                        if (typing.value.trim() !== '') {
+                            addTag(typing.value);
+                            typing.value = '';
+                        }
+                    });
+
+                    // Click anywhere in the container focuses the typing input
+                    container.addEventListener('click', (e) => {
+                        if (e.target === typing) return;
+                        if (e.target.closest('.upload-tag-chip-remove')) return;
+                        typing.focus();
+                    });
+
+                    // Form submit fallback: ensure unflushed text is captured
+                    const form = container.closest('form');
+                    if (form) {
+                        form.addEventListener('submit', () => {
+                            if (typing.value.trim() !== '') {
+                                addTag(typing.value);
+                                typing.value = '';
+                            }
+                            syncHidden();
+                        }, true); // capture, runs before uploader.js submit handler
+                    }
+
+                    // Seed initial value (e.g. when form is re-rendered with old input)
+                    const initial = hidden.value || '';
+                    if (initial) {
+                        initial.split(/[,;]/).forEach((p) => addTag(p));
+                    }
+                }
+            }
+
+            /* ====================================================
+               Image preview fallback: when a tile thumbnail fails to load
+               (e.g. Telegram throttled the bot mid-batch), retry once after
+               a short jittered delay, then fall back to a clean placeholder.
+               ==================================================== */
+            initPreviewFallback();
+
+            function initPreviewFallback() {
+                document.addEventListener('error', (event) => {
+                    const img = event.target;
+                    if (!img || img.tagName !== 'IMG' || !img.matches?.('[data-preview-img]')) return;
+
+                    const attempts = parseInt(img.dataset.previewAttempts || '0', 10);
+
+                    if (attempts < 1) {
+                        // First failure: retry once after 800–1500ms (jitter to spread retries)
+                        img.dataset.previewAttempts = String(attempts + 1);
+                        const wait = 800 + Math.random() * 700;
+                        const original = img.src.split('?')[0];
+                        setTimeout(() => {
+                            img.src = original + '?retry=' + Date.now();
+                        }, wait);
+                        return;
+                    }
+
+                    // Give up: swap <img> for a clean type-label placeholder
+                    const wrap = img.closest('.file-tile-preview');
+                    if (!wrap) return;
+                    const label = img.dataset.typeLabel || 'FILE';
+                    wrap.classList.add('file-tile-preview-empty');
+                    wrap.innerHTML = `<span>${label}</span>`;
+                }, true); // capture phase — error events on <img> don't bubble
+            }
+
+            /* ====================================================
+               Bulk selection: multi-select + bulk delete/move
+               ==================================================== */
+            initBulkSelection();
+
+            function initBulkSelection() {
+                const selected = new Set();
+                const bar = document.querySelector('[data-fp-bulk-bar]');
+                if (! bar) return;
+
+                const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+                const countEl    = bar.querySelector('[data-fp-bulk-count]');
+                const deleteBtn  = bar.querySelector('[data-fp-bulk-delete]');
+                const clearBtn   = bar.querySelector('[data-fp-bulk-clear]');
+                const moveOptions = bar.querySelectorAll('[data-fp-bulk-move-folder]');
+                const moveDetails = bar.querySelector('[data-fp-bulk-move]');
+
+                const refreshBar = () => {
+                    const n = selected.size;
+                    if (countEl) countEl.textContent = String(n);
+                    bar.toggleAttribute('hidden', n === 0);
+                    // sync selected class on rows
+                    document.querySelectorAll('[data-file-item][data-file-id]').forEach((row) => {
+                        const id = row.dataset.fileId;
+                        const isOn = selected.has(id);
+                        row.classList.toggle('is-selected', isOn);
+                        const cb = row.querySelector('[data-fp-select]');
+                        if (cb) cb.checked = isOn;
+                    });
+                    refreshSelectAllCheckbox();
+                };
+
+                const refreshSelectAllCheckbox = () => {
+                    const masters = document.querySelectorAll('[data-fp-select-all]');
+                    const rowIds = Array.from(document.querySelectorAll('[data-file-item][data-file-id]'))
+                        .map((r) => r.dataset.fileId);
+                    if (rowIds.length === 0) {
+                        masters.forEach((m) => {
+                            m.checked = false;
+                            m.parentElement?.classList.remove('is-indeterminate');
+                        });
+                        return;
+                    }
+                    const allSelected = rowIds.every((id) => selected.has(id));
+                    const someSelected = rowIds.some((id) => selected.has(id));
+                    masters.forEach((m) => {
+                        m.checked = allSelected;
+                        m.parentElement?.classList.toggle('is-indeterminate', someSelected && ! allSelected);
+                    });
+                };
+
+                // Re-sync after AJAX swaps the file region
+                const observer = new MutationObserver(() => {
+                    // Items might have been replaced; prune selected IDs that no longer exist
+                    const currentIds = new Set(
+                        Array.from(document.querySelectorAll('[data-file-item][data-file-id]'))
+                            .map((r) => r.dataset.fileId)
+                    );
+                    for (const id of Array.from(selected)) {
+                        if (! currentIds.has(id)) selected.delete(id);
+                    }
+                    refreshBar();
+                });
+                const filesRegion = document.querySelector('[data-files-region]');
+                if (filesRegion) {
+                    observer.observe(filesRegion, { childList: true, subtree: true });
+                }
+
+                // Per-row checkbox click
+                document.addEventListener('change', (event) => {
+                    const cb = event.target.closest('[data-fp-select]');
+                    if (cb) {
+                        const row = cb.closest('[data-file-item][data-file-id]');
+                        const id = row?.dataset.fileId;
+                        if (! id) return;
+                        if (cb.checked) selected.add(id); else selected.delete(id);
+                        refreshBar();
+                        return;
+                    }
+                    const master = event.target.closest('[data-fp-select-all]');
+                    if (master) {
+                        const ids = Array.from(document.querySelectorAll('[data-file-item][data-file-id]'))
+                            .map((r) => r.dataset.fileId);
+                        if (master.checked) ids.forEach((id) => selected.add(id));
+                        else ids.forEach((id) => selected.delete(id));
+                        refreshBar();
+                    }
+                });
+
+                // Clear button
+                clearBtn?.addEventListener('click', () => {
+                    selected.clear();
+                    refreshBar();
+                });
+
+                // Bulk delete
+                deleteBtn?.addEventListener('click', async () => {
+                    const n = selected.size;
+                    if (n === 0) return;
+
+                    if (! confirm(`Видалити вибраних файлів: ${n}? Дію не можна скасувати.`)) {
+                        return;
+                    }
+
+                    // Mark all selected rows as leaving for visual feedback
+                    document.querySelectorAll('[data-file-item][data-file-id].is-selected').forEach((row) => {
+                        row.classList.add('is-leaving');
+                        row.setAttribute('aria-busy', 'true');
+                    });
+
+                    deleteBtn.setAttribute('disabled', 'true');
+                    deleteBtn.setAttribute('aria-busy', 'true');
+
+                    try {
+                        const ids = Array.from(selected);
+                        const fd = new FormData();
+                        ids.forEach((id) => fd.append('ids[]', id));
+
+                        const response = await fetch(bar.dataset.bulkDeleteUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRF-TOKEN': csrf,
+                            },
+                            body: fd,
+                            credentials: 'same-origin',
+                        });
+
+                        if (! response.ok) {
+                            const text = await response.text();
+                            throw new Error(extractErrorFromHtml(text) || `HTTP ${response.status}`);
+                        }
+
+                        const data = await response.json().catch(() => ({}));
+                        showToast(data.message || `Видалено: ${n}`);
+
+                        selected.clear();
+                        refreshBar();
+
+                        // Refresh the file list region
+                        refreshFilesPage(window.location.href, false, { region: 'files' });
+                    } catch (error) {
+                        // Restore rows on failure
+                        document.querySelectorAll('[data-file-item].is-leaving').forEach((row) => {
+                            row.classList.remove('is-leaving');
+                            row.removeAttribute('aria-busy');
+                        });
+                        showToast(error.message || 'Не вдалося видалити файли.', 'error');
+                    } finally {
+                        deleteBtn.removeAttribute('disabled');
+                        deleteBtn.removeAttribute('aria-busy');
+                    }
+                });
+
+                // Bulk move
+                moveOptions.forEach((btn) => {
+                    btn.addEventListener('click', async () => {
+                        const n = selected.size;
+                        if (n === 0) return;
+
+                        const targetFolderId = btn.dataset.fpBulkMoveFolder; // "" for root
+                        const folderLabel = btn.textContent.trim();
+
+                        if (! confirm(`Перемістити ${n} файл(и/ів) у «${folderLabel}»?`)) {
+                            return;
+                        }
+
+                        // Close the details menu
+                        if (moveDetails) moveDetails.removeAttribute('open');
+
+                        // Mark selected rows as leaving (they'll be re-rendered)
+                        document.querySelectorAll('[data-file-item][data-file-id].is-selected').forEach((row) => {
+                            row.classList.add('is-leaving');
+                            row.setAttribute('aria-busy', 'true');
+                        });
+
+                        try {
+                            const ids = Array.from(selected);
+                            const fd = new FormData();
+                            ids.forEach((id) => fd.append('ids[]', id));
+                            if (targetFolderId !== '') fd.append('folder_id', targetFolderId);
+
+                            const response = await fetch(bar.dataset.bulkMoveUrl, {
+                                method: 'POST',
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                    'X-CSRF-TOKEN': csrf,
+                                },
+                                body: fd,
+                                credentials: 'same-origin',
+                            });
+
+                            if (! response.ok) {
+                                const text = await response.text();
+                                throw new Error(extractErrorFromHtml(text) || `HTTP ${response.status}`);
+                            }
+
+                            const data = await response.json().catch(() => ({}));
+                            showToast(data.message || `Переміщено: ${n}`);
+
+                            selected.clear();
+                            refreshBar();
+
+                            refreshFilesPage(window.location.href, false, { region: 'files' });
+                        } catch (error) {
+                            document.querySelectorAll('[data-file-item].is-leaving').forEach((row) => {
+                                row.classList.remove('is-leaving');
+                                row.removeAttribute('aria-busy');
+                            });
+                            showToast(error.message || 'Не вдалося перемістити файли.', 'error');
+                        }
+                    });
+                });
+
+                // Initial sync
+                refreshBar();
+            }
+        })();

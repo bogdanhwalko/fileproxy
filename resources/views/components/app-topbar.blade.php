@@ -41,24 +41,7 @@
 
 @once
     @push('scripts')
-        <script>
-            (() => {
-                if (window.__fpUserMenuBound) return;
-                window.__fpUserMenuBound = true;
-
-                // Close any open [data-user-menu] when clicking outside or Esc
-                document.addEventListener('click', (e) => {
-                    document.querySelectorAll('details[data-user-menu][open]').forEach((m) => {
-                        if (! m.contains(e.target)) m.removeAttribute('open');
-                    });
-                });
-                document.addEventListener('keydown', (e) => {
-                    if (e.key === 'Escape') {
-                        document.querySelectorAll('details[data-user-menu][open]').forEach((m) => m.removeAttribute('open'));
-                    }
-                });
-            })();
-        </script>
+        <script src="@vasset('js/user-menu.js')" defer></script>
     @endpush
 @endonce
 
