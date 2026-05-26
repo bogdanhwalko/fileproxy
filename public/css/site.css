@@ -8578,32 +8578,42 @@ tr[data-file-item].is-selected td:first-child {
     border-color: #f87171 !important;
 }
 
-/* Quick action row */
+/* Quick action row — grid auto-fit so up to 5+ buttons wrap to a second
+   row instead of truncating labels. Min 76px per button keeps the label
+   readable; the row wraps as soon as that no longer fits. */
 .fa-quick {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(76px, 1fr));
     gap: 6px;
     padding: 10px 14px;
     border-bottom: 1px dashed #e2e8f0;
 }
 .fa-quick-form { display: contents; }
 .fa-quick-btn {
-    flex: 1 1 0;
     min-width: 0;
     display: inline-flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    padding: 8px 10px;
+    gap: 4px;
+    padding: 8px 6px;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
     background: #fff;
     color: #475569;
-    font-size: 12.5px;
+    font-size: 11.5px;
     font-weight: 500;
     cursor: pointer;
     text-decoration: none;
     transition: background 0.12s, border-color 0.12s, color 0.12s, transform 0.08s;
+    text-align: center;
+    line-height: 1.1;
+}
+.fa-quick-btn span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .fa-quick-btn:hover {
     background: #f1f5f9;
