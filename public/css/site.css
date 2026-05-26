@@ -8275,12 +8275,236 @@ tr[data-file-item].is-selected td:first-child {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 14px;
+    padding: 12px 14px;
     border-bottom: 1px solid #e2e8f0;
-    background: #f8fafc;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
     cursor: grab;
+    gap: 10px;
 }
 .fa-head strong { font-size: 13.5px; color: #0f172a; }
+
+/* Folder action panel: header with color preview + name + meta */
+.fa-head-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+}
+.fa-head-color {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    background: linear-gradient(135deg, #94a3b8, #64748b);
+    box-shadow: 0 4px 10px -3px rgba(15, 23, 42, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.fa-head-color svg { width: 16px; height: 16px; }
+.fa-head-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.2;
+}
+.fa-head-text strong {
+    font-size: 14px;
+    color: #0f172a;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.fa-head-text span {
+    font-size: 11.5px;
+    color: #64748b;
+    margin-top: 2px;
+}
+
+/* Properties form (name + color + save) */
+.fa-folder-form {
+    display: grid;
+    gap: 12px;
+}
+.fa-folder-field {
+    display: grid;
+    gap: 6px;
+}
+.fa-folder-field > span {
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.fa-folder-field .field {
+    min-height: 38px;
+    padding: 8px 10px;
+    font-size: 13px;
+}
+.fa-folder-field .folder-color-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 4px 0;
+}
+.fa-folder-save {
+    width: 100%;
+    justify-content: center;
+}
+
+/* Section badge (e.g. "Захищено") */
+.fa-section-badge {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #64748b;
+}
+.fa-section-badge-amber {
+    background: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fcd34d;
+}
+
+/* Share off hint (when share toggle is off) */
+.fa-share-off-hint {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+/* Password section + collapsibles */
+.fa-password-section {
+    background: linear-gradient(180deg, #fffbeb 0%, transparent 60%);
+}
+.fa-password-lock-now {
+    margin: 0 0 8px;
+}
+.fa-password-lock-now .button {
+    width: 100%;
+    justify-content: center;
+}
+.fa-password-lock-now .button svg {
+    width: 14px;
+    height: 14px;
+}
+.fa-collapse {
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+    background: #fff;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+.fa-collapse > summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 10px 12px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    user-select: none;
+    transition: background 0.12s;
+}
+.fa-collapse > summary::-webkit-details-marker { display: none; }
+.fa-collapse > summary > svg {
+    width: 14px;
+    height: 14px;
+    color: #94a3b8;
+    transition: transform 0.15s;
+    margin-left: auto;
+}
+.fa-collapse[open] > summary {
+    background: #fffbeb;
+    border-bottom: 1px solid #fde68a;
+}
+.fa-collapse[open] > summary > svg {
+    transform: rotate(180deg);
+}
+.fa-password-form {
+    display: grid;
+    gap: 8px;
+    padding: 10px 12px;
+}
+.fa-password-form label {
+    display: grid;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.fa-password-form .field {
+    min-height: 38px;
+    padding: 8px 10px;
+    font-size: 13px;
+    text-transform: none;
+    letter-spacing: 0;
+}
+.fa-password-form .button {
+    width: 100%;
+    justify-content: center;
+}
+
+.fa-section-hint {
+    margin: 4px 0 0;
+    font-size: 11.5px;
+    color: #78350f;
+    line-height: 1.4;
+}
+
+/* Danger zone */
+.fa-danger-section {
+    background: linear-gradient(180deg, #fef2f2 0%, transparent 70%);
+    border-top: 1px solid #fecaca !important;
+}
+.fa-section-title-danger {
+    color: #b91c1c !important;
+}
+.fa-section-title-danger svg {
+    color: #dc2626 !important;
+}
+.fa-danger-hint {
+    margin: 0 0 10px;
+    font-size: 12px;
+    color: #7c2d12;
+    line-height: 1.4;
+}
+.fa-btn-danger {
+    width: 100%;
+    justify-content: center;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+    border-color: #b91c1c !important;
+    box-shadow: 0 6px 14px -4px rgba(220, 38, 38, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+}
+.fa-btn-danger:hover {
+    filter: brightness(1.06);
+}
+.fa-btn-danger svg {
+    width: 15px;
+    height: 15px;
+}
+.fa-btn-danger-outline {
+    background: #fff !important;
+    color: #b91c1c !important;
+    border: 1px solid #fca5a5 !important;
+    box-shadow: none !important;
+}
+.fa-btn-danger-outline:hover {
+    background: #fee2e2 !important;
+    border-color: #f87171 !important;
+}
 
 /* Quick action row */
 .fa-quick {
