@@ -33,6 +33,14 @@
         <div class="preview-frame">
             @if ($file->is_image)
                 <img class="preview-image" src="{{ route('files.inline', $file) }}" alt="{{ $file->original_name }}">
+            @elseif ($file->is_pdf)
+                <object class="preview-pdf" data="{{ route('files.inline', $file) }}#view=FitH" type="application/pdf">
+                    <p class="preview-pdf-fallback">
+                        Браузер не підтримує вбудований перегляд PDF.
+                        <a href="{{ route('files.inline', $file) }}" target="_blank" rel="noopener">Відкрити в новій вкладці</a>
+                        або <a href="{{ route('files.download', $file) }}">скачати</a>.
+                    </p>
+                </object>
             @else
                 @if ($isTruncated)
                     <p class="truncated-note">Показано перший 1 MB файла. Повну версію можна скачати.</p>

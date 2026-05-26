@@ -193,7 +193,7 @@ class ShareController extends Controller
     {
         $file = $this->sharedFile($token);
 
-        abort_unless($file->is_image, 404);
+        abort_unless($file->is_image || $file->is_pdf, 404);
         abort_unless($fileStorage->exists($file), 404);
 
         $this->consumeFileShareView($file);
@@ -348,7 +348,7 @@ class ShareController extends Controller
         $folder = $this->sharedFolder($token);
         $this->ensureFileBelongsToFolder($folder, $file);
 
-        abort_unless($file->is_image, 404);
+        abort_unless($file->is_image || $file->is_pdf, 404);
         abort_unless($fileStorage->exists($file), 404);
 
         $this->consumeFolderShareView($folder);

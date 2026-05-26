@@ -64,6 +64,11 @@ class User extends Authenticatable
         return $this->hasMany(\App\Models\Tag::class);
     }
 
+    public function feedbackMessages(): HasMany
+    {
+        return $this->hasMany(\App\Models\FeedbackMessage::class);
+    }
+
     public function telegramBotTokens(): HasMany
     {
         return $this->hasMany(TelegramBotToken::class);

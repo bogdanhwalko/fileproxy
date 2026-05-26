@@ -544,11 +544,153 @@ class FileController extends Controller
     public function inline(ManagedFile $file, ManagedFileStorageService $fileStorage)
     {
         abort_unless((int) $file->user_id === (int) auth()->id(), 404);
-        abort_unless($file->is_image, 404);
+        // Allow inline serving for images AND PDFs (browser's native viewer
+        // renders PDF inline via the application/pdf MIME). Other types stay
+        // forbidden so we don't accidentally render HTML/SVG in the document.
+        abort_unless($file->is_image || $file->is_pdf, 404);
         abort_if($file->is_protected, 404); // protected files never serve thumbnail/inline previews
         abort_unless($fileStorage->exists($file), 404);
 
         return $fileStorage->inlineResponse($file);
+    }
+
+    /**
+     * Allowed extensions for the in-browser text editor. Limited to formats
+     * that are safe to render inline and unlikely to host executable code.
+     */
+    private const TEXT_EDITOR_EXTENSIONS = [
+        'txt', 'md', 'csv', 'log', 'json', 'yaml', 'yml',
+        'ini', 'conf', 'env', 'xml', 'sql', 'tex',
+    ];
+
+    /**
+     * Show the inline text-file editor (create-new form).
+     */
+    public function createText(Request $request): View
+    {
+        $user = $request->user();
+
+        $folderId = $request->query('folder');
+        $activeFolder = null;
+        if ($folderId !== null && ctype_digit((string) $folderId)) {
+            $activeFolder = $user->folders()->find((int) $folderId);
+        }
+
+        return view('files.text-editor', [
+            'file' => null,
+            'activeFolder' => $activeFolder,
+            'folders' => $user->folders()->orderBy('name')->get(['id', 'name', 'color']),
+            'telegramStorageGroups' => $this->telegramStorageGroups($user),
+            'canUseLocalStorage' => (bool) $user->is_admin,
+            'allowedExtensions' => self::TEXT_EDITOR_EXTENSIONS,
+            'maxBytes' => 5 * 1024 * 1024, // 5 MB safety cap for text editor
+        ]);
+    }
+
+    /**
+     * Save the editor content as a new file.
+     */
+    public function storeText(Request $request, ManagedFileStorageService $fileStorage): RedirectResponse
+    {
+        $user = $request->user();
+        $maxBytes = 5 * 1024 * 1024;
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:200'],
+            'content' => ['required', 'string', 'max:'.$maxBytes],
+            'folder_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('file_folders', 'id')->where('user_id', $user->id),
+            ],
+            'telegram_storage_group_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('telegram_storage_groups', 'id')->where('user_id', $user->id),
+            ],
+        ], [
+            'name.required' => 'Введіть назву файла.',
+            'content.required' => 'Файл порожній — додайте хоч щось.',
+            'content.max' => 'Максимальний розмір текстового файла — 5 MB.',
+            'folder_id.exists' => 'Папка недоступна.',
+        ]);
+
+        // Sanitize filename: strip path separators, normalize extension
+        $rawName = trim($validated['name']);
+        $rawName = preg_replace('#[\\\\/]+#', '_', $rawName) ?? 'untitled.txt';
+        $rawName = preg_replace('/[\x00-\x1F]/', '', $rawName) ?? 'untitled.txt';
+        if ($rawName === '') {
+            $rawName = 'untitled.txt';
+        }
+
+        // Force a safe extension; default to .txt if missing/disallowed
+        $extension = strtolower(pathinfo($rawName, PATHINFO_EXTENSION));
+        if (! in_array($extension, self::TEXT_EDITOR_EXTENSIONS, true)) {
+            $extension = 'txt';
+            $rawName = pathinfo($rawName, PATHINFO_FILENAME).'.txt';
+        }
+
+        $mime = match ($extension) {
+            'md'   => 'text/markdown',
+            'csv'  => 'text/csv',
+            'json' => 'application/json',
+            'xml'  => 'application/xml',
+            'html' => 'text/html',
+            default => 'text/plain',
+        };
+
+        $telegramGroup = null;
+        if (! empty($validated['telegram_storage_group_id'])) {
+            $telegramGroup = $this->telegramStorageGroups($user)
+                ->firstWhere('id', (int) $validated['telegram_storage_group_id']);
+        }
+
+        if (! $user->is_admin && ! $telegramGroup) {
+            // Regular users must upload to Telegram. If no own group, use system.
+            $systemGroups = $this->systemTelegramStorageGroups();
+            if ($systemGroups->isNotEmpty()) {
+                $telegramGroup = $systemGroups->first();
+            }
+        }
+
+        // Block writing into a password-protected folder unless it's our own
+        // protected pipeline (text editor doesn't currently support is_protected)
+        $folderId = $validated['folder_id'] ?? null;
+        if ($folderId !== null) {
+            $folder = $user->folders()->find($folderId);
+            if ($folder && $folder->is_password_protected) {
+                return back()
+                    ->withInput()
+                    ->withErrors(['folder_id' => 'Текстовий редактор не підтримує запис у захищені папки.']);
+            }
+        }
+
+        // Build a temporary UploadedFile from the editor content and reuse the
+        // existing storeUploadedFile pipeline (handles local + telegram + tags).
+        $tmpPath = tempnam(sys_get_temp_dir(), 'fp-text-');
+        if ($tmpPath === false) {
+            return back()->withInput()->withErrors(['content' => 'Не вдалося створити тимчасовий файл.']);
+        }
+        file_put_contents($tmpPath, $validated['content']);
+
+        try {
+            $uploaded = new \Illuminate\Http\UploadedFile(
+                $tmpPath,
+                $rawName,
+                $mime,
+                test: true // mark as test so it skips the is_uploaded_file() check on tmpnam
+            );
+
+            $file = $fileStorage->storeUploadedFile($user, $uploaded, $folderId, $telegramGroup, false, []);
+        } finally {
+            if (file_exists($tmpPath)) {
+                @unlink($tmpPath);
+            }
+        }
+
+        return redirect()
+            ->route('files.index', $folderId ? ['folder' => $folderId] : [])
+            ->with('status', 'Текстовий файл «'.$file->original_name.'» створено.');
     }
 
     public function destroy(Request $request, ManagedFile $file, ManagedFileStorageService $fileStorage): RedirectResponse

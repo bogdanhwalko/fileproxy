@@ -203,9 +203,17 @@ class ManagedFile extends Model
         ], true);
     }
 
+    public function getIsPdfAttribute(): bool
+    {
+        $mime = strtolower((string) $this->mime_type);
+        $ext = strtolower((string) $this->extension);
+
+        return $mime === 'application/pdf' || $ext === 'pdf';
+    }
+
     public function getIsPreviewableAttribute(): bool
     {
-        return $this->is_image || $this->is_text;
+        return $this->is_image || $this->is_text || $this->is_pdf;
     }
 
     public function getIsTelegramAttribute(): bool

@@ -55,6 +55,10 @@ Route::middleware(['auth', 'not.blocked'])->group(function () {
     Route::get('/stats', [StatsController::class, 'index'])->name('stats.index');
     Route::get('/files', [FileController::class, 'index'])->name('files.index');
     Route::get('/files/archive', [FileController::class, 'downloadArchive'])->name('files.archive');
+    Route::get('/files/create-text', [FileController::class, 'createText'])->name('files.create-text');
+    Route::post('/files/create-text', [FileController::class, 'storeText'])
+        ->middleware('throttle:uploads')
+        ->name('files.store-text');
     Route::post('/files', [FileController::class, 'store'])
         ->middleware('throttle:uploads')
         ->name('files.store');
@@ -78,6 +82,9 @@ Route::middleware(['auth', 'not.blocked'])->group(function () {
     Route::delete('/files/{file}', [FileController::class, 'destroy'])->name('files.destroy');
 
     Route::get('/palette/search', [\App\Http\Controllers\PaletteController::class, 'search'])->name('palette.search');
+
+    Route::get('/feedback', [\App\Http\Controllers\FeedbackController::class, 'create'])->name('feedback.create');
+    Route::post('/feedback', [\App\Http\Controllers\FeedbackController::class, 'store'])->name('feedback.store');
 
     Route::post('/folders', [FolderController::class, 'store'])->name('folders.store');
     Route::patch('/folders/{folder}', [FolderController::class, 'update'])->name('folders.update');
@@ -118,5 +125,8 @@ Route::middleware(['auth', 'not.blocked'])->group(function () {
         Route::get('/users/{user}/files/{file}/inline', [AdminController::class, 'inlineFile'])->name('users.files.inline');
         Route::get('/users/{user}/files/{file}/download', [AdminController::class, 'downloadFile'])->name('users.files.download');
         Route::delete('/users/{user}/files/{file}', [AdminController::class, 'destroyFile'])->name('users.files.destroy');
+
+        Route::get('/feedback', [\App\Http\Controllers\FeedbackController::class, 'adminIndex'])->name('feedback.index');
+        Route::patch('/feedback/{message}', [\App\Http\Controllers\FeedbackController::class, 'adminUpdate'])->name('feedback.update');
     });
 });

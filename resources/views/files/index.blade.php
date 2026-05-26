@@ -17,8 +17,9 @@
         @endif
     </div>
 
-    <details class="upload-shell" data-upload-shell>
-        <summary class="upload-shell-trigger">
+    <div class="upload-row">
+        <details class="upload-shell" data-upload-shell>
+            <summary class="upload-shell-trigger">
             <span class="upload-shell-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -399,7 +400,23 @@
             </div>
         </form>
     </section>
-    </details>
+        </details>
+
+        <a class="upload-text-create" href="{{ route('files.create-text', $activeFolder ? ['folder' => $activeFolder->id] : []) }}" title="Створити новий текстовий файл прямо в браузері">
+            <span class="upload-text-create-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="12" y1="18" x2="12" y2="12"/>
+                    <line x1="9" y1="15" x2="15" y2="15"/>
+                </svg>
+            </span>
+            <span class="upload-text-create-text">
+                <strong>Створити текстовий файл</strong>
+                <span>Редактор у браузері · {{ implode(', ', ['txt', 'md', 'json', '...']) }}</span>
+            </span>
+        </a>
+    </div>
 
     <section class="workspace">
         <aside class="sidebar-stack">

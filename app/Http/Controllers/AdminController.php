@@ -204,7 +204,7 @@ class AdminController extends Controller
     public function inlineFile(User $user, ManagedFile $file, ManagedFileStorageService $fileStorage)
     {
         $this->ensureUserFile($user, $file);
-        abort_unless($file->is_image, 404);
+        abort_unless($file->is_image || $file->is_pdf, 404);
         abort_unless($fileStorage->exists($file), 404);
 
         return $fileStorage->inlineResponse($file);
