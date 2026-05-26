@@ -36,6 +36,20 @@
                     <span>Переглянути</span>
                 </a>
             @endif
+            @php
+                $editorExtensions = ['txt','md','markdown','csv','log','json','yaml','yml','ini','conf','env','xml','sql','tex','html','htm','css','scss','sass','less','svg','js','mjs','ts','jsx','tsx','vue','php','py','rb','sh','bash','zsh','go','rs','java','kt','swift','c','cpp','cc','h','hpp','cs','r','lua','pl'];
+                $canEditText = $file->is_uploaded
+                    && $file->is_text
+                    && in_array(strtolower((string) $file->extension), $editorExtensions, true)
+                    && ! $file->is_protected
+                    && ! ($file->folder?->is_password_protected);
+            @endphp
+            @if ($canEditText)
+                <a class="fa-quick-btn" href="{{ route('files.edit-text', $file) }}" title="Редагувати в браузері">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    <span>Редагувати</span>
+                </a>
+            @endif
             @if ($file->is_uploaded)
                 <a class="fa-quick-btn" href="{{ route('files.download', $file) }}" title="Скачати">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>

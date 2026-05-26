@@ -71,6 +71,8 @@ Route::middleware(['auth', 'not.blocked'])->group(function () {
     Route::post('/files/bulk-move', [FileController::class, 'bulkMove'])->name('files.bulk-move');
     Route::get('/files/{file}/status', [FileController::class, 'status'])->name('files.status');
     Route::get('/files/{file}/preview', [FileController::class, 'preview'])->name('files.preview');
+    Route::get('/files/{file}/edit', [FileController::class, 'editText'])->name('files.edit-text');
+    Route::patch('/files/{file}/edit', [FileController::class, 'updateText'])->name('files.update-text');
     Route::middleware('throttle:file-stream')->group(function () {
         Route::get('/files/{file}/inline', [FileController::class, 'inline'])->name('files.inline');
         Route::get('/files/{file}/download', [FileController::class, 'download'])->name('files.download');

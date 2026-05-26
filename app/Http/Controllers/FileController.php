@@ -708,6 +708,102 @@ class FileController extends Controller
             ->with('status', 'Текстовий файл «'.$file->original_name.'» створено.');
     }
 
+    /**
+     * Show the editor loaded with the existing file's content.
+     */
+    public function editText(Request $request, ManagedFile $file, ManagedFileStorageService $fileStorage): View|RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless((int) $file->user_id === (int) $user->id, 404);
+        abort_unless($fileStorage->exists($file), 404);
+        abort_if($file->is_protected, 422);
+
+        $extension = strtolower((string) $file->extension);
+        if (! in_array($extension, self::TEXT_EDITOR_EXTENSIONS, true)) {
+            return back()->withErrors(['edit' => 'Цей формат не підтримується для редагування в браузері.']);
+        }
+
+        if ($file->folder && $file->folder->is_password_protected) {
+            return back()->withErrors(['edit' => 'Файли із захищених папок не редагуються в браузері.']);
+        }
+
+        [$content, $isTruncated] = $fileStorage->readFullText($file);
+
+        return view('files.text-editor', [
+            'file' => $file,
+            'fileContent' => $content,
+            'fileTruncated' => $isTruncated,
+            'activeFolder' => $file->folder,
+            'folders' => $user->folders()->orderBy('name')->get(['id', 'name', 'color']),
+            'telegramStorageGroups' => $this->telegramStorageGroups($user),
+            'canUseLocalStorage' => (bool) $user->is_admin,
+            'allowedExtensions' => self::TEXT_EDITOR_EXTENSIONS,
+            'maxBytes' => 5 * 1024 * 1024,
+        ]);
+    }
+
+    /**
+     * Save edited content back to an existing file.
+     */
+    public function updateText(Request $request, ManagedFile $file, ManagedFileStorageService $fileStorage): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless((int) $file->user_id === (int) $user->id, 404);
+        abort_if($file->is_protected, 422);
+
+        $maxBytes = 5 * 1024 * 1024;
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:200'],
+            'content' => ['required', 'string', 'max:'.$maxBytes],
+        ], [
+            'name.required' => 'Введіть назву файла.',
+            'content.required' => 'Файл порожній — додайте хоч щось.',
+            'content.max' => 'Максимальний розмір текстового файла — 5 MB.',
+        ]);
+
+        if ($file->folder && $file->folder->is_password_protected) {
+            return back()->withInput()->withErrors(['edit' => 'Файли із захищених папок не редагуються.']);
+        }
+
+        // Sanitize filename (same rules as storeText)
+        $rawName = trim($validated['name']);
+        $rawName = preg_replace('#[\\\\/]+#', '_', $rawName) ?? 'untitled.txt';
+        $rawName = preg_replace('/[\x00-\x1F]/', '', $rawName) ?? 'untitled.txt';
+        if ($rawName === '') {
+            $rawName = 'untitled.txt';
+        }
+
+        $extension = strtolower(pathinfo($rawName, PATHINFO_EXTENSION));
+        if (! in_array($extension, self::TEXT_EDITOR_EXTENSIONS, true)) {
+            $extension = 'txt';
+            $rawName = pathinfo($rawName, PATHINFO_FILENAME).'.txt';
+        }
+
+        $mime = match ($extension) {
+            'md', 'markdown' => 'text/markdown',
+            'csv'            => 'text/csv',
+            'json'           => 'application/json',
+            'xml'            => 'application/xml',
+            'html', 'htm'    => 'text/html',
+            'css'            => 'text/css',
+            'js', 'mjs'      => 'text/javascript',
+            'svg'            => 'image/svg+xml',
+            default          => 'text/plain',
+        };
+
+        try {
+            $updated = $fileStorage->overwriteText($file, $validated['content'], $rawName, $mime, $extension);
+        } catch (\Throwable $e) {
+            report($e);
+            return back()->withInput()->withErrors(['content' => 'Не вдалося зберегти файл: '.$e->getMessage()]);
+        }
+
+        return redirect()
+            ->route('files.index', $updated->folder_id ? ['folder' => $updated->folder_id] : [])
+            ->with('status', 'Файл «'.$updated->original_name.'» оновлено.');
+    }
+
     public function destroy(Request $request, ManagedFile $file, ManagedFileStorageService $fileStorage): RedirectResponse
     {
         abort_unless((int) $file->user_id === (int) auth()->id(), 404);

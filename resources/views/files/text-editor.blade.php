@@ -1,6 +1,14 @@
 @extends('layouts.site')
 
-@section('title', 'Створити текстовий файл — FileProxy')
+@php
+    $isEdit = isset($file) && $file !== null;
+    $formAction = $isEdit ? route('files.update-text', $file) : route('files.store-text');
+    $pageTitle = $isEdit ? 'Редагувати: '.$file->original_name : 'Створити текстовий файл';
+    $oldContent = old('content', $isEdit ? ($fileContent ?? '') : '');
+    $oldName = old('name', $isEdit ? $file->original_name : 'untitled.txt');
+@endphp
+
+@section('title', $pageTitle.' — FileProxy')
 @section('robots', 'noindex, nofollow')
 
 @push('head')
@@ -34,20 +42,40 @@
             </a>
             <div class="text-editor-head-title">
                 <h1>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <polyline points="14 2 14 8 20 8"/>
-                        <line x1="9" y1="14" x2="15" y2="14"/>
-                        <line x1="9" y1="18" x2="15" y2="18"/>
-                    </svg>
-                    Новий текстовий файл
+                    @if ($isEdit)
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                        Редагування: <em>{{ $file->original_name }}</em>
+                    @else
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="9" y1="14" x2="15" y2="14"/>
+                            <line x1="9" y1="18" x2="15" y2="18"/>
+                        </svg>
+                        Новий текстовий файл
+                    @endif
                 </h1>
-                <span>До 5 MB · {{ count($allowedExtensions) }} форматів з підсвіткою (php, py, js, sql, md, json, yaml, …)</span>
+                <span>
+                    @if ($isEdit)
+                        {{ $file->human_size ?? '' }} · {{ $file->storage_label ?? '' }}
+                        @if (! empty($fileTruncated))
+                            · <strong style="color:#dc2626">⚠ показано лише перший 5 MB</strong>
+                        @endif
+                    @else
+                        До 5 MB · {{ count($allowedExtensions) }} форматів з підсвіткою (php, py, js, sql, md, json, yaml, …)
+                    @endif
+                </span>
             </div>
         </header>
 
-        <form action="{{ route('files.store-text') }}" method="post" class="text-editor-form" data-text-editor-form>
+        <form action="{{ $formAction }}" method="post" class="text-editor-form" data-text-editor-form>
             @csrf
+            @if ($isEdit)
+                @method('patch')
+            @endif
 
             <div class="text-editor-controls">
                 <div class="text-editor-control text-editor-control-name">
@@ -57,7 +85,7 @@
                         class="field"
                         type="text"
                         name="name"
-                        value="{{ old('name', 'untitled.txt') }}"
+                        value="{{ $oldName }}"
                         maxlength="200"
                         placeholder="my-notes.md"
                         required
@@ -66,31 +94,42 @@
                     >
                 </div>
 
-                <div class="text-editor-control">
-                    <label for="text-editor-folder">Папка</label>
-                    <select id="text-editor-folder" class="field" name="folder_id">
-                        <option value="">Без папки</option>
-                        @foreach ($folders as $folder)
-                            <option value="{{ $folder->id }}" @selected(old('folder_id', $activeFolder?->id) == $folder->id)>{{ $folder->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-
-                @if ($telegramStorageGroups->isNotEmpty() || ! $canUseLocalStorage)
+                @unless ($isEdit)
                     <div class="text-editor-control">
-                        <label for="text-editor-storage">Сховище</label>
-                        <select id="text-editor-storage" class="field" name="telegram_storage_group_id">
-                            @if ($canUseLocalStorage)
-                                <option value="">Локальне</option>
-                            @endif
-                            @foreach ($telegramStorageGroups as $group)
-                                <option value="{{ $group->id }}" @selected(old('telegram_storage_group_id') == $group->id || (! $canUseLocalStorage && $group->is_default))>
-                                    {{ $group->title }}
-                                </option>
+                        <label for="text-editor-folder">Папка</label>
+                        <select id="text-editor-folder" class="field" name="folder_id">
+                            <option value="">Без папки</option>
+                            @foreach ($folders as $folder)
+                                <option value="{{ $folder->id }}" @selected(old('folder_id', $activeFolder?->id) == $folder->id)>{{ $folder->name }}</option>
                             @endforeach
                         </select>
                     </div>
-                @endif
+
+                    @if ($telegramStorageGroups->isNotEmpty() || ! $canUseLocalStorage)
+                        <div class="text-editor-control">
+                            <label for="text-editor-storage">Сховище</label>
+                            <select id="text-editor-storage" class="field" name="telegram_storage_group_id">
+                                @if ($canUseLocalStorage)
+                                    <option value="">Локальне</option>
+                                @endif
+                                @foreach ($telegramStorageGroups as $group)
+                                    <option value="{{ $group->id }}" @selected(old('telegram_storage_group_id') == $group->id || (! $canUseLocalStorage && $group->is_default))>
+                                        {{ $group->title }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endif
+                @else
+                    <div class="text-editor-control">
+                        <label>Папка</label>
+                        <div class="field text-editor-readonly">{{ $file->folder?->name ?? 'Без папки' }}</div>
+                    </div>
+                    <div class="text-editor-control">
+                        <label>Сховище</label>
+                        <div class="field text-editor-readonly">{{ $file->storage_label ?? ($file->is_telegram ? 'Telegram' : 'Локальне') }}</div>
+                    </div>
+                @endunless
             </div>
 
             <div class="text-editor-body">
@@ -102,7 +141,7 @@
                     spellcheck="false"
                     autofocus
                     data-text-editor-textarea
-                    maxlength="{{ $maxBytes }}">{{ old('content') }}</textarea>
+                    maxlength="{{ $maxBytes }}">{{ $oldContent }}</textarea>
             </div>
 
             <div class="text-editor-mode-row" data-text-editor-mode-row hidden>

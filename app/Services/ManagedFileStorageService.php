@@ -458,6 +458,126 @@ class ManagedFileStorageService
         return rtrim($prefix, '/').'/'.$relative;
     }
 
+    /**
+     * Read the full file content as a string (capped at the editor limit).
+     * Used by the in-browser text editor when loading an existing file for
+     * editing. Returns [content, was_truncated].
+     *
+     * @return array{0:string,1:bool}
+     */
+    public function readFullText(ManagedFile $file, int $maxBytes = 5_242_880): array
+    {
+        $temporaryPath = null;
+
+        if ($file->is_telegram) {
+            $temporaryPath = $this->telegram->downloadToTemporaryPath($file);
+            $stream = fopen($temporaryPath, 'r');
+        } else {
+            $stream = Storage::disk('local')->readStream($file->path);
+        }
+
+        if ($stream === false) {
+            abort(404);
+        }
+
+        // Read maxBytes + 1 so we can detect truncation
+        $content = stream_get_contents($stream, $maxBytes + 1);
+        fclose($stream);
+
+        if ($temporaryPath) {
+            @unlink($temporaryPath);
+        }
+
+        abort_unless($content !== false, 404);
+
+        $isTruncated = strlen($content) > $maxBytes;
+        if ($isTruncated) {
+            $content = substr($content, 0, $maxBytes);
+        }
+
+        return [$content, $isTruncated];
+    }
+
+    /**
+     * Replace the contents of an existing file with the given text. For local
+     * files we just overwrite the path. For telegram files we delete the
+     * existing message and re-upload via the standard job (returning a new
+     * ManagedFile that should be saved over the old one).
+     *
+     * Keeps folder_id, tags, share_token intact. Caller is responsible for
+     * blocking protected files (no re-encryption supported here yet).
+     */
+    public function overwriteText(ManagedFile $file, string $content, ?string $newOriginalName = null, ?string $newMime = null, ?string $newExtension = null): ManagedFile
+    {
+        $newSize = strlen($content);
+
+        // Local files: overwrite the stored blob in place, update metadata.
+        if (! $file->is_telegram) {
+            Storage::disk('local')->put($file->path, $content);
+
+            $update = [
+                'size' => $newSize,
+            ];
+            if ($newOriginalName !== null) $update['original_name'] = $newOriginalName;
+            if ($newMime !== null)         $update['mime_type'] = $newMime;
+            if ($newExtension !== null)    $update['extension'] = $newExtension;
+            $file->update($update);
+
+            return $file->fresh();
+        }
+
+        // Telegram-stored: send a new message with new bytes, swap message_id +
+        // file_id, then delete the old message. Best-effort cleanup so we don't
+        // leave two copies in the channel if anything fails.
+        $tmpPath = tempnam(sys_get_temp_dir(), 'fp-edit-');
+        if ($tmpPath === false) {
+            throw new \RuntimeException('Не вдалося створити тимчасовий файл для оновлення.');
+        }
+        file_put_contents($tmpPath, $content);
+
+        try {
+            $group = $file->telegramStorageGroup;
+            if (! $group) {
+                throw new \RuntimeException('У файла немає привʼязаної Telegram-групи.');
+            }
+
+            $oldMessageId = $file->telegram_message_id;
+            $oldChatId = (string) $file->telegram_chat_id;
+            $oldBot = $file->telegramBotToken;
+
+            // Upload new bytes to the same group
+            $sent = $this->telegram->sendDocumentFromPath(
+                $tmpPath,
+                $newOriginalName ?? $file->original_name,
+                $group,
+                $newSize,
+                $newMime ?? $file->mime_type ?? 'text/plain'
+            );
+
+            $update = [
+                'telegram_chat_id'    => $sent['chat_id'],
+                'telegram_message_id' => $sent['message_id'],
+                'telegram_file_id'    => $sent['file_id'],
+                'telegram_file_unique_id' => $sent['file_unique_id'] ?? $file->telegram_file_unique_id,
+                'size'                => $sent['file_size'] ?? $newSize,
+                'mime_type'           => $sent['mime_type'] ?? ($newMime ?? $file->mime_type),
+            ];
+            if ($newOriginalName !== null) $update['original_name'] = $newOriginalName;
+            if ($newExtension !== null)    $update['extension'] = $newExtension;
+            $file->update($update);
+
+            // Best-effort delete of the old message
+            if ($oldBot && $oldMessageId && $oldChatId !== '') {
+                try { $this->telegram->deleteMessageRaw($oldBot, $oldChatId, (int) $oldMessageId); }
+                catch (\Throwable) { /* old message orphaned, file still works */ }
+            }
+        } finally {
+            if (file_exists($tmpPath)) @unlink($tmpPath);
+        }
+
+        return $file->fresh();
+    }
+
     public function readTextPreview(ManagedFile $file): array
     {
         $temporaryPath = null;

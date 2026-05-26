@@ -11754,6 +11754,29 @@ body.fp-actionpanel-open::before {
     font-size: 13.5px;
 }
 
+/* Read-only "display" fields used in edit mode for folder/storage */
+.text-editor-readonly {
+    display: flex;
+    align-items: center;
+    background: #f1f5f9;
+    color: var(--muted);
+    border: 1px dashed rgba(15, 32, 24, 0.12);
+    cursor: not-allowed;
+    user-select: none;
+    font-size: 13px;
+}
+
+.text-editor-head-title h1 em {
+    font-style: normal;
+    color: var(--primary-dark);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 14px;
+    background: var(--primary-soft);
+    padding: 1px 8px;
+    border-radius: 5px;
+    margin-left: 4px;
+}
+
 .text-editor-body {
     flex: 1;
     min-height: 480px;
