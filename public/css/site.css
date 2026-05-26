@@ -894,16 +894,16 @@
         .field {
             width: 100%;
             min-height: 44px;
-            border: 1px solid rgba(15, 32, 24, 0.12);
+            border: 1px solid rgba(15, 32, 24, 0.18);
             border-radius: var(--radius-sm);
-            background: rgba(255, 255, 255, 0.85);
+            background: #fff;
             color: var(--text);
             padding: 10px 12px;
             transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
         }
 
         .field:hover {
-            border-color: rgba(15, 32, 24, 0.2);
+            border-color: rgba(15, 32, 24, 0.3);
         }
 
         .field:focus {
