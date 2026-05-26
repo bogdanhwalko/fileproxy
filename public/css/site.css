@@ -12124,10 +12124,14 @@ body.fp-actionpanel-open::before {
     display: flex;
     flex-direction: column;
     position: relative;
+    /* Mimic Google Docs / Word Online: gray "desk" behind the white page */
+    background: #e8eaee;
 }
 .doc-editor-quill {
     flex: 1;
     min-height: 480px;
+    display: flex;
+    flex-direction: column;
 }
 
 /* Quill snow theme overrides — fit it into our look */
@@ -12145,14 +12149,73 @@ body.fp-actionpanel-open::before {
     font-family: system-ui, -apple-system, "Segoe UI", Inter, Arial, sans-serif;
     font-size: 15px;
     line-height: 1.6;
-    background: #fafbfd;
+    background: transparent;
+    flex: 1;
+    /* Center the editor area inside the gray desk, with breathing room
+       above and below the "page" */
+    padding: 32px 0 48px;
+    overflow-y: auto;
 }
+
+/* The .ql-editor is rendered like an A4 sheet — white card with shadow,
+   margins represented by padding, dashed guide lines at margin boundaries
+   so the user can see where the printable area starts/ends. */
 .doc-editor-body .ql-editor {
-    padding: 32px 60px;
-    max-width: 880px;
+    /* A4 width at 96dpi ≈ 794px; we use 816px to match US-Letter-ish width
+       commonly used in Google Docs / Office Online for screen comfort. */
+    width: min(816px, calc(100% - 32px));
+    max-width: 816px;
+    /* 1-inch margins ≈ 96px; reduce slightly for screen comfort */
+    padding: 72px 88px;
     margin: 0 auto;
-    min-height: 480px;
+    min-height: 1056px; /* approximates A4 page height — gives a real "page" feel */
     color: var(--text);
+    background: #fff;
+    border-radius: 4px;
+    box-shadow:
+        0 2px 4px rgba(15, 23, 42, 0.08),
+        0 8px 24px -8px rgba(15, 23, 42, 0.12);
+    position: relative;
+}
+
+/* Margin guides — like Word's "text boundaries" / Google Docs print area.
+   Dashed rectangle inside the page margins shows where text will sit on
+   a printed page. Pseudo-element painted BEFORE Quill's children so the
+   guide sits under text without affecting selection / clicks. */
+.doc-editor-body .ql-editor::before {
+    content: '';
+    position: absolute;
+    /* Inset matches padding (72px top/bottom, 88px sides) minus a few px so
+       the dashed rectangle sits just outside the text edge — like Word. */
+    top: 60px;
+    bottom: 60px;
+    left: 76px;
+    right: 76px;
+    border: 1px dashed rgba(99, 102, 241, 0.35);
+    border-radius: 2px;
+    pointer-events: none;
+}
+
+/* Corner ticks for a sharper landmark at each margin corner. Painted via
+   ::after so they layer on top of the dashed rectangle's faint border. */
+.doc-editor-body .ql-editor::after {
+    content: '';
+    position: absolute;
+    top: 58px;
+    bottom: 58px;
+    left: 74px;
+    right: 74px;
+    pointer-events: none;
+    background:
+        /* TL */ linear-gradient(#4f46e5,#4f46e5) top    left  / 16px 2px no-repeat,
+        /* TL */ linear-gradient(#4f46e5,#4f46e5) top    left  / 2px 16px no-repeat,
+        /* TR */ linear-gradient(#4f46e5,#4f46e5) top    right / 16px 2px no-repeat,
+        /* TR */ linear-gradient(#4f46e5,#4f46e5) top    right / 2px 16px no-repeat,
+        /* BL */ linear-gradient(#4f46e5,#4f46e5) bottom left  / 16px 2px no-repeat,
+        /* BL */ linear-gradient(#4f46e5,#4f46e5) bottom left  / 2px 16px no-repeat,
+        /* BR */ linear-gradient(#4f46e5,#4f46e5) bottom right / 16px 2px no-repeat,
+        /* BR */ linear-gradient(#4f46e5,#4f46e5) bottom right / 2px 16px no-repeat;
+    opacity: 0.55;
 }
 .doc-editor-body .ql-editor h1 {
     font-size: 28px;
