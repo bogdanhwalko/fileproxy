@@ -10039,3 +10039,161 @@ body.fp-actionpanel-open::before {
         flex-wrap: wrap;
     }
 }
+
+/* ============================================================
+   MOBILE STANDARDIZATION (≤720px). One place that bumps every
+   compact desktop control to a 44px+ touch target with 16px
+   text (no iOS zoom on focus). Override individual components
+   inline only if their mobile look truly differs.
+   ============================================================ */
+@media (max-width: 720px) {
+    /* === Sidebar controls === */
+    .sidebar-controls {
+        gap: 10px;
+        margin: 8px 4px 10px;
+    }
+    .sidebar-search-wrap input[type="search"] {
+        min-height: 44px;
+        font-size: 16px;
+        padding: 10px 12px 10px 36px;
+        border-radius: 10px;
+    }
+    .sidebar-search-wrap svg {
+        left: 12px;
+        width: 16px;
+        height: 16px;
+    }
+    .sidebar-sort button {
+        min-height: 36px;
+        font-size: 13px;
+        padding: 8px 14px;
+    }
+    .sidebar-show-all {
+        min-height: 44px;
+        font-size: 13.5px;
+        padding: 10px 14px;
+        border-radius: 10px;
+    }
+
+    /* === Folder list rows === */
+    .folder-item {
+        min-height: 48px;
+        padding: 10px 14px;
+        font-size: 14px;
+    }
+    .folder-item-icon {
+        width: 32px;
+        height: 32px;
+    }
+    .folder-item-count {
+        min-width: 30px;
+        height: 26px;
+        font-size: 12px;
+    }
+
+    /* === Tag chips in sidebar === */
+    .tag-list {
+        gap: 8px;
+        padding: 8px 4px;
+    }
+    .tag-chip {
+        font-size: 13px;
+        padding: 8px 14px;
+        min-height: 36px;
+    }
+    .tag-chip-count {
+        font-size: 12px;
+        padding: 1px 8px;
+    }
+
+    /* === Folder create form === */
+    .folders-form-v2 .field {
+        min-height: 44px;
+        font-size: 16px;
+        padding: 10px 12px;
+    }
+    .folder-color-swatch {
+        width: 36px;
+        height: 36px;
+    }
+    .folders-form-actions .button {
+        min-height: 44px;
+        font-size: 14px;
+        padding: 10px 14px;
+    }
+    .folders-add-toggle {
+        min-height: 44px;
+        font-size: 14px;
+    }
+    .folders-form-password > summary {
+        min-height: 44px;
+        font-size: 14px;
+        padding: 10px 14px;
+    }
+
+    /* === Folder action panel (Дії menu) === */
+    .folder-action-panel .field,
+    .folder-action-panel .button,
+    .folder-action-panel .action-line {
+        min-height: 44px;
+        height: auto;
+        font-size: 14px;
+        padding: 10px 14px;
+    }
+    .folder-action-panel .field {
+        font-size: 16px;
+    }
+    .folder-password-section > summary {
+        min-height: 44px;
+        font-size: 14px;
+        padding: 12px 14px;
+    }
+
+    /* === File action menu trigger === */
+    .action-menu-trigger {
+        min-height: 44px;
+        font-size: 14px;
+    }
+    .fa-quick-btn {
+        min-height: 44px;
+        font-size: 13px;
+    }
+
+    /* === Density + preview toggles === */
+    .density-btn {
+        width: 44px;
+        height: 44px;
+    }
+    .density-btn svg {
+        width: 18px;
+        height: 18px;
+    }
+    .preview-toggle {
+        width: 44px;
+        height: 44px;
+    }
+    .preview-toggle svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    /* === File view bar (where Archive button lives) === */
+    .file-archive-btn {
+        min-height: 44px;
+        font-size: 14px;
+        padding: 10px 14px;
+    }
+
+    /* === Pagination === */
+    .pagination-v2 .button {
+        min-height: 44px;
+        min-width: 44px;
+        font-size: 14px;
+    }
+
+    /* === Bulk select bar === */
+    .fp-bulk-bar-actions .button {
+        min-height: 44px;
+        font-size: 13.5px;
+    }
+}
