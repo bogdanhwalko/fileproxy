@@ -10707,3 +10707,367 @@ body.fp-actionpanel-open::before {
     .upload-shell-text strong { font-size: 14px; }
     .upload-shell-text span { font-size: 11.5px; }
 }
+
+/* ============================================================
+   TOPBAR v3 — modern SaaS layout.
+   Brand (left) | Primary nav pills (center) | User dropdown (right).
+   Primary nav always visible with active highlight. Secondary items
+   (API, Admin) + Logout live inside the user avatar dropdown.
+   ============================================================ */
+.topbar-v3 {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 24px;
+    padding: 10px 18px;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: var(--radius);
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    box-shadow:
+        0 4px 20px -4px rgba(11, 31, 21, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    margin-bottom: 20px;
+}
+
+/* Brand */
+.brand-v3 {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    color: inherit;
+    min-width: 0;
+    flex-shrink: 0;
+}
+.topbar-v3 .brand-mark {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+    color: #fff;
+    font-weight: 800;
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    box-shadow:
+        0 8px 18px -6px var(--primary-glow),
+        inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.brand-text {
+    min-width: 0;
+    line-height: 1.2;
+}
+.brand-text strong {
+    display: block;
+    font-size: 15px;
+    color: var(--text);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+.brand-text p {
+    margin: 1px 0 0;
+    font-size: 11.5px;
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 200px;
+}
+
+/* Primary nav (center) — pill style */
+.topbar-nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    background: rgba(15, 32, 24, 0.04);
+    border-radius: 12px;
+    justify-self: center;
+}
+.topbar-nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+}
+.topbar-nav-link svg {
+    width: 16px;
+    height: 16px;
+    color: currentColor;
+    flex-shrink: 0;
+}
+.topbar-nav-link:hover {
+    background: rgba(255, 255, 255, 0.7);
+    color: var(--text);
+}
+.topbar-nav-link.is-active {
+    background: #fff;
+    color: var(--primary-dark);
+    box-shadow:
+        0 2px 6px -1px rgba(11, 31, 21, 0.08),
+        0 0 0 1px rgba(16, 185, 129, 0.15);
+}
+.topbar-nav-link.is-active svg {
+    color: var(--primary);
+}
+
+/* Actions slot + user menu (right) */
+.topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    justify-self: end;
+}
+
+/* User dropdown (uses native <details>) */
+.user-menu {
+    position: relative;
+}
+.user-menu-trigger {
+    list-style: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 10px 4px 4px;
+    border: 1px solid rgba(15, 32, 24, 0.08);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.85);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+    user-select: none;
+}
+.user-menu-trigger::-webkit-details-marker { display: none; }
+.user-menu-trigger:hover {
+    border-color: rgba(16, 185, 129, 0.3);
+    background: #fff;
+    box-shadow: 0 2px 8px -2px rgba(11, 31, 21, 0.08);
+}
+.user-menu[open] .user-menu-trigger {
+    border-color: rgba(16, 185, 129, 0.4);
+    background: #fff;
+    box-shadow:
+        0 4px 12px -4px rgba(11, 31, 21, 0.12),
+        0 0 0 3px var(--primary-ghost);
+}
+.user-menu-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+.user-menu-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.user-menu-chevron {
+    width: 14px;
+    height: 14px;
+    color: var(--muted);
+    transition: transform 0.15s;
+}
+.user-menu[open] .user-menu-chevron {
+    transform: rotate(180deg);
+}
+
+/* Dropdown panel */
+.user-menu-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 1050;
+    min-width: 240px;
+    background: #fff;
+    border: 1px solid rgba(15, 32, 24, 0.08);
+    border-radius: var(--radius);
+    box-shadow:
+        0 20px 50px -12px rgba(11, 31, 21, 0.25),
+        0 4px 12px -2px rgba(11, 31, 21, 0.08);
+    overflow: hidden;
+    animation: user-menu-in 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes user-menu-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.user-menu-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    background: linear-gradient(180deg, #f8fafc 0%, transparent 100%);
+    border-bottom: 1px solid rgba(15, 32, 24, 0.06);
+}
+.user-menu-avatar-lg {
+    width: 40px;
+    height: 40px;
+    font-size: 15px;
+    border-radius: 12px;
+}
+.user-menu-head-text {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.user-menu-head-text strong {
+    font-size: 14px;
+    color: var(--text);
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.user-menu-head-text span {
+    font-size: 12px;
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.user-menu-list {
+    padding: 6px;
+}
+.user-menu-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border: 0;
+    background: transparent;
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+    font-family: inherit;
+    text-align: left;
+}
+.user-menu-item svg {
+    width: 16px;
+    height: 16px;
+    color: var(--muted);
+    flex-shrink: 0;
+}
+.user-menu-item:hover {
+    background: var(--primary-soft);
+    color: var(--primary-dark);
+}
+.user-menu-item:hover svg {
+    color: var(--primary);
+}
+
+.user-menu-item-admin svg { color: #b45309; }
+.user-menu-item-admin:hover {
+    background: #fef3c7;
+    color: #7c2d12;
+}
+.user-menu-item-admin:hover svg { color: #b45309; }
+
+.user-menu-item-danger { color: var(--danger); }
+.user-menu-item-danger svg { color: var(--danger); }
+.user-menu-item-danger:hover {
+    background: #fee2e2;
+    color: #991b1b;
+}
+.user-menu-item-danger:hover svg { color: #991b1b; }
+
+.user-menu-logout-form {
+    padding: 6px;
+    margin: 0;
+    border-top: 1px solid rgba(15, 32, 24, 0.06);
+}
+
+/* Backwards-compat: hide old user-chip-v2 if a page still uses it next
+   to the new dropdown (admin/user.blade.php still passes user-chip as
+   a slot). Keep it visible there but normalize gap. */
+.topbar-v3 .user-chip-v2 {
+    margin-right: 4px;
+}
+
+/* === Mobile === */
+@media (max-width: 920px) {
+    .topbar-v3 {
+        grid-template-columns: auto 1fr auto;
+        gap: 12px;
+        padding: 10px 14px;
+    }
+    .topbar-nav {
+        gap: 2px;
+        padding: 3px;
+    }
+    .topbar-nav-link {
+        padding: 8px 10px;
+    }
+    .topbar-nav-link span {
+        display: none;
+    }
+    .topbar-nav-link svg {
+        width: 18px;
+        height: 18px;
+    }
+    .user-menu-name {
+        display: none;
+    }
+    .brand-text p {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .topbar-v3 {
+        grid-template-columns: auto auto auto;
+        padding: 8px 10px;
+        gap: 8px;
+    }
+    .topbar-nav {
+        order: 3;
+        grid-column: 1 / -1;
+        justify-self: stretch;
+        justify-content: space-around;
+    }
+    .topbar-nav-link {
+        flex: 1;
+        justify-content: center;
+    }
+    .brand-text strong {
+        font-size: 14px;
+    }
+    .user-menu-panel {
+        position: fixed;
+        top: auto;
+        right: 8px;
+        left: 8px;
+        min-width: 0;
+    }
+}
+
+/* When the topbar already uses .topbar-v2 markup (legacy pages), keep
+   it functional but de-prioritize: pages will be migrated gradually. */
+.topbar-v2 .nav-button-label { font-size: 12.5px; }
