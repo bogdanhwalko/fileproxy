@@ -8047,9 +8047,24 @@ tr[data-file-item].is-selected td:first-child {
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 14px;
-    padding: 48px 24px;
+    padding: 60px 24px;
     text-align: center;
+    min-height: 320px;
+}
+
+/* When rendered inside the grid, span all columns so it centers in the
+   full panel width rather than taking only one column slot. */
+.file-grid > .fp-empty {
+    grid-column: 1 / -1;
+    width: 100%;
+}
+
+/* When inside a table cell (table view), make the cell render the empty
+   state full-width and centered, not as a normal data cell. */
+.compact-file-table tbody td:has(> .fp-empty) {
+    padding: 0;
 }
 .fp-empty-graphic {
     width: 88px;
