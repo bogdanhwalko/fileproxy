@@ -59,6 +59,10 @@ Route::middleware(['auth', 'not.blocked'])->group(function () {
     Route::post('/files/create-text', [FileController::class, 'storeText'])
         ->middleware('throttle:uploads')
         ->name('files.store-text');
+    Route::get('/files/create-doc', [FileController::class, 'createDoc'])->name('files.create-doc');
+    Route::post('/files/create-doc', [FileController::class, 'storeDoc'])
+        ->middleware('throttle:uploads')
+        ->name('files.store-doc');
     Route::post('/files', [FileController::class, 'store'])
         ->middleware('throttle:uploads')
         ->name('files.store');
@@ -73,6 +77,8 @@ Route::middleware(['auth', 'not.blocked'])->group(function () {
     Route::get('/files/{file}/preview', [FileController::class, 'preview'])->name('files.preview');
     Route::get('/files/{file}/edit', [FileController::class, 'editText'])->name('files.edit-text');
     Route::patch('/files/{file}/edit', [FileController::class, 'updateText'])->name('files.update-text');
+    Route::get('/files/{file}/edit-doc', [FileController::class, 'editDoc'])->name('files.edit-doc');
+    Route::patch('/files/{file}/edit-doc', [FileController::class, 'updateDoc'])->name('files.update-doc');
     Route::middleware('throttle:file-stream')->group(function () {
         Route::get('/files/{file}/inline', [FileController::class, 'inline'])->name('files.inline');
         Route::get('/files/{file}/download', [FileController::class, 'download'])->name('files.download');

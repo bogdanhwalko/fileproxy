@@ -804,6 +804,247 @@ class FileController extends Controller
             ->with('status', 'Файл «'.$updated->original_name.'» оновлено.');
     }
 
+    /**
+     * Show the WYSIWYG document editor (create-new). Saved as a self-contained
+     * .html file wrapping the editor content.
+     */
+    public function createDoc(Request $request): View
+    {
+        $user = $request->user();
+
+        $folderId = $request->query('folder');
+        $activeFolder = null;
+        if ($folderId !== null && ctype_digit((string) $folderId)) {
+            $activeFolder = $user->folders()->find((int) $folderId);
+        }
+
+        return view('files.doc-editor', [
+            'file' => null,
+            'documentTitle' => '',
+            'documentHtml' => '',
+            'activeFolder' => $activeFolder,
+            'folders' => $user->folders()->orderBy('name')->get(['id', 'name', 'color']),
+            'telegramStorageGroups' => $this->telegramStorageGroups($user),
+            'canUseLocalStorage' => (bool) $user->is_admin,
+            'maxBytes' => 5 * 1024 * 1024,
+        ]);
+    }
+
+    /**
+     * Save WYSIWYG editor content as a new .html document.
+     */
+    public function storeDoc(Request $request, ManagedFileStorageService $fileStorage): RedirectResponse
+    {
+        $user = $request->user();
+        $maxBytes = 5 * 1024 * 1024;
+
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:200', 'min:1'],
+            'content' => ['required', 'string', 'max:'.$maxBytes],
+            'folder_id' => [
+                'nullable', 'integer',
+                Rule::exists('file_folders', 'id')->where('user_id', $user->id),
+            ],
+            'telegram_storage_group_id' => [
+                'nullable', 'integer',
+                Rule::exists('telegram_storage_groups', 'id')->where('user_id', $user->id),
+            ],
+        ], [
+            'title.required'   => 'Введіть назву документа.',
+            'content.required' => 'Документ порожній.',
+            'content.max'      => 'Максимальний розмір документа — 5 MB.',
+        ]);
+
+        $folderId = $validated['folder_id'] ?? null;
+        if ($folderId !== null) {
+            $folder = $user->folders()->find($folderId);
+            if ($folder && $folder->is_password_protected) {
+                return back()->withInput()
+                    ->withErrors(['folder_id' => 'Текстовий редактор не підтримує запис у захищені папки.']);
+            }
+        }
+
+        $telegramGroup = null;
+        if (! empty($validated['telegram_storage_group_id'])) {
+            $telegramGroup = $this->telegramStorageGroups($user)
+                ->firstWhere('id', (int) $validated['telegram_storage_group_id']);
+        }
+        if (! $user->is_admin && ! $telegramGroup) {
+            $systemGroups = $this->systemTelegramStorageGroups();
+            if ($systemGroups->isNotEmpty()) {
+                $telegramGroup = $systemGroups->first();
+            }
+        }
+
+        $title = trim($validated['title']);
+        $filename = $this->sanitizeDocFilename($title);
+
+        $html = $this->buildDocumentHtml($title, $validated['content']);
+
+        // Write to temp + reuse storeUploadedFile pipeline
+        $tmpPath = tempnam(sys_get_temp_dir(), 'fp-doc-');
+        if ($tmpPath === false) {
+            return back()->withInput()->withErrors(['content' => 'Не вдалося створити тимчасовий файл.']);
+        }
+        file_put_contents($tmpPath, $html);
+
+        try {
+            $uploaded = new \Illuminate\Http\UploadedFile(
+                $tmpPath,
+                $filename,
+                'text/html',
+                test: true
+            );
+            $file = $fileStorage->storeUploadedFile($user, $uploaded, $folderId, $telegramGroup, false, []);
+        } finally {
+            if (file_exists($tmpPath)) @unlink($tmpPath);
+        }
+
+        return redirect()
+            ->route('files.index', $folderId ? ['folder' => $folderId] : [])
+            ->with('status', 'Документ «'.$file->original_name.'» створено.');
+    }
+
+    /**
+     * Show the doc editor for editing an existing .html file.
+     */
+    public function editDoc(Request $request, ManagedFile $file, ManagedFileStorageService $fileStorage): View|RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless((int) $file->user_id === (int) $user->id, 404);
+        abort_unless($fileStorage->exists($file), 404);
+        abort_if($file->is_protected, 422);
+
+        $extension = strtolower((string) $file->extension);
+        if (! in_array($extension, ['html', 'htm'], true)) {
+            return back()->withErrors(['edit' => 'WYSIWYG-редактор підтримує лише .html / .htm файли. Для коду використовуйте звичайний текстовий редактор.']);
+        }
+
+        if ($file->folder && $file->folder->is_password_protected) {
+            return back()->withErrors(['edit' => 'Файли із захищених папок не редагуються.']);
+        }
+
+        [$content, $isTruncated] = $fileStorage->readFullText($file);
+
+        // Extract <title> and body from the saved HTML if it's our wrapper
+        [$docTitle, $docBody] = $this->extractDocumentParts($content, $file->original_name);
+
+        return view('files.doc-editor', [
+            'file' => $file,
+            'documentTitle' => $docTitle,
+            'documentHtml' => $docBody,
+            'isTruncated' => $isTruncated,
+            'activeFolder' => $file->folder,
+            'folders' => $user->folders()->orderBy('name')->get(['id', 'name', 'color']),
+            'telegramStorageGroups' => $this->telegramStorageGroups($user),
+            'canUseLocalStorage' => (bool) $user->is_admin,
+            'maxBytes' => 5 * 1024 * 1024,
+        ]);
+    }
+
+    /**
+     * Save edits to an existing .html document.
+     */
+    public function updateDoc(Request $request, ManagedFile $file, ManagedFileStorageService $fileStorage): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless((int) $file->user_id === (int) $user->id, 404);
+        abort_if($file->is_protected, 422);
+
+        $maxBytes = 5 * 1024 * 1024;
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:200', 'min:1'],
+            'content' => ['required', 'string', 'max:'.$maxBytes],
+        ]);
+
+        if ($file->folder && $file->folder->is_password_protected) {
+            return back()->withInput()->withErrors(['edit' => 'Файли із захищених папок не редагуються.']);
+        }
+
+        $title = trim($validated['title']);
+        $filename = $this->sanitizeDocFilename($title);
+        $html = $this->buildDocumentHtml($title, $validated['content']);
+
+        try {
+            $updated = $fileStorage->overwriteText($file, $html, $filename, 'text/html', 'html');
+        } catch (\Throwable $e) {
+            report($e);
+            return back()->withInput()->withErrors(['content' => 'Не вдалося зберегти документ: '.$e->getMessage()]);
+        }
+
+        return redirect()
+            ->route('files.index', $updated->folder_id ? ['folder' => $updated->folder_id] : [])
+            ->with('status', 'Документ «'.$updated->original_name.'» оновлено.');
+    }
+
+    /**
+     * Build a minimal HTML5 document wrapping the editor content with a
+     * <title> and meta charset. Output is portable — opens in any browser.
+     */
+    private function buildDocumentHtml(string $title, string $bodyHtml): string
+    {
+        $safeTitle = htmlspecialchars($title, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        return <<<HTML
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>{$safeTitle}</title>
+<style>
+body{font-family:system-ui,-apple-system,Segoe UI,Inter,Arial,sans-serif;line-height:1.6;max-width:780px;margin:40px auto;padding:0 20px;color:#0f172a}
+h1,h2,h3{line-height:1.2;color:#0b1f15}
+img{max-width:100%;height:auto;border-radius:8px}
+blockquote{border-left:3px solid #10b981;padding-left:14px;color:#475569;margin:14px 0}
+pre,code{font-family:ui-monospace,Consolas,Menlo,monospace;background:#f1f5f9;border-radius:4px}
+pre{padding:14px;overflow:auto}
+code{padding:2px 6px}
+table{border-collapse:collapse;width:100%}
+th,td{border:1px solid #e2e8f0;padding:8px 10px;text-align:left}
+</style>
+</head>
+<body>
+{$bodyHtml}
+</body>
+</html>
+HTML;
+    }
+
+    /**
+     * If the file is one of our HTML documents, return [title, bodyHtml].
+     * Otherwise [filename, content] as a fallback so users can still edit.
+     *
+     * @return array{0:string,1:string}
+     */
+    private function extractDocumentParts(string $html, string $fallbackName): array
+    {
+        $title = $fallbackName;
+        if (preg_match('#<title[^>]*>(.*?)</title>#is', $html, $m)) {
+            $title = html_entity_decode(trim($m[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        }
+
+        $body = $html;
+        if (preg_match('#<body[^>]*>(.*?)</body>#is', $html, $m)) {
+            $body = trim($m[1]);
+        }
+
+        return [$title, $body];
+    }
+
+    private function sanitizeDocFilename(string $title): string
+    {
+        $name = preg_replace('#[\\\\/]+#', '_', trim($title)) ?? 'document';
+        $name = preg_replace('/[\x00-\x1F]/', '', $name) ?? 'document';
+        $name = trim($name);
+        if ($name === '') $name = 'document';
+
+        // Always .html
+        if (! str_ends_with(strtolower($name), '.html') && ! str_ends_with(strtolower($name), '.htm')) {
+            $name .= '.html';
+        }
+        return mb_substr($name, 0, 200);
+    }
+
     public function destroy(Request $request, ManagedFile $file, ManagedFileStorageService $fileStorage): RedirectResponse
     {
         abort_unless((int) $file->user_id === (int) auth()->id(), 404);
