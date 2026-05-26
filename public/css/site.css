@@ -10729,6 +10729,19 @@ body.fp-actionpanel-open::before {
         0 4px 20px -4px rgba(11, 31, 21, 0.08),
         inset 0 1px 0 rgba(255, 255, 255, 0.7);
     margin-bottom: 20px;
+    /* backdrop-filter creates a stacking context — give the topbar an
+       explicit positive z-index so its absolutely-positioned dropdowns
+       (user menu) paint above subsequent page blocks. The action side
+       panel uses z-index 1080+ and intentionally sits above this. */
+    position: relative;
+    z-index: 50;
+}
+
+/* When the user menu is open, briefly boost the topbar so the dropdown
+   panel (z-index 1050 inside topbar's stacking context) reads as ~1100
+   of the body's stacking — above sidebar (5), below action panel (1100). */
+.topbar-v3:has([data-user-menu][open]) {
+    z-index: 1090;
 }
 
 /* Brand */
