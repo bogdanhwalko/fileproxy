@@ -2443,6 +2443,7 @@
             initQuickPreview();
             initActionSidePanel();
             initArchiveProgress();
+            initUploadShellDrop();
 
             function initProtectHint() {
                 document.addEventListener('change', (e) => {
@@ -2450,6 +2451,73 @@
                     if (! cb) return;
                     const hint = document.querySelector('[data-upload-protect-hint]');
                     if (hint) hint.toggleAttribute('hidden', ! cb.checked);
+                });
+            }
+
+            /* ====================================================
+               Upload shell drag-and-drop: the upload <details> is
+               collapsed by default, but the trigger promises drag
+               support. Listen for dragenter on the shell — if files
+               are being dragged: open the details, highlight, and
+               on drop transfer files into the real input + fire a
+               'change' event so the existing renderSelectedFiles
+               picks them up.
+               ==================================================== */
+            function initUploadShellDrop() {
+                if (document.body.dataset.usDropBound) return;
+                document.body.dataset.usDropBound = '1';
+
+                const shell = document.querySelector('[data-upload-shell]');
+                if (! shell) return;
+                const trigger = shell.querySelector('.upload-shell-trigger');
+                const input = shell.querySelector('[data-upload-input]');
+                if (! trigger || ! input) return;
+
+                const hasFiles = (e) => {
+                    const types = e.dataTransfer?.types;
+                    if (! types) return false;
+                    return Array.from(types).includes('Files');
+                };
+
+                const ensureOpen = () => {
+                    if (! shell.open) shell.open = true;
+                };
+
+                // Allow drops on the shell (trigger or anywhere in the shell)
+                shell.addEventListener('dragenter', (e) => {
+                    if (! hasFiles(e)) return;
+                    e.preventDefault();
+                    ensureOpen();
+                    trigger.classList.add('is-drag-target');
+                });
+
+                shell.addEventListener('dragover', (e) => {
+                    if (! hasFiles(e)) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'copy';
+                });
+
+                shell.addEventListener('dragleave', (e) => {
+                    // Only clear when leaving the shell entirely
+                    if (e.relatedTarget && shell.contains(e.relatedTarget)) return;
+                    trigger.classList.remove('is-drag-target');
+                });
+
+                shell.addEventListener('drop', (e) => {
+                    if (! hasFiles(e)) return;
+                    e.preventDefault();
+                    trigger.classList.remove('is-drag-target');
+                    ensureOpen();
+
+                    const dropped = e.dataTransfer.files;
+                    if (! dropped || ! dropped.length) return;
+
+                    // Append to existing selection (matching renderSelectedFiles behavior)
+                    const transfer = new DataTransfer();
+                    Array.from(input.files || []).forEach((f) => transfer.items.add(f));
+                    Array.from(dropped).forEach((f) => transfer.items.add(f));
+                    input.files = transfer.files;
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
                 });
             }
 

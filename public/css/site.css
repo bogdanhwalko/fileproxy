@@ -784,23 +784,28 @@
         }
 
         .panel {
+            /* Solid bg by default — backdrop-filter on .panel would create
+               a containing block for any position:fixed descendant (the
+               file-action side panel uses fixed positioning to escape
+               the folders panel and dock to the viewport right). The
+               body bg + soft shadows below still give the panel a glassy
+               feel without breaking modal escapees. */
             position: relative;
-            border: 1px solid rgba(255, 255, 255, 0.55);
+            border: 1px solid rgba(255, 255, 255, 0.7);
             border-radius: var(--radius);
-            background: var(--surface);
-            backdrop-filter: var(--glass-blur);
-            -webkit-backdrop-filter: var(--glass-blur);
+            background: rgba(255, 255, 255, 0.92);
             box-shadow:
                 var(--shadow-soft),
                 var(--glass-inner-highlight);
         }
 
-        /* Solid (non-glass) variant for cases where backdrop-filter
-           breaks (forms, modal interiors, areas with sticky overlap). */
-        .panel--solid {
-            background: var(--surface-solid);
-            backdrop-filter: none;
-            -webkit-backdrop-filter: none;
+        /* Opt-in: true glass with backdrop blur. Use only on elements
+           that DON'T contain `position: fixed` children (overlays,
+           toolbars over scrolling content, etc.). */
+        .panel--glass {
+            background: var(--surface);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
         }
 
         .auth-panel {
@@ -10341,11 +10346,27 @@ body.fp-actionpanel-open::before {
 .upload-shell-trigger::-webkit-details-marker {
     display: none;
 }
-.upload-shell-trigger:hover {
+.upload-shell-trigger:hover,
+.upload-shell-trigger.is-drag-target {
     border-color: rgba(16, 185, 129, 0.4);
     box-shadow:
         0 8px 24px -6px rgba(16, 185, 129, 0.2),
         var(--glass-inner-highlight);
+}
+.upload-shell-trigger.is-drag-target {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(20, 184, 166, 0.08));
+    border-color: rgba(16, 185, 129, 0.6);
+    box-shadow:
+        0 0 0 5px rgba(16, 185, 129, 0.18),
+        0 12px 30px -8px rgba(16, 185, 129, 0.3),
+        var(--glass-inner-highlight);
+}
+.upload-shell-trigger.is-drag-target .upload-shell-icon {
+    animation: upload-shell-bounce 0.6s ease infinite alternate;
+}
+@keyframes upload-shell-bounce {
+    from { transform: translateY(0); }
+    to { transform: translateY(-3px); }
 }
 .upload-shell-icon {
     flex-shrink: 0;
