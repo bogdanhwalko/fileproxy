@@ -17,79 +17,30 @@
         @endif
     </div>
 
-    <section class="panel upload-panel upload-panel-v2">
-        <header class="upload-hero upload-hero-compact">
-            <div class="upload-hero-eyebrow">
-                <span class="upload-hero-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                        <polyline points="17 8 12 3 7 8"/>
-                        <line x1="12" y1="3" x2="12" y2="15"/>
-                    </svg>
-                </span>
-                <span class="upload-hero-title">Нове завантаження</span>
-            </div>
-
-            <div class="upload-hero-meta">
-                <span class="upload-hero-meta-item">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <circle cx="12" cy="12" r="10"/>
-                        <polyline points="12 6 12 12 16 14"/>
-                    </svg>
-                    до <strong>{{ $telegramUploadMaxMb }} MB</strong> на файл
-                </span>
-
-                @if (! $canUseLocalStorage && $telegramStorageGroups->isEmpty() && $systemTelegramStorageAvailable)
-                    <span class="upload-hero-meta-item upload-hero-meta-info">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M22 2 11 13"/>
-                            <path d="M22 2 15 22l-4-9-9-4z"/>
-                        </svg>
-                        Системне: <strong>{{ $systemTelegramRemainingUploads }} / {{ $systemTelegramUploadLimit }}</strong>
-                    </span>
-                @endif
-            </div>
-        </header>
-
-        <form class="upload-form-v2" action="{{ route('files.store') }}" method="post" enctype="multipart/form-data" data-upload-form data-fp-uploader data-status-url="{{ route('files.status', ['file' => '__id__']) }}" data-reload-url="{{ url()->full() }}" data-max-file-mb="{{ $telegramUploadMaxMb }}" data-max-protected-mb="{{ $protectedUploadMaxMb }}">
+    <section class="panel upload-card upload-panel upload-panel-v2">
+        <form class="upload-card-form upload-form-v2" action="{{ route('files.store') }}" method="post" enctype="multipart/form-data" data-upload-form data-fp-uploader data-status-url="{{ route('files.status', ['file' => '__id__']) }}" data-reload-url="{{ url()->full() }}" data-max-file-mb="{{ $telegramUploadMaxMb }}" data-max-protected-mb="{{ $protectedUploadMaxMb }}">
             @csrf
 
-            <label class="dropzone-v2" data-dropzone>
-                <input type="file" name="files[]" multiple required data-upload-input>
+            <div class="upload-card-row">
+                <label class="upload-card-drop dropzone-v2" data-dropzone>
+                    <input type="file" name="files[]" multiple required data-upload-input>
 
-                <span class="dropzone-v2-pulse" aria-hidden="true"></span>
+                    <span class="upload-card-drop-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                    </span>
 
-                <div class="dropzone-v2-graphic" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                        <polyline points="17 8 12 3 7 8"/>
-                        <line x1="12" y1="3" x2="12" y2="15"/>
-                    </svg>
-                </div>
+                    <div class="upload-card-drop-body">
+                        <strong>Перетягніть файли або клікніть</strong>
+                        <span>до {{ $telegramUploadMaxMb }} MB на файл @if (! $canUseLocalStorage && $telegramStorageGroups->isEmpty() && $systemTelegramStorageAvailable) · системне {{ $systemTelegramRemainingUploads }}/{{ $systemTelegramUploadLimit }} @endif</span>
+                    </div>
 
-                <div class="dropzone-v2-body">
-                    <strong>Перетягніть файли сюди</strong>
-                    <span>підтримується кілька файлів за раз, до {{ $telegramUploadMaxMb }} MB кожен</span>
-                </div>
-
-                <span class="dropzone-v2-cta">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <polyline points="14 2 14 8 20 8"/>
-                        <line x1="12" y1="18" x2="12" y2="12"/>
-                        <line x1="9" y1="15" x2="15" y2="15"/>
-                    </svg>
-                    Обрати файли з пристрою
-                </span>
-
-                <small class="dropzone-v2-hint">
-                    @if ($canUseLocalStorage)
-                        Локально або Telegram — залежно від обраного сховища нижче.
-                    @else
-                        Файли потраплять у Telegram-сховище.
-                    @endif
-                </small>
-            </label>
+                    <span class="upload-card-drop-cta">Обрати</span>
+                </label>
+            </div>
 
             <div class="upload-selected" data-upload-selected hidden>
                 <div class="upload-selected-head">
@@ -102,7 +53,7 @@
                 <ul class="upload-selected-list" data-upload-list></ul>
             </div>
 
-            <div class="upload-controls">
+            <div class="upload-card-row upload-card-options">
                 @php
                     $folderOptions = collect([
                         ['value' => '', 'label' => 'Без папки', 'sublabel' => 'У корені сховища', 'is_selected' => $activeFolder === null],
@@ -298,7 +249,6 @@
                 </div>
             </div>
 
-            <div class="upload-extras">
                 <div class="upload-tags upload-tags-inline" data-upload-tags-container>
                     <span class="upload-tags-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -312,7 +262,7 @@
                             class="upload-tags-typing"
                             data-upload-tags-typing
                             maxlength="64"
-                            placeholder="додати тег + Enter"
+                            placeholder="теги (Enter)"
                             autocomplete="off"
                         >
                     </div>
@@ -330,14 +280,23 @@
                             <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                         </svg>
                     </span>
-                    <span class="upload-protect-label">Захистити</span>
+                    <span class="upload-protect-label">Захист</span>
                     <span class="fa-switch-track"><span class="fa-switch-knob"></span></span>
                 </label>
+
+                <button class="button upload-submit-btn upload-card-submit" type="submit" data-upload-submit>
+                    <svg class="upload-submit-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    <span data-upload-submit-label>Завантажити</span>
+                </button>
             </div>
 
             <p class="upload-protect-hint" data-upload-protect-hint hidden>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                Файл буде розбито на зашифровані частини і розкидано по групах. Максимум <strong>{{ $protectedUploadMaxMb }} МБ</strong>. Дешифрується тільки на цьому сервері.
+                Файл буде розбито на зашифровані частини. Максимум <strong>{{ $protectedUploadMaxMb }} МБ</strong>. Дешифрується тільки на цьому сервері.
             </p>
 
             @if (! $canUseLocalStorage && $telegramStorageGroups->isEmpty() && ! $systemTelegramStorageAvailable)
@@ -346,7 +305,7 @@
                 </div>
             @elseif (! $canUseLocalStorage && $telegramStorageGroups->isEmpty() && $systemTelegramStorageAvailable)
                 <div class="upload-warning">
-                    Поки використовується системне Telegram-сховище (ліміт {{ $systemTelegramRemainingUploads }} файлів). Підключіть власного бота в <a href="{{ route('telegram-settings.index') }}">налаштуваннях</a>, щоб зняти ліміт.
+                    Системне Telegram-сховище: залишилось {{ $systemTelegramRemainingUploads }} файлів. Підключіть власного бота в <a href="{{ route('telegram-settings.index') }}">налаштуваннях</a>.
                 </div>
             @endif
 
@@ -359,24 +318,6 @@
                     <span data-upload-progress-bar style="width: 0%"></span>
                 </div>
                 <p data-upload-progress-note>Прогрес приблизний: після передачі файлів сервер ще може обробляти Telegram-сховище.</p>
-            </div>
-
-            <div class="upload-footer upload-footer-v2">
-                <div class="upload-actions upload-actions-v2">
-                    @if (! $telegramStorageGroups->count() && ! $systemTelegramStorageAvailable)
-                        <a class="button secondary" href="{{ route('telegram-settings.index') }}">Як прив’язати Telegram</a>
-                    @elseif (! $telegramStorageGroups->count())
-                        <a class="button secondary" href="{{ route('telegram-settings.index') }}">Власне Telegram-сховище</a>
-                    @endif
-                    <button class="button upload-submit-btn" type="submit" data-upload-submit>
-                        <svg class="upload-submit-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                            <polyline points="17 8 12 3 7 8"/>
-                            <line x1="12" y1="3" x2="12" y2="15"/>
-                        </svg>
-                        <span data-upload-submit-label>Завантажити</span>
-                    </button>
-                </div>
             </div>
         </form>
     </section>

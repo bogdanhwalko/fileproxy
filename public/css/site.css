@@ -10041,6 +10041,271 @@ body.fp-actionpanel-open::before {
 }
 
 /* ============================================================
+   Compact upload card (replaces the big hero+dropzone layout).
+   Two horizontal rows: (1) slim dropzone strip with picker CTA,
+   (2) all options inline (folder + storage + tags + protect +
+   submit). Old class names are still attached to nodes so the
+   existing uploader/dropdown/tag JS keeps working untouched.
+   ============================================================ */
+.upload-card {
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+.upload-card-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Row 1: slim horizontal dropzone */
+.upload-card-row {
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.upload-card-drop {
+    flex: 1 1 100%;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    border: 1.5px dashed #cbd5e1;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #f8fafc, #f1f5ff);
+    cursor: pointer;
+    transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+    min-height: 72px;
+    position: relative;
+    overflow: hidden;
+}
+.upload-card-drop:hover,
+.upload-card-drop.is-dragover {
+    border-color: #4f46e5;
+    background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.08);
+}
+.upload-card-drop input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+.upload-card-drop-icon {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #4f46e5, #6366f1);
+    color: #fff;
+    box-shadow: 0 6px 14px -4px rgba(79, 70, 229, 0.45);
+}
+.upload-card-drop-icon svg {
+    width: 22px;
+    height: 22px;
+}
+.upload-card-drop-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.upload-card-drop-body strong {
+    font-size: 14px;
+    color: #0f172a;
+    font-weight: 600;
+}
+.upload-card-drop-body span {
+    font-size: 12px;
+    color: #64748b;
+}
+.upload-card-drop-cta {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 16px;
+    background: #fff;
+    color: #4f46e5;
+    border: 1px solid #c7d2fe;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    pointer-events: none; /* Whole zone is clickable */
+}
+.upload-card-drop:hover .upload-card-drop-cta,
+.upload-card-drop.is-dragover .upload-card-drop-cta {
+    background: #4f46e5;
+    color: #fff;
+    border-color: #4f46e5;
+}
+
+/* Row 2: options inline — folder, storage, tags, protect, submit */
+.upload-card-options {
+    display: grid;
+    grid-template-columns: minmax(160px, 1.2fr) minmax(160px, 1.2fr) minmax(180px, 1.5fr) auto auto;
+    gap: 10px;
+    align-items: stretch;
+}
+.upload-card-options > .upload-control {
+    margin: 0;
+}
+.upload-card-options .upload-control-trigger {
+    min-height: 48px;
+    padding: 6px 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+}
+.upload-card-options .upload-control-trigger:hover {
+    background: #fff;
+    border-color: #c7d2fe;
+}
+.upload-card-options .upload-control-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #94a3b8;
+    margin-bottom: 1px;
+}
+.upload-card-options .upload-control-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+/* Tags + protect — inline pill style matching dropdowns */
+.upload-card-options .upload-tags-inline {
+    min-height: 48px;
+    padding: 6px 10px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+}
+.upload-card-options .upload-tags-inline:focus-within {
+    background: #fff;
+    border-color: #c7d2fe;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+.upload-card-options .upload-tags-typing {
+    flex: 1;
+    min-width: 80px;
+    border: 0;
+    background: transparent;
+    font-size: 13px;
+    outline: 0;
+    padding: 6px 0;
+}
+.upload-card-options .upload-tags-icon {
+    color: #94a3b8;
+    display: grid;
+    place-items: center;
+}
+.upload-card-options .upload-tags-icon svg {
+    width: 16px;
+    height: 16px;
+}
+.upload-card-options .upload-tags-hint-toggle {
+    appearance: none;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    color: #94a3b8;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    font-size: 11px;
+    font-style: italic;
+    font-weight: 700;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.upload-card-options .upload-protect-switch {
+    margin: 0;
+    min-height: 48px;
+    padding: 8px 14px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+}
+.upload-card-options .upload-protect-switch:hover {
+    background: #fff;
+    border-color: #c7d2fe;
+}
+.upload-card-options .upload-protect-switch:has(input:checked) {
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    border-color: #fcd34d;
+}
+.upload-card-options .upload-protect-icon {
+    color: #b45309;
+}
+.upload-card-options .upload-protect-icon svg {
+    width: 16px;
+    height: 16px;
+}
+.upload-card-options .upload-protect-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+/* Submit button — fixed to the right end of the options grid */
+.upload-card-submit {
+    min-height: 48px;
+    padding: 10px 22px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    align-self: stretch;
+}
+.upload-card-submit .upload-submit-icon {
+    width: 16px;
+    height: 16px;
+}
+
+/* Mobile: stack everything */
+@media (max-width: 820px) {
+    .upload-card-options {
+        grid-template-columns: 1fr 1fr;
+    }
+    .upload-card-options .upload-tags-inline,
+    .upload-card-options .upload-protect-switch,
+    .upload-card-submit {
+        grid-column: 1 / -1;
+    }
+}
+@media (max-width: 540px) {
+    .upload-card-drop {
+        flex-wrap: wrap;
+        padding: 14px;
+    }
+    .upload-card-drop-body strong {
+        font-size: 13px;
+    }
+    .upload-card-options {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Hide the old hero (rendered class still on the section for back-compat) */
+.upload-card.upload-panel-v2 > .upload-hero {
+    display: none;
+}
+
+/* ============================================================
    MOBILE STANDARDIZATION (≤720px). One place that bumps every
    compact desktop control to a 44px+ touch target with 16px
    text (no iOS zoom on focus). Override individual components
