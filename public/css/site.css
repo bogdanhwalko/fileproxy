@@ -1512,6 +1512,16 @@
             padding-right: 4px;
             scrollbar-width: thin;
             scrollbar-color: rgba(15, 32, 24, 0.2) transparent;
+            /* position:sticky creates a stacking context that traps the
+               folder action side-panel's z-index. Baseline z-index keeps
+               sidebar above the main workspace content; we boost it above
+               the backdrop (z-index 1075) when the panel is open so the
+               trapped 1080 panel can paint over everything. */
+            z-index: 5;
+        }
+
+        body.fp-actionpanel-open .sidebar-stack {
+            z-index: 1100;
         }
 
         .sidebar-stack::-webkit-scrollbar {
