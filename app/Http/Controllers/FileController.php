@@ -555,12 +555,24 @@ class FileController extends Controller
     }
 
     /**
-     * Allowed extensions for the in-browser text editor. Limited to formats
-     * that are safe to render inline and unlikely to host executable code.
+     * Allowed extensions for the in-browser text editor. Source-code formats
+     * are safe because: (a) we store under storage/app/uploads/ which is NOT
+     * served by the web server (no .php execution path), (b) inlineResponse()
+     * keeps a separate MIME safe-inline whitelist — anything outside it is
+     * served as attachment, not rendered.
      */
     private const TEXT_EDITOR_EXTENSIONS = [
-        'txt', 'md', 'csv', 'log', 'json', 'yaml', 'yml',
+        // plain text + data
+        'txt', 'md', 'markdown', 'csv', 'log', 'json', 'yaml', 'yml',
         'ini', 'conf', 'env', 'xml', 'sql', 'tex',
+        // web
+        'html', 'htm', 'css', 'scss', 'sass', 'less', 'svg',
+        // scripting
+        'js', 'mjs', 'ts', 'jsx', 'tsx', 'vue',
+        'php', 'py', 'rb', 'sh', 'bash', 'zsh',
+        // systems
+        'go', 'rs', 'java', 'kt', 'swift', 'c', 'cpp', 'cc', 'h', 'hpp',
+        'cs', 'r', 'lua', 'pl',
     ];
 
     /**
@@ -631,12 +643,15 @@ class FileController extends Controller
         }
 
         $mime = match ($extension) {
-            'md'   => 'text/markdown',
-            'csv'  => 'text/csv',
-            'json' => 'application/json',
-            'xml'  => 'application/xml',
-            'html' => 'text/html',
-            default => 'text/plain',
+            'md', 'markdown' => 'text/markdown',
+            'csv'            => 'text/csv',
+            'json'           => 'application/json',
+            'xml'            => 'application/xml',
+            'html', 'htm'    => 'text/html',
+            'css'            => 'text/css',
+            'js', 'mjs'      => 'text/javascript',
+            'svg'            => 'image/svg+xml',
+            default          => 'text/plain',
         };
 
         $telegramGroup = null;

@@ -42,7 +42,7 @@
                     </svg>
                     Новий текстовий файл
                 </h1>
-                <span>До 5 MB · форматы: {{ implode(', ', $allowedExtensions) }}</span>
+                <span>До 5 MB · {{ count($allowedExtensions) }} форматів з підсвіткою (php, py, js, sql, md, json, yaml, …)</span>
             </div>
         </header>
 
@@ -109,14 +109,43 @@
                 <label for="text-editor-mode">Підсвітка</label>
                 <select id="text-editor-mode" class="field" data-text-editor-mode>
                     <option value="null">Без підсвітки (txt)</option>
-                    <option value="markdown">Markdown</option>
-                    <option value="application/json">JSON</option>
-                    <option value="yaml">YAML</option>
-                    <option value="xml">XML / HTML</option>
-                    <option value="sql">SQL</option>
-                    <option value="javascript">JavaScript</option>
-                    <option value="css">CSS</option>
-                    <option value="stex">LaTeX</option>
+                    <optgroup label="Розмітка / дані">
+                        <option value="markdown">Markdown</option>
+                        <option value="application/json">JSON</option>
+                        <option value="yaml">YAML</option>
+                        <option value="xml">XML / SVG</option>
+                        <option value="htmlmixed">HTML</option>
+                        <option value="properties">INI / config</option>
+                        <option value="dockerfile">Dockerfile</option>
+                        <option value="stex">LaTeX</option>
+                        <option value="sql">SQL</option>
+                    </optgroup>
+                    <optgroup label="Веб">
+                        <option value="javascript">JavaScript</option>
+                        <option value="application/typescript">TypeScript</option>
+                        <option value="jsx">JSX / TSX</option>
+                        <option value="vue">Vue</option>
+                        <option value="css">CSS / SCSS / LESS</option>
+                    </optgroup>
+                    <optgroup label="Бекенд / скрипти">
+                        <option value="application/x-httpd-php">PHP</option>
+                        <option value="python">Python</option>
+                        <option value="ruby">Ruby</option>
+                        <option value="shell">Shell / Bash</option>
+                        <option value="perl">Perl</option>
+                        <option value="lua">Lua</option>
+                        <option value="r">R</option>
+                    </optgroup>
+                    <optgroup label="Системні">
+                        <option value="go">Go</option>
+                        <option value="rust">Rust</option>
+                        <option value="text/x-java">Java</option>
+                        <option value="text/x-kotlin">Kotlin</option>
+                        <option value="swift">Swift</option>
+                        <option value="text/x-csrc">C</option>
+                        <option value="text/x-c++src">C++</option>
+                        <option value="text/x-csharp">C#</option>
+                    </optgroup>
                 </select>
             </div>
 
@@ -151,14 +180,31 @@
         <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/edit/matchbrackets.min.js" defer></script>
         <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/edit/closebrackets.min.js" defer></script>
         <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/selection/active-line.min.js" defer></script>
-        <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/markdown/markdown.min.js" defer></script>
+        {{-- Mode files: core text formats + popular programming languages.
+             "clike" is the base for php/java/c/cpp; xml/htmlmixed/css/js are
+             PHP's dependencies for mixed PHP/HTML files. --}}
         <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/xml/xml.min.js" defer></script>
         <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/javascript/javascript.min.js" defer></script>
         <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/css/css.min.js" defer></script>
+        <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/htmlmixed/htmlmixed.min.js" defer></script>
+        <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/clike/clike.min.js" defer></script>
+        <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/php/php.min.js" defer></script>
+        <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/python/python.min.js" defer></script>
+        <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/ruby/ruby.min.js" defer></script>
+        <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/shell/shell.min.js" defer></script>
+        <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/go/go.min.js" defer></script>
+        <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/rust/rust.min.js" defer></script>
+        <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/swift/swift.min.js" defer></script>
+        <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/markdown/markdown.min.js" defer></script>
         <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/yaml/yaml.min.js" defer></script>
         <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/sql/sql.min.js" defer></script>
         <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/stex/stex.min.js" defer></script>
-        <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/htmlmixed/htmlmixed.min.js" defer></script>
+        <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/jsx/jsx.min.js" defer></script>
+        <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/vue/vue.min.js" defer></script>
+        <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/lua/lua.min.js" defer></script>
+        <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/r/r.min.js" defer></script>
+        <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/properties/properties.min.js" defer></script>
+        <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/dockerfile/dockerfile.min.js" defer></script>
         <script>
             window.addEventListener('load', () => {
                 const shell = document.querySelector('[data-text-editor]');
@@ -185,17 +231,46 @@
                     json: 'application/json',
                     js: 'javascript',
                     mjs: 'javascript',
-                    ts: 'javascript',
+                    ts: 'application/typescript',
+                    jsx: 'jsx',
+                    tsx: 'jsx',
+                    vue: 'vue',
                     yaml: 'yaml',
                     yml: 'yaml',
                     xml: 'xml',
+                    svg: 'xml',
                     html: 'htmlmixed',
                     htm: 'htmlmixed',
                     css: 'css',
+                    scss: 'css',
+                    sass: 'css',
+                    less: 'css',
                     sql: 'sql',
                     tex: 'stex',
                     sh: 'shell',
+                    bash: 'shell',
+                    zsh: 'shell',
                     py: 'python',
+                    rb: 'ruby',
+                    php: 'application/x-httpd-php',
+                    go: 'go',
+                    rs: 'rust',
+                    java: 'text/x-java',
+                    kt: 'text/x-kotlin',
+                    swift: 'swift',
+                    c: 'text/x-csrc',
+                    h: 'text/x-csrc',
+                    cpp: 'text/x-c++src',
+                    cc: 'text/x-c++src',
+                    hpp: 'text/x-c++src',
+                    cs: 'text/x-csharp',
+                    r: 'r',
+                    lua: 'lua',
+                    pl: 'perl',
+                    ini: 'properties',
+                    conf: 'properties',
+                    env: 'properties',
+                    dockerfile: 'dockerfile',
                 };
 
                 const detectMode = (filename) => {

@@ -413,7 +413,7 @@
             </span>
             <span class="upload-text-create-text">
                 <strong>Створити текстовий файл</strong>
-                <span>Редактор у браузері · {{ implode(', ', ['txt', 'md', 'json', '...']) }}</span>
+                <span>Редактор із підсвіткою · php, py, js, md, json, …</span>
             </span>
         </a>
     </div>
