@@ -10041,6 +10041,353 @@ body.fp-actionpanel-open::before {
 }
 
 /* ============================================================
+   Upload card v3 — SaaS-style compact toolbar.
+   Layout: slim dropzone strip on top, then a single flex-wrap
+   row of pill-shaped controls and a primary submit. Form
+   elements share one "neutral pill" treatment (border, soft bg,
+   hover lift, focus ring) so the whole bar reads as one toolbar
+   instead of mismatched widgets stacked vertically.
+   ============================================================ */
+.upload-card {
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+.upload-card-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.upload-card-row {
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* Hide the legacy hero (header) — it's still rendered for back-compat. */
+.upload-card.upload-panel-v2 > .upload-hero { display: none; }
+
+/* Override the old big dropzone-v2 grid layout when used inside .upload-card */
+.upload-card .upload-card-drop.dropzone-v2 {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    text-align: left;
+    flex: 1 1 100%;
+    gap: 14px;
+    padding: 12px 14px;
+    min-height: 64px;
+    border: 1.5px dashed #cbd5e1;
+    border-radius: 12px;
+    background: #fafbff;
+    cursor: pointer;
+    transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+    position: relative;
+    overflow: hidden;
+}
+.upload-card .upload-card-drop:hover,
+.upload-card .upload-card-drop.is-dragover {
+    border-color: #4f46e5;
+    background: #f1f3ff;
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.08);
+}
+.upload-card .upload-card-drop input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+.upload-card .upload-card-drop-icon {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #4f46e5, #6366f1);
+    color: #fff;
+    box-shadow: 0 6px 14px -4px rgba(79, 70, 229, 0.45);
+    position: relative;
+    z-index: 1;
+}
+.upload-card .upload-card-drop-icon svg { width: 20px; height: 20px; }
+.upload-card .upload-card-drop-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    text-align: left;
+    position: relative;
+    z-index: 1;
+}
+.upload-card .upload-card-drop-body strong {
+    font-size: 13.5px;
+    color: #0f172a;
+    font-weight: 600;
+    line-height: 1.3;
+}
+.upload-card .upload-card-drop-body span {
+    font-size: 11.5px;
+    color: #64748b;
+    line-height: 1.3;
+}
+.upload-card .upload-card-drop-cta {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 14px;
+    background: #fff;
+    color: #4f46e5;
+    border: 1px solid #c7d2fe;
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+    pointer-events: none;
+    position: relative;
+    z-index: 1;
+}
+.upload-card .upload-card-drop:hover .upload-card-drop-cta,
+.upload-card .upload-card-drop.is-dragover .upload-card-drop-cta {
+    background: #4f46e5;
+    color: #fff;
+    border-color: #4f46e5;
+}
+
+/* === Row 2: flex-wrap toolbar === */
+.upload-card-options {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 8px;
+}
+
+/* Shared pill treatment: every interactive control sits in a
+   40px-tall pill with consistent border/bg/hover. Inner widgets
+   are responsible for their own typography. */
+.upload-card-options .upload-control,
+.upload-card-options .upload-tags-inline,
+.upload-card-options .upload-protect-switch {
+    margin: 0;
+    height: 40px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
+    box-sizing: border-box;
+    flex: 0 1 auto;
+}
+.upload-card-options .upload-control:hover,
+.upload-card-options .upload-tags-inline:hover,
+.upload-card-options .upload-protect-switch:hover {
+    background: #fff;
+    border-color: #cbd5e1;
+}
+.upload-card-options .upload-tags-inline:focus-within {
+    background: #fff;
+    border-color: #a5b4fc;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+
+/* Folder + storage compact triggers — icon + label/value, no border on inner button */
+.upload-card-options .upload-control {
+    flex: 1 1 180px;
+    max-width: 240px;
+    min-width: 160px;
+    padding: 0;
+    position: relative;
+}
+.upload-card-options .upload-control-trigger {
+    height: 38px;
+    width: 100%;
+    padding: 0 10px;
+    background: transparent;
+    border: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    border-radius: 10px;
+    text-align: left;
+    color: inherit;
+}
+.upload-card-options .upload-control-icon {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    background: transparent;
+    color: #64748b;
+    border: 0;
+    border-radius: 0;
+}
+.upload-card-options .upload-control-icon svg { width: 14px; height: 14px; }
+.upload-card-options .upload-control-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    text-align: left;
+    line-height: 1.1;
+}
+.upload-card-options .upload-control-label {
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #94a3b8;
+    font-weight: 700;
+}
+.upload-card-options .upload-control-value {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #0f172a;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.upload-card-options .upload-control-chevron {
+    flex-shrink: 0;
+    color: #94a3b8;
+    display: grid;
+    place-items: center;
+}
+.upload-card-options .upload-control-chevron svg { width: 12px; height: 12px; }
+
+/* Tags inline pill — grows to fill space */
+.upload-card-options .upload-tags-inline {
+    flex: 1 1 220px;
+    min-width: 180px;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.upload-card-options .upload-tags-icon {
+    color: #94a3b8;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+}
+.upload-card-options .upload-tags-icon svg { width: 14px; height: 14px; }
+.upload-card-options .upload-tags-typing {
+    flex: 1;
+    min-width: 60px;
+    height: 38px;
+    border: 0;
+    background: transparent;
+    font-size: 13px;
+    color: #0f172a;
+    outline: 0;
+    padding: 0;
+}
+.upload-card-options .upload-tags-typing::placeholder { color: #94a3b8; }
+.upload-card-options .upload-tags-hint-toggle {
+    appearance: none;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    color: #94a3b8;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    font-size: 10.5px;
+    font-style: italic;
+    font-weight: 700;
+    cursor: pointer;
+    line-height: 1;
+    flex-shrink: 0;
+    padding: 0;
+}
+.upload-card-options .upload-tags-hint-toggle:hover {
+    border-color: #c7d2fe;
+    color: #4338ca;
+}
+
+/* Protect — icon + label + switch in one compact pill */
+.upload-card-options .upload-protect-switch {
+    flex: 0 0 auto;
+    padding: 0 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+.upload-card-options .upload-protect-switch:has(input:checked) {
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    border-color: #fcd34d;
+    box-shadow: 0 0 0 3px rgba(252, 211, 77, 0.18);
+}
+.upload-card-options .upload-protect-icon {
+    color: #b45309;
+    display: grid;
+    place-items: center;
+}
+.upload-card-options .upload-protect-icon svg { width: 15px; height: 15px; }
+.upload-card-options .upload-protect-label {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #0f172a;
+}
+.upload-card-options .upload-protect-switch .fa-switch-track {
+    width: 30px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+/* Submit button — natural width, primary, pushed to the right end */
+.upload-card-submit {
+    flex: 0 0 auto;
+    height: 40px;
+    min-height: 40px;
+    padding: 0 18px;
+    border-radius: 10px;
+    font-size: 13.5px;
+    font-weight: 600;
+    gap: 6px;
+    box-shadow: 0 6px 14px -4px rgba(79, 70, 229, 0.4);
+    margin-left: auto;
+}
+.upload-card-submit .upload-submit-icon {
+    width: 15px;
+    height: 15px;
+}
+
+/* === Mobile collapse === */
+@media (max-width: 720px) {
+    .upload-card {
+        padding: 12px;
+    }
+    .upload-card-options .upload-control {
+        flex: 1 1 calc(50% - 4px);
+        max-width: none;
+    }
+    .upload-card-options .upload-tags-inline {
+        flex: 1 1 100%;
+    }
+    .upload-card-options .upload-protect-switch {
+        flex: 1 1 calc(50% - 4px);
+        justify-content: space-between;
+    }
+    .upload-card-submit {
+        flex: 1 1 calc(50% - 4px);
+        margin-left: 0;
+        justify-content: center;
+    }
+}
+@media (max-width: 480px) {
+    .upload-card-options .upload-control,
+    .upload-card-options .upload-protect-switch,
+    .upload-card-submit {
+        flex: 1 1 100%;
+    }
+    .upload-card .upload-card-drop-cta { display: none; }
+}
+
+/* ============================================================
    MOBILE STANDARDIZATION (≤720px). One place that bumps every
    compact desktop control to a 44px+ touch target with 16px
    text (no iOS zoom on focus). Override individual components
