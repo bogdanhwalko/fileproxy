@@ -496,7 +496,9 @@
                             data-sidebar-item
                             data-name="{{ mb_strtolower($folder->name) }}"
                             data-count="{{ $folder->files_count }}">
-                            <a class="folder-item {{ $activeFolder?->id === $folder->id ? 'is-active' : '' }}" href="{{ $folderLocked ? route('folders.unlock-prompt', $folder) : route('files.index', ['folder' => $folder->id]) }}">
+                            <a class="folder-item {{ $activeFolder?->id === $folder->id ? 'is-active' : '' }}"
+                                href="{{ $folderLocked ? route('folders.unlock-prompt', $folder) : route('files.index', ['folder' => $folder->id]) }}"
+                                @if ($folderLocked) data-no-ajax @endif>
                                 <span class="folder-item-icon" aria-hidden="true">
                                     @if ($folder->is_password_protected)
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -1245,7 +1247,7 @@
 
                 const navigationLink = event.target.closest('.folder-item, .folder-link, .view-toggle a, .filter-reset');
 
-                if (navigationLink && ! navigationLink.target) {
+                if (navigationLink && ! navigationLink.target && ! navigationLink.hasAttribute('data-no-ajax')) {
                     event.preventDefault();
                     refreshFilesPage(navigationLink.href, true, { region: 'files' });
                 }
