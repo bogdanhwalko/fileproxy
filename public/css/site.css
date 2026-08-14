@@ -11214,7 +11214,14 @@ body.fp-actionpanel-open::before {
 
 @media (max-width: 480px) {
     .topbar-v3 {
-        grid-template-columns: auto auto auto;
+        /* Row 1 only ever has 2 real items here (brand, actions) — nav is
+           pulled onto its own row below via order+span. The middle 1fr
+           track is deliberately left unassigned so it soaks up the gap
+           between them; without it (and without pinning .topbar-actions to
+           the last track below) auto-placement puts actions in the middle
+           column instead of the edge, leaving it stranded next to the
+           brand instead of flush against the right side of the card. */
+        grid-template-columns: auto 1fr auto;
         padding: 8px 10px;
         gap: 8px;
     }
@@ -11227,6 +11234,9 @@ body.fp-actionpanel-open::before {
     .topbar-nav-link {
         flex: 1;
         justify-content: center;
+    }
+    .topbar-actions {
+        grid-column: 3;
     }
     .brand-text strong {
         font-size: 14px;
