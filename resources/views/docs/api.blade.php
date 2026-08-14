@@ -42,9 +42,15 @@
                     <li class="docs-aside-sub"><a href="#files-show">Метадані</a></li>
                     <li class="docs-aside-sub"><a href="#files-content">Скачати</a></li>
                     <li class="docs-aside-sub"><a href="#files-upload">Upload</a></li>
+                    <li class="docs-aside-sub"><a href="#files-tags">Теги</a></li>
+                    <li class="docs-aside-sub"><a href="#files-bulk">Масові дії</a></li>
+                    <li class="docs-aside-sub"><a href="#files-archive">Архів (zip)</a></li>
                     <li class="docs-aside-sub"><a href="#files-delete">Видалити</a></li>
                     <li><a href="#folders">Папки</a></li>
+                    <li class="docs-aside-sub"><a href="#folders-password">Пароль папки</a></li>
+                    <li><a href="#telegram-groups">Telegram-групи</a></li>
                     <li><a href="#shares">Шеринг</a></li>
+                    <li><a href="#stats">Статистика</a></li>
                     <li><a href="#examples">Приклади</a></li>
                 </ul>
             </aside>
@@ -101,6 +107,8 @@
                             <strong>Важливо.</strong> Токен показується <strong>один раз</strong>. Збережіть його в менеджері паролів або зашифрованому сховищі — відкликати можна будь-коли на сторінці токенів.
                         </div>
                     </div>
+
+                    <p>Максимум <strong>10 активних токенів</strong> на акаунт — створення 11-го поверне <code>422</code>, доки ви не відкличете інший. Токени створюються <strong>без строку дії</strong>: вони не «прострочуються» самі, лише відкликаються вручну.</p>
                 </section>
 
                 {{-- ============ ERRORS ============ --}}
@@ -123,7 +131,7 @@
 
                     <h3>Коди статусу</h3>
                     <div class="docs-status-grid">
-                        <div class="docs-status-item"><span class="docs-status-code c-401">401</span><div>Token відсутній, прострочений або відкликаний</div></div>
+                        <div class="docs-status-item"><span class="docs-status-code c-401">401</span><div>Token відсутній, невірний або відкликаний (токени не мають строку дії — лише ручне відкликання)</div></div>
                         <div class="docs-status-item"><span class="docs-status-code c-403">403</span><div>Акаунт заблоковано / перевищено системний ліміт</div></div>
                         <div class="docs-status-item"><span class="docs-status-code c-404">404</span><div>Ресурс не існує або не належить вам</div></div>
                         <div class="docs-status-item"><span class="docs-status-code c-409">409</span><div>Конфлікт — інше завантаження вже триває</div></div>
@@ -139,10 +147,11 @@
                     <table class="docs-table">
                         <thead><tr><th>Ендпоінт</th><th>Ліміт</th></tr></thead>
                         <tbody>
-                            <tr><td>Загальний</td><td>60 запитів / хвилину на токен</td></tr>
-                            <tr><td>POST /files <em>(upload)</em></td><td>30 запитів / хвилину на токен</td></tr>
+                            <tr><td>Загальний</td><td>60 запитів / хвилину на акаунт</td></tr>
+                            <tr><td>POST /files <em>(upload)</em></td><td>30 запитів / хвилину на акаунт</td></tr>
                         </tbody>
                     </table>
+                    <p class="muted">Ліміт рахується на весь акаунт, а не на окремий токен — усі ваші токени ділять один і той самий ліміт запитів.</p>
                 </section>
 
                 {{-- ============ USER ============ --}}
@@ -202,7 +211,51 @@
                             <span class="docs-endpoint-title">Метадані одного файлу</span>
                         </div>
                         <div class="docs-endpoint-body">
-                            <p>Повертає одну сутність <code>ManagedFile</code> з повним набором полів і <code>share</code>-блоком, якщо ввімкнено публічний доступ.</p>
+                            <p>Повертає одну сутність <code>ManagedFile</code> з повним набором полів, тегами і <code>share</code>-блоком, якщо ввімкнено публічний доступ.</p>
+
+                            <div class="docs-example">
+                                <div class="docs-example-head">
+                                    <span class="docs-example-lang">JSON</span>
+                                    <span>Response</span>
+                                </div>
+<pre><code>{
+  "id": 123,
+  "original_name": "report.pdf",
+  "mime_type": "application/pdf",
+  "extension": "pdf",
+  "size": 245678,
+  "human_size": "239.9 KB",
+  "storage_driver": "telegram",
+  "storage_label": "Telegram",
+  "folder_id": 5,
+  "folder_name": "Archive",
+  "is_image": false,
+  "is_text": false,
+  "is_previewable": true,
+  "is_telegram": true,
+  "status": "uploaded",
+  "status_label": "Завантажено",
+  "upload_failure_reason": null,
+  "tags": [
+    { "id": 3, "name": "work" },
+    { "id": 7, "name": "invoices" }
+  ],
+  "telegram": {
+    "storage_group_id": 2,
+    "storage_group_title": "My storage",
+    "chat_id": "-1001234567890",
+    "message_id": 456
+  },
+  "share": null,
+  "created_at": "2026-08-01T10:15:00+00:00",
+  "updated_at": "2026-08-01T10:15:00+00:00",
+  "links": {
+    "self": "{{ url('/api/v1/files/123') }}",
+    "content": "{{ url('/api/v1/files/123/content') }}"
+  }
+}</code></pre>
+                            </div>
+                            <p class="muted"><code>telegram</code> присутнє лише коли <code>is_telegram</code> — true. <code>tags</code> завжди присутнє (порожній масив, якщо тегів немає).</p>
                         </div>
                     </article>
 
@@ -237,6 +290,63 @@
                         </div>
                     </article>
 
+                    <article class="docs-endpoint is-patch has-body" id="files-tags">
+                        <div class="docs-endpoint-head">
+                            <span class="docs-method m-patch">PATCH</span>
+                            <span class="docs-endpoint-path">/api/v1/files/{id}/tags</span>
+                            <span class="docs-endpoint-title">Замінити теги файлу</span>
+                        </div>
+                        <div class="docs-endpoint-body">
+                            <p>Повна заміна (sync), не додавання — попередній набір тегів файлу видаляється. Максимум 20 тегів за запит (зайві мовчки відкидаються), кожна назва — до 64 символів. Неіснуючі теги створюються автоматично.</p>
+                            <p>Body JSON — масив назв або один рядок, розділений комою/крапкою з комою/переносом рядка:</p>
+<pre><code>{ "tags": ["work", "invoices"] }
+// або
+{ "tags": "work, invoices" }</code></pre>
+                            <p>Відповідь — оновлена сутність файлу (як у <a href="#files-show">GET /files/{id}</a>) з полем <code>tags</code>.</p>
+                        </div>
+                    </article>
+
+                    <article class="docs-endpoint is-post has-body" id="files-bulk">
+                        <div class="docs-endpoint-head">
+                            <span class="docs-method m-post">POST</span>
+                            <span class="docs-endpoint-path">/api/v1/files/bulk-delete</span>
+                            <span class="docs-endpoint-title">Масове видалення</span>
+                        </div>
+                        <div class="docs-endpoint-body">
+                            <p>Body JSON: <code>{ "ids": [1, 2, 3] }</code> — до 200 id за запит. Id, що вам не належать, просто пропускаються (без помилки).</p>
+<pre><code>{ "message": "Deleted 3 file(s), 0 failed.", "deleted": 3, "failed": 0 }</code></pre>
+                        </div>
+                    </article>
+                    <article class="docs-endpoint is-post has-body">
+                        <div class="docs-endpoint-head">
+                            <span class="docs-method m-post">POST</span>
+                            <span class="docs-endpoint-path">/api/v1/files/bulk-move</span>
+                            <span class="docs-endpoint-title">Масове переміщення</span>
+                        </div>
+                        <div class="docs-endpoint-body">
+                            <p>Body JSON: <code>{ "ids": [1, 2, 3], "folder_id": 5 }</code> — до 500 id за запит. Опустіть або передайте <code>null</code> у <code>folder_id</code>, щоб перемістити в корінь.</p>
+                        </div>
+                    </article>
+
+                    <article class="docs-endpoint is-get has-body" id="files-archive">
+                        <div class="docs-endpoint-head">
+                            <span class="docs-method m-get">GET</span>
+                            <span class="docs-endpoint-path">/api/v1/files/archive</span>
+                            <span class="docs-endpoint-title">Скачати архівом (zip)</span>
+                        </div>
+                        <div class="docs-endpoint-body">
+                            <p>Приймає ті самі фільтри, що й список файлів: <code>search</code>, <code>type</code>, <code>folder</code> (id, <code>root</code> або <code>all</code>), <code>date_from</code>, <code>date_to</code>. Повертає бінарний <code>.zip</code> з <code>Content-Disposition: attachment</code>.</p>
+                            <table class="docs-table">
+                                <thead><tr><th>Код</th><th>Причина</th></tr></thead>
+                                <tbody>
+                                    <tr><td>404</td><td>Жодного файлу не знайдено за фільтрами</td></tr>
+                                    <tr><td>413</td><td>Архів обмежений 500 файлами — звузьте фільтри</td></tr>
+                                    <tr><td>503</td><td>На сервері немає розширення PHP ZipArchive</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </article>
+
                     <article class="docs-endpoint is-delete has-body" id="files-delete">
                         <div class="docs-endpoint-head">
                             <span class="docs-method m-delete">DELETE</span>
@@ -260,7 +370,7 @@
                             <span class="docs-endpoint-title">Список папок</span>
                         </div>
                         <div class="docs-endpoint-body">
-                            <p>Усі папки поточного юзера з лічильником <code>files_count</code>.</p>
+                            <p>Усі папки поточного юзера з лічильником <code>files_count</code>, кольором і полем <code>is_password_protected</code>.</p>
                         </div>
                     </article>
 
@@ -280,8 +390,15 @@
                         </div>
                         <div class="docs-endpoint-body">
                             <p>Body JSON:</p>
-<pre><code>{ "name": "Archive" }</code></pre>
-                            <p>Назва унікальна в межах акаунта, до 100 символів.</p>
+<pre><code>{ "name": "Archive", "color": "indigo", "password": "s3cret!" }</code></pre>
+                            <table class="docs-table">
+                                <thead><tr><th>Поле</th><th>Тип</th><th>Опис</th></tr></thead>
+                                <tbody>
+                                    <tr><td>name</td><td>string, required</td><td>Унікальна в межах акаунта, до 100 символів.</td></tr>
+                                    <tr><td>color</td><td>string, optional</td><td>Один із ключів палітри: slate, red, orange, amber, green, teal, blue, indigo, purple, pink.</td></tr>
+                                    <tr><td>password</td><td>string, optional</td><td>Мінімум 4 символи. Захищає файли всередині AES-GCM-шифруванням. <strong>Можна встановити лише під час створення</strong> — додати пароль до вже існуючої незахищеної папки через API не можна.</td></tr>
+                                </tbody>
+                            </table>
                         </div>
                     </article>
 
@@ -289,10 +406,10 @@
                         <div class="docs-endpoint-head">
                             <span class="docs-method m-patch">PATCH</span>
                             <span class="docs-endpoint-path">/api/v1/folders/{id}</span>
-                            <span class="docs-endpoint-title">Перейменувати</span>
+                            <span class="docs-endpoint-title">Перейменувати / змінити колір</span>
                         </div>
                         <div class="docs-endpoint-body">
-                            <p>Body JSON: <code>{ "name": "New name" }</code></p>
+                            <p>Body JSON: <code>{ "name": "New name", "color": "teal" }</code></p>
                         </div>
                     </article>
 
@@ -304,6 +421,55 @@
                         </div>
                         <div class="docs-endpoint-body">
                             <p>Видаляє папку <strong>з усіма файлами всередині</strong>. Telegram-повідомлення також видаляються через бота.</p>
+                        </div>
+                    </article>
+
+                    <h3 id="folders-password">Пароль папки</h3>
+                    <p>Пароль папки — це захист для веб-кабінету (файли всередині зашифровані AES-GCM). Для власника, автентифікованого API-токеном, вміст папки доступний завжди незалежно від пароля — пароль не блокує API-доступ, лише веб-перегляд без токена.</p>
+
+                    <article class="docs-endpoint is-patch has-body">
+                        <div class="docs-endpoint-head">
+                            <span class="docs-method m-patch">PATCH</span>
+                            <span class="docs-endpoint-path">/api/v1/folders/{id}/password</span>
+                            <span class="docs-endpoint-title">Змінити пароль</span>
+                        </div>
+                        <div class="docs-endpoint-body">
+                            <p>Лише для вже захищеної папки (див. вище — встановити перший пароль можна тільки при створенні). Body JSON:</p>
+<pre><code>{ "current_password": "s3cret!", "password": "n3wSecret!" }</code></pre>
+                            <p><code>422</code>, якщо папка не захищена або <code>current_password</code> невірний.</p>
+                        </div>
+                    </article>
+                    <article class="docs-endpoint is-delete has-body">
+                        <div class="docs-endpoint-head">
+                            <span class="docs-method m-delete">DELETE</span>
+                            <span class="docs-endpoint-path">/api/v1/folders/{id}/password</span>
+                            <span class="docs-endpoint-title">Зняти пароль</span>
+                        </div>
+                        <div class="docs-endpoint-body">
+                            <p>Body JSON: <code>{ "current_password": "s3cret!" }</code>. <code>422</code>, якщо папка не захищена або пароль невірний.</p>
+                        </div>
+                    </article>
+                </section>
+
+                {{-- ============ TELEGRAM GROUPS ============ --}}
+                <section class="docs-section" id="telegram-groups">
+                    <h2>Telegram-групи</h2>
+                    <article class="docs-endpoint is-get has-body">
+                        <div class="docs-endpoint-head">
+                            <span class="docs-method m-get">GET</span>
+                            <span class="docs-endpoint-path">/api/v1/telegram-groups</span>
+                            <span class="docs-endpoint-title">Список власних груп сховища</span>
+                        </div>
+                        <div class="docs-endpoint-body">
+                            <p>Повертає ваші власні Telegram-групи сховища — саме звідси беруться валідні значення <code>telegram_storage_group_id</code> для <a href="#files-upload">POST /files</a>. Якщо у вас немає власних груп, список порожній — файли автоматично підуть у системне Telegram-сховище (для не-адмінів) або локально (для адмінів), і <code>telegram_storage_group_id</code> передавати не потрібно.</p>
+<pre><code>[
+  {
+    "id": 2,
+    "title": "My storage",
+    "is_default": true,
+    "bot": { "id": 1, "name": "My bot", "username": "my_storage_bot" }
+  }
+]</code></pre>
                         </div>
                     </article>
                 </section>
@@ -376,6 +542,39 @@
                     </article>
                 </section>
 
+                {{-- ============ STATS ============ --}}
+                <section class="docs-section" id="stats">
+                    <h2>Статистика</h2>
+                    <article class="docs-endpoint is-get has-body">
+                        <div class="docs-endpoint-head">
+                            <span class="docs-method m-get">GET</span>
+                            <span class="docs-endpoint-path">/api/v1/stats</span>
+                            <span class="docs-endpoint-title">Зведена статистика акаунта</span>
+                        </div>
+                        <div class="docs-endpoint-body">
+                            <p>JSON-еквівалент кабінетної сторінки «Статистика»: лічильники, топ-5 найбільших і найновіших файлів, топ-8 папок за кількістю файлів, розбивка сховища за категоріями.</p>
+<pre><code>{
+  "total": 128,
+  "storage_bytes": 1704331264,
+  "storage_human": "1.6 GB",
+  "folders": 9,
+  "telegram": 120,
+  "local": 8,
+  "root": 15,
+  "shared_files": 3,
+  "largest_files": [ /* ManagedFile, як у GET /files/{id} */ ],
+  "recent_files": [ /* ManagedFile, як у GET /files/{id} */ ],
+  "folders_by_files": [
+    { "id": 5, "name": "Archive", "files_count": 40 }
+  ],
+  "storage_by_category": [
+    { "key": "image", "label": "Зображення", "color": "#16a34a", "bytes": 900000000 }
+  ]
+}</code></pre>
+                        </div>
+                    </article>
+                </section>
+
                 {{-- ============ EXAMPLES ============ --}}
                 <section class="docs-section" id="examples">
                     <h2>Приклади</h2>
@@ -418,6 +617,23 @@ curl -X PATCH -H "Authorization: Bearer YOUR_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{"share_max_views": 100}' \
      "{{ url('/api/v1/files/123/share') }}"</code></pre>
+                    </div>
+
+                    <h3>Масове видалення + теги</h3>
+                    <div class="docs-example">
+                        <div class="docs-example-head">
+                            <span class="docs-example-lang">curl</span>
+                            <span>POST /files/bulk-delete, PATCH /files/{id}/tags</span>
+                        </div>
+<pre><code>curl -X POST -H "Authorization: Bearer YOUR_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"ids": [101, 102, 103]}' \
+     "{{ url('/api/v1/files/bulk-delete') }}"
+
+curl -X PATCH -H "Authorization: Bearer YOUR_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"tags": ["work", "invoices"]}' \
+     "{{ url('/api/v1/files/123/tags') }}"</code></pre>
                     </div>
 
                     <h3>PHP (Guzzle)</h3>

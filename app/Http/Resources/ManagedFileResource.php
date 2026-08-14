@@ -48,6 +48,10 @@ class ManagedFileResource extends JsonResource
             'status' => $this->status,
             'status_label' => $this->status_label,
             'upload_failure_reason' => $this->upload_failure_reason,
+            'tags' => $this->whenLoaded('tags', fn () => $this->tags->map(fn ($tag) => [
+                'id' => $tag->id,
+                'name' => $tag->name,
+            ])->values()),
             'telegram' => $this->when($this->is_telegram, fn () => [
                 'storage_group_id' => $this->telegram_storage_group_id,
                 'storage_group_title' => $this->whenLoaded('telegramStorageGroup', fn () => $this->telegramStorageGroup?->title),

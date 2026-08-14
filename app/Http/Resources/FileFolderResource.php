@@ -31,7 +31,10 @@ class FileFolderResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
+            'color' => $this->color,
             'files_count' => $this->when(isset($this->files_count), fn () => (int) $this->files_count),
+            'is_password_protected' => $this->is_password_protected,
+            'password_set_at' => optional($this->password_set_at)->toIso8601String(),
             'share' => $share,
             'created_at' => optional($this->created_at)->toIso8601String(),
             'updated_at' => optional($this->updated_at)->toIso8601String(),
