@@ -53,18 +53,10 @@ class TelegramWebhookController extends Controller
         }
 
         $payload = trim((string) ($matches[1] ?? ''));
+        $telegramUserId = data_get($message, 'from.id');
+        $knownContact = $this->knownContactFor($telegramUserId);
 
         if ($payload === '') {
-            $telegramUserId = data_get($message, 'from.id');
-            $contactsTableExists = Cache::remember(
-                'fileproxy:has-telegram-auth-contacts',
-                now()->addMinutes(10),
-                fn (): bool => Schema::hasTable('telegram_auth_contacts')
-            );
-            $knownContact = $telegramUserId && $contactsTableExists
-                ? TelegramAuthContact::where('telegram_user_id', (string) $telegramUserId)->first()
-                : null;
-
             if ($knownContact) {
                 $phone = $phoneAuth->normalizePhone((string) $knownContact->phone);
 
@@ -86,7 +78,33 @@ class TelegramWebhookController extends Controller
             return;
         }
 
-        $code = $phoneAuth->generateCodeForPayload($payload);
+        $token = $phoneAuth->tokenFromPayload($payload);
+        $challengePhone = $token !== null ? $phoneAuth->phoneForToken($token) : null;
+
+        if ($token === null || $challengePhone === null) {
+            $this->requestContact($telegram, $chatId);
+
+            return;
+        }
+
+        // Security-critical: the deep-link /start payload alone proves nothing
+        // about who is opening it — anyone can start a login/registration for
+        // ANY phone number and get this exact link. Only issue the code if this
+        // Telegram chat has *already* proven (via handleContact()'s strict
+        // senderId === contact.user_id check) that it belongs to the same
+        // phone number this challenge was created for. Otherwise an attacker
+        // could enter a victim's phone number, open the resulting link in
+        // their own Telegram, and have the OTP delivered to themselves.
+        $knownPhone = $knownContact ? $phoneAuth->normalizePhone((string) $knownContact->phone) : null;
+
+        if ($knownPhone === null || $knownPhone !== $challengePhone) {
+            $telegram->sendMessage($chatId, 'Щоб отримати код, спершу підтвердьте свій номер телефону — поділіться контактом через кнопку нижче.');
+            $this->requestContact($telegram, $chatId);
+
+            return;
+        }
+
+        $code = $phoneAuth->generateCodeForToken($token);
 
         if (! $code) {
             $this->requestContact($telegram, $chatId);
@@ -94,7 +112,24 @@ class TelegramWebhookController extends Controller
             return;
         }
 
-        $this->sendCode($telegram, $chatId, $code, $phoneAuth->phoneFromPayload($payload));
+        $this->sendCode($telegram, $chatId, $code, $challengePhone);
+    }
+
+    private function knownContactFor(mixed $telegramUserId): ?TelegramAuthContact
+    {
+        if (! $telegramUserId) {
+            return null;
+        }
+
+        $contactsTableExists = Cache::remember(
+            'fileproxy:has-telegram-auth-contacts',
+            now()->addMinutes(10),
+            fn (): bool => Schema::hasTable('telegram_auth_contacts')
+        );
+
+        return $contactsTableExists
+            ? TelegramAuthContact::where('telegram_user_id', (string) $telegramUserId)->first()
+            : null;
     }
 
     private function handleContact(

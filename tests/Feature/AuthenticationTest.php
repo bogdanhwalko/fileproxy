@@ -402,6 +402,113 @@ class AuthenticationTest extends TestCase
             && str_contains((string) $request['text'], 'Поділіться контактом'));
     }
 
+    public function test_telegram_deeplink_start_does_not_issue_code_for_unverified_chat(): void
+    {
+        config([
+            'services.telegram.bot_token' => '123456:ABCDEF',
+            'services.telegram.webhook_secret' => 'auth-secret',
+        ]);
+
+        Http::fake([
+            'https://api.telegram.org/bot123456:ABCDEF/sendMessage' => Http::response(['ok' => true]),
+        ]);
+
+        $phoneAuth = app(PhoneAuthService::class);
+        $phone = $this->uniquePhone();
+        $challenge = $phoneAuth->createChallenge($phone);
+
+        // Attacker opens the victim's login deep link in their own,
+        // never-before-seen Telegram chat and sends /start <token> themselves.
+        $this->postJson(route('telegram.webhook', ['secret' => 'auth-secret']), [
+            'message' => [
+                'from' => ['id' => 999],
+                'chat' => ['id' => 999],
+                'text' => '/start '.$phoneAuth->telegramPayload($challenge),
+            ],
+        ])->assertOk();
+
+        Http::assertSent(fn ($request) => $request['chat_id'] === 999
+            && ! str_contains((string) $request['text'], 'Ваш код FileProxy')
+            && ($request['reply_markup']['keyboard'][0][0]['request_contact'] ?? false) === true);
+
+        $this->assertFalse($phoneAuth->verify($challenge->token, $phone, '000000'));
+    }
+
+    public function test_telegram_deeplink_start_does_not_issue_code_for_chat_verified_to_a_different_phone(): void
+    {
+        config([
+            'services.telegram.bot_token' => '123456:ABCDEF',
+            'services.telegram.webhook_secret' => 'auth-secret',
+        ]);
+
+        Http::fake([
+            'https://api.telegram.org/bot123456:ABCDEF/sendMessage' => Http::response(['ok' => true]),
+        ]);
+
+        $phoneAuth = app(PhoneAuthService::class);
+        $victimPhone = $this->uniquePhone();
+        $challenge = $phoneAuth->createChallenge($victimPhone);
+
+        // Attacker's own chat is already verified — but for their own phone,
+        // not the victim's. Must not unlock the victim's challenge.
+        TelegramAuthContact::create([
+            'telegram_user_id' => '999',
+            'phone' => $this->uniquePhone(),
+        ]);
+
+        $this->postJson(route('telegram.webhook', ['secret' => 'auth-secret']), [
+            'message' => [
+                'from' => ['id' => 999],
+                'chat' => ['id' => 999],
+                'text' => '/start '.$phoneAuth->telegramPayload($challenge),
+            ],
+        ])->assertOk();
+
+        Http::assertSent(fn ($request) => $request['chat_id'] === 999
+            && ! str_contains((string) $request['text'], 'Ваш код FileProxy'));
+    }
+
+    public function test_telegram_deeplink_start_issues_code_when_chat_already_verified_for_that_phone(): void
+    {
+        config([
+            'services.telegram.bot_token' => '123456:ABCDEF',
+            'services.telegram.webhook_secret' => 'auth-secret',
+        ]);
+
+        Http::fake([
+            'https://api.telegram.org/bot123456:ABCDEF/sendMessage' => Http::response(['ok' => true]),
+        ]);
+
+        $phoneAuth = app(PhoneAuthService::class);
+        $phone = $this->uniquePhone();
+        $challenge = $phoneAuth->createChallenge($phone);
+
+        TelegramAuthContact::create([
+            'telegram_user_id' => '42',
+            'phone' => $phone,
+        ]);
+
+        $sentCode = null;
+
+        $this->postJson(route('telegram.webhook', ['secret' => 'auth-secret']), [
+            'message' => [
+                'from' => ['id' => 42],
+                'chat' => ['id' => 100500],
+                'text' => '/start '.$phoneAuth->telegramPayload($challenge),
+            ],
+        ])->assertOk();
+
+        Http::assertSent(function ($request) use (&$sentCode) {
+            preg_match('/Ваш код FileProxy(?: для номера \+[0-9]+)?: ([0-9]{6})/', (string) $request['text'], $matches);
+            $sentCode = $matches[1] ?? null;
+
+            return $request['chat_id'] === 100500 && $sentCode !== null;
+        });
+
+        $this->assertNotNull($sentCode);
+        $this->assertTrue($phoneAuth->verify($challenge->token, $phone, $sentCode));
+    }
+
     public function test_telegram_contact_accepts_local_ukrainian_phone_format(): void
     {
         config([

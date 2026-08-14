@@ -91,13 +91,33 @@ class PhoneAuthService
             && ! app()->environment('production');
     }
 
-    public function generateCodeForPayload(string $payload): ?string
+    /**
+     * Extract the raw challenge token from a bot deep-link payload
+     * (`fileproxy_<token>`). Returns null for anything else.
+     */
+    public function tokenFromPayload(string $payload): ?string
     {
-        if (str_starts_with($payload, self::TOKEN_START_PREFIX)) {
-            return $this->generateCodeForToken(substr($payload, strlen(self::TOKEN_START_PREFIX)));
+        if (! str_starts_with($payload, self::TOKEN_START_PREFIX)) {
+            return null;
         }
 
-        return null;
+        return substr($payload, strlen(self::TOKEN_START_PREFIX));
+    }
+
+    /**
+     * Look up which phone number an active challenge token belongs to,
+     * without generating or sending a code. Callers MUST verify the
+     * requester actually owns that phone (e.g. via a matching
+     * TelegramAuthContact) before calling generateCodeForToken() — knowing
+     * the token alone is not proof of ownership, since it's handed out to
+     * whoever initiates a login/registration for any phone number.
+     */
+    public function phoneForToken(string $token): ?string
+    {
+        return PhoneAuthChallenge::where('token', $token)
+            ->whereNull('consumed_at')
+            ->where('expires_at', '>=', now())
+            ->value('phone');
     }
 
     public function generateCodeForToken(string $token): ?string
@@ -148,15 +168,6 @@ class PhoneAuthService
         }
 
         return $this->generateCodeForToken($challenge->token);
-    }
-
-    public function phoneFromPayload(string $payload): ?string
-    {
-        $payload = trim($payload);
-
-        $phone = $this->normalizePhone($payload);
-
-        return $this->isValidPhone($phone) ? $phone : null;
     }
 
     public function verify(string $token, string $phone, string $code): bool
