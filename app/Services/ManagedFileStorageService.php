@@ -674,10 +674,12 @@ class ManagedFileStorageService
 
     /**
      * How long a decrypted protected-file preview cache stays usable after
-     * warmProtectedPreviewCache() runs. Cleaned up by the hourly temp-dir
-     * sweep in App\Console\Kernel regardless, this just governs freshness.
+     * warmProtectedPreviewCache() runs. Public so App\Console\Kernel's cleanup
+     * schedule (which sweeps this directory far more often than the general
+     * hourly job, since it holds plaintext on disk) can key off the same value
+     * instead of duplicating the number.
      */
-    private const PROTECTED_PREVIEW_CACHE_TTL = 1800;
+    public const PROTECTED_PREVIEW_CACHE_TTL = 1800;
 
     private function protectedPreviewCachePath(ManagedFile $file): string
     {

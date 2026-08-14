@@ -158,9 +158,20 @@ class FileController extends Controller
             ->orderBy('name')
             ->get();
 
+        // Count only files that would actually show up under this tag in the
+        // "All files" context — otherwise a tag whose files are all protected
+        // shows a non-zero badge but filters to an empty list.
         $tags = Tag::query()
             ->where('user_id', $user->id)
-            ->withCount('files')
+            ->withCount(['files' => function ($q) use ($protectedFolderIds) {
+                $q->where('is_protected', false);
+
+                if (! empty($protectedFolderIds)) {
+                    $q->where(function ($q2) use ($protectedFolderIds) {
+                        $q2->whereNull('folder_id')->orWhereNotIn('folder_id', $protectedFolderIds);
+                    });
+                }
+            }])
             ->orderBy('name')
             ->get();
 

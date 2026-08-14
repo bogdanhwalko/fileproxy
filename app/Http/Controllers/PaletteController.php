@@ -58,9 +58,23 @@ class PaletteController extends Controller
                 'href'  => route('files.index', ['folder' => $folder->id]),
             ]);
 
+        // Count only files that would actually show up under this tag in the
+        // "All files" context (see FileController::index()) — otherwise a tag
+        // whose files are all protected shows a non-zero count here but
+        // navigating to it lands on an empty list.
+        $protectedFolderIds = $user->folders()->whereNotNull('password_hash')->pluck('id')->all();
+
         $tags = $user->tags()
             ->where('name', 'like', $like)
-            ->withCount('files')
+            ->withCount(['files' => function ($q) use ($protectedFolderIds) {
+                $q->where('is_protected', false);
+
+                if (! empty($protectedFolderIds)) {
+                    $q->where(function ($q2) use ($protectedFolderIds) {
+                        $q2->whereNull('folder_id')->orWhereNotIn('folder_id', $protectedFolderIds);
+                    });
+                }
+            }])
             ->orderByDesc('files_count')
             ->limit(8)
             ->get(['id', 'name'])
