@@ -107,26 +107,35 @@ class FileController extends Controller
         }
 
         // Folder password gate: if the active folder is locked, redirect to
-        // the unlock prompt instead of rendering files. Also hide files from
-        // locked folders in any non-folder-specific listing (All files, Without
-        // folder, search-across-everything, tag filters).
+        // the unlock prompt instead of rendering files.
         $unlock = app(\App\Services\FolderUnlockService::class);
         if ($activeFolder && $activeFolder->is_password_protected && ! $unlock->isUnlocked($activeFolder)) {
             return redirect()->route('folders.unlock-prompt', ['folder' => $activeFolder->id]);
         }
 
-        $lockedFolderIds = $user->folders()
+        // Protected files, and any file sitting in a password-protected folder,
+        // must never leak into folder-agnostic listings (All files, Without
+        // folder, tag filters, search-across-everything) — including when the
+        // folder is currently *unlocked* in this session. Session-unlock only
+        // grants access to that folder's own dedicated view (the redirect gate
+        // above), not to the aggregate ones; otherwise unlocking a folder once
+        // would silently re-expose its files everywhere else too.
+        $protectedFolderIds = $user->folders()
             ->whereNotNull('password_hash')
             ->pluck('id')
-            ->reject(fn ($id) => $unlock->isUnlocked((int) $id))
-            ->values()
             ->all();
 
-        if (! empty($lockedFolderIds) && (! $activeFolder || in_array($activeFolder->id, $lockedFolderIds, true) === false)) {
-            $baseQuery->where(function ($q) use ($lockedFolderIds) {
-                $q->whereNull('folder_id')
-                    ->orWhereNotIn('folder_id', $lockedFolderIds);
-            });
+        $viewingProtectedFolderDirectly = $activeFolder && in_array($activeFolder->id, $protectedFolderIds, true);
+
+        if (! $viewingProtectedFolderDirectly) {
+            $baseQuery->where('is_protected', false);
+
+            if (! empty($protectedFolderIds)) {
+                $baseQuery->where(function ($q) use ($protectedFolderIds) {
+                    $q->whereNull('folder_id')
+                        ->orWhereNotIn('folder_id', $protectedFolderIds);
+                });
+            }
         }
 
         $applyContentFilters = function ($query) use ($search, $type, $dateFromCarbon, $dateToCarbon) {
@@ -160,7 +169,13 @@ class FileController extends Controller
         $systemTelegramUsedUploads = $this->systemTelegramUploadCount($user, $systemTelegramStorageGroups);
         $systemTelegramRemainingUploads = max(0, self::SYSTEM_TELEGRAM_UPLOAD_LIMIT - $systemTelegramUsedUploads);
 
+        // Same exclusion as $baseQuery above, so the "All files" sidebar badge
+        // count matches what that view actually lists.
         $aggregates = $user->files()
+            ->where('is_protected', false)
+            ->when(! empty($protectedFolderIds), fn ($q) => $q->where(function ($q2) use ($protectedFolderIds) {
+                $q2->whereNull('folder_id')->orWhereNotIn('folder_id', $protectedFolderIds);
+            }))
             ->selectRaw('COUNT(*) AS total')
             ->selectRaw('COALESCE(SUM(size), 0) AS storage_bytes')
             ->selectRaw("SUM(CASE WHEN storage_driver = 'telegram' THEN 1 ELSE 0 END) AS telegram")
@@ -1208,6 +1223,19 @@ HTML;
             $folder = $user->folders()->findOrFail((int) $folderFilter);
             $query->where('folder_id', $folder->id);
             $folderName = Str::slug($folder->name) ?: 'folder-'.$folder->id;
+        } else {
+            // "All files" archive: never bundle protected files or files from a
+            // password-protected folder — mirrors the exclusion in index(),
+            // regardless of whether the folder is unlocked in this session.
+            $protectedFolderIds = $user->folders()->whereNotNull('password_hash')->pluck('id')->all();
+
+            $query->where('is_protected', false);
+
+            if (! empty($protectedFolderIds)) {
+                $query->where(function ($q) use ($protectedFolderIds) {
+                    $q->whereNull('folder_id')->orWhereNotIn('folder_id', $protectedFolderIds);
+                });
+            }
         }
 
         $query

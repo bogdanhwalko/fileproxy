@@ -46,6 +46,15 @@ class FileController extends Controller
         $query = $user->files()
             ->with(['folder', 'telegramStorageGroup.botToken', 'tags']);
 
+        // Protected files, and files in a password-protected folder, are
+        // excluded from folder-agnostic listing here just like the web "All
+        // files" view — unless the caller asked for that exact protected
+        // folder by id, in which case they get its real contents (the owner's
+        // bearer token already proves access; there's no session-unlock
+        // concept in a stateless API).
+        $protectedFolderIds = $user->folders()->whereNotNull('password_hash')->pluck('id')->all();
+        $targetingSpecificProtectedFolder = false;
+
         if ($request->filled('folder_id')) {
             $folderId = $request->input('folder_id');
 
@@ -53,6 +62,17 @@ class FileController extends Controller
                 $query->whereNull('folder_id');
             } elseif (ctype_digit((string) $folderId)) {
                 $query->where('folder_id', (int) $folderId);
+                $targetingSpecificProtectedFolder = in_array((int) $folderId, $protectedFolderIds, true);
+            }
+        }
+
+        if (! $targetingSpecificProtectedFolder) {
+            $query->where('is_protected', false);
+
+            if (! empty($protectedFolderIds)) {
+                $query->where(function ($q) use ($protectedFolderIds) {
+                    $q->whereNull('folder_id')->orWhereNotIn('folder_id', $protectedFolderIds);
+                });
             }
         }
 
@@ -345,6 +365,18 @@ class FileController extends Controller
             $folder = $user->folders()->findOrFail((int) $folderFilter);
             $query->where('folder_id', $folder->id);
             $folderName = Str::slug($folder->name) ?: 'folder-'.$folder->id;
+        } else {
+            // "All files" archive: never bundle protected files or files from a
+            // password-protected folder — mirrors the exclusion in index().
+            $protectedFolderIds = $user->folders()->whereNotNull('password_hash')->pluck('id')->all();
+
+            $query->where('is_protected', false);
+
+            if (! empty($protectedFolderIds)) {
+                $query->where(function ($q) use ($protectedFolderIds) {
+                    $q->whereNull('folder_id')->orWhereNotIn('folder_id', $protectedFolderIds);
+                });
+            }
         }
 
         $query
