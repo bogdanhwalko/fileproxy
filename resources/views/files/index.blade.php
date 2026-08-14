@@ -571,20 +571,29 @@
                 </div>{{-- /data-sidebar-section=folders --}}
 
                 @if ($tags->isNotEmpty())
-                    <header class="folders-header-v2 folders-header-tags">
-                        <div class="folders-header-text">
-                            <strong>Теги</strong>
+                    <header class="folders-header-v2 folders-header-tags-v2">
+                        <div class="folders-header-title">
+                            <span class="folders-header-icon folders-header-icon-tags" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                                    <line x1="7" y1="7" x2="7.01" y2="7"/>
+                                </svg>
+                            </span>
+                            <h2>Теги</h2>
                             <span class="folders-header-count">{{ $tags->count() }}</span>
                         </div>
+                        @if ($activeTag)
+                            <a class="tag-clear-btn" href="{{ route('files.index', array_filter(['folder' => $folderFilter !== 'all' ? $folderFilter : null, 'view' => $display])) }}" title="Скинути фільтр за тегом «{{ $activeTag->name }}»">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                </svg>
+                                <span>Скинути</span>
+                            </a>
+                        @endif
                     </header>
 
                     <div data-sidebar-section="tags">
-                        @if ($activeTag)
-                            <a class="tag-chip tag-chip-clear" href="{{ route('files.index', array_filter(['folder' => $folderFilter !== 'all' ? $folderFilter : null, 'view' => $display])) }}" data-sidebar-pin>
-                                ✕ Скинути тег
-                            </a>
-                        @endif
-
                         @if ($tags->count() > 8)
                             <div class="sidebar-controls">
                                 <div class="sidebar-search-wrap">

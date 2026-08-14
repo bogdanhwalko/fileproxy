@@ -7988,46 +7988,76 @@ tr[data-file-item].is-selected td:first-child {
 }
 
 /* Sidebar tag list */
-.folders-header-tags {
-    margin-top: 16px;
-    padding-top: 12px;
-    border-top: 1px solid #e2e8f0;
+.folders-header-tags-v2 {
+    margin-top: 4px;
+    border-top: 1px solid var(--line);
+}
+.folders-header-icon-tags {
+    background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+    box-shadow: 0 6px 14px rgb(16 185 129 / 22%);
+}
+.tag-clear-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    padding: 6px 12px 6px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+.tag-clear-btn svg { width: 12px; height: 12px; }
+.tag-clear-btn:hover {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #b91c1c;
 }
 .tag-list {
-    display: flex; flex-wrap: wrap; gap: 6px;
-    padding: 6px 4px 4px;
+    display: flex; flex-wrap: wrap; gap: 7px;
+    padding: 12px 14px 14px;
 }
 .tag-chip {
     display: inline-flex; align-items: center; gap: 6px;
-    padding: 4px 10px;
+    padding: 5px 6px 5px 12px;
     border-radius: 999px;
     background: #ecfdf5;
     color: #059669;
-    font-size: 12px;
-    font-weight: 500;
+    font-size: 12.5px;
+    font-weight: 600;
     text-decoration: none;
     border: 1px solid transparent;
-    transition: background 0.12s, border-color 0.12s;
+    transition: background 120ms ease, border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease;
 }
-.tag-chip:hover { background: #e0e7ff; border-color: #a7f3d0; }
+.tag-chip:hover {
+    background: #d1fae5;
+    border-color: #6ee7b7;
+    transform: translateY(-1px);
+}
 .tag-chip.is-active {
-    background: #059669; color: #fff;
+    background: #059669;
+    color: #fff;
+    box-shadow: 0 4px 10px -2px rgb(5 150 105 / 45%);
 }
 .tag-chip-count {
-    background: rgba(255, 255, 255, 0.55);
+    display: inline-grid;
+    place-items: center;
+    min-width: 18px;
+    height: 18px;
+    background: rgba(5, 150, 105, 0.12);
     color: inherit;
-    padding: 0 6px;
+    padding: 0 5px;
     border-radius: 999px;
     font-size: 10.5px;
-    font-weight: 600;
+    font-weight: 700;
 }
 .tag-chip.is-active .tag-chip-count {
-    background: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.28);
 }
-.tag-chip-clear {
-    background: #fef2f2; color: #b91c1c;
-}
-.tag-chip-clear:hover { background: #fee2e2; }
 
 /* Inline chips on file rows */
 .file-tags-inline {
