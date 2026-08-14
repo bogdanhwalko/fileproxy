@@ -63,68 +63,83 @@
     @include('partials.command-palette')
     <script>
         (() => {
-            const prefix = '+380';
-            const maxLocalLength = 9;
+            const maxLocalLength = 13;
+            const minTotalDigits = 8;
+            const maxTotalDigits = 15;
 
             const onlyDigits = (value) => (value || '').replace(/\D/g, '');
 
             const localDigits = (value) => {
                 let digits = onlyDigits(value);
 
-                if (digits.startsWith('380')) {
-                    digits = digits.slice(3);
-                }
-
-                if (digits.length > maxLocalLength && digits.startsWith('0')) {
+                if (digits.startsWith('0')) {
                     digits = digits.slice(1);
                 }
 
                 return digits.slice(0, maxLocalLength);
             };
 
-            const formatLocal = (digits) => {
-                const parts = [];
-
-                if (digits.length > 0) {
-                    parts.push(digits.slice(0, 2));
-                }
-
-                if (digits.length > 2) {
-                    parts.push(digits.slice(2, 5));
-                }
-
-                let formatted = parts.join(' ');
-
-                if (digits.length > 5) {
-                    formatted += '-' + digits.slice(5, 7);
-                }
-
-                if (digits.length > 7) {
-                    formatted += '-' + digits.slice(7, 9);
-                }
-
-                return formatted;
-            };
-
             document.querySelectorAll('[data-phone-mask]').forEach((wrapper) => {
                 const fieldGroup = wrapper.closest('.field-group') || document;
                 const fullInput = fieldGroup.querySelector('[data-phone-full]');
                 const localInput = wrapper.querySelector('[data-phone-local]');
+                const countrySelect = wrapper.querySelector('[data-phone-country]');
+                const flagDisplay = wrapper.querySelector('[data-phone-country-flag]');
+                const codeDisplay = wrapper.querySelector('[data-phone-country-code]');
 
-                if (! fullInput || ! localInput) {
+                if (! fullInput || ! localInput || ! countrySelect) {
                     return;
                 }
 
-                const sync = (value) => {
-                    const digits = localDigits(value);
-                    localInput.value = formatLocal(digits);
-                    fullInput.value = digits.length === maxLocalLength ? prefix + digits : '';
+                // On validation-error round-trip, the hidden field still holds the
+                // previously submitted full number — split it back into country + local
+                // so the select and visible input reflect what the user typed.
+                const existingDigits = onlyDigits(fullInput.value);
+
+                if (existingDigits) {
+                    const matchedOption = Array.from(countrySelect.options)
+                        .sort((a, b) => onlyDigits(b.value).length - onlyDigits(a.value).length)
+                        .find((option) => existingDigits.startsWith(onlyDigits(option.value)));
+
+                    if (matchedOption) {
+                        countrySelect.value = matchedOption.value;
+                        localInput.value = existingDigits.slice(onlyDigits(matchedOption.value).length);
+                    }
+                }
+
+                // The visible box only ever shows "flag + dial code"; the full
+                // country name stays in the native <select> list (see the CSS
+                // comment on .phone-country-picker for why it's built this way).
+                const updateCountryDisplay = () => {
+                    const option = countrySelect.options[countrySelect.selectedIndex];
+
+                    if (flagDisplay) {
+                        flagDisplay.textContent = option?.dataset.flag || '';
+                    }
+
+                    if (codeDisplay) {
+                        codeDisplay.textContent = countrySelect.value;
+                    }
                 };
 
-                sync(fullInput.value || localInput.value);
+                const sync = () => {
+                    const prefixDigits = onlyDigits(countrySelect.value);
+                    const digits = localDigits(localInput.value);
+                    const totalDigits = prefixDigits.length + digits.length;
 
-                localInput.addEventListener('input', () => sync(localInput.value));
-                localInput.form?.addEventListener('submit', () => sync(localInput.value));
+                    localInput.value = digits;
+                    fullInput.value = totalDigits >= minTotalDigits && totalDigits <= maxTotalDigits
+                        ? '+' + prefixDigits + digits
+                        : '';
+
+                    updateCountryDisplay();
+                };
+
+                sync();
+
+                localInput.addEventListener('input', sync);
+                countrySelect.addEventListener('change', sync);
+                localInput.form?.addEventListener('submit', sync);
             });
         })();
     </script>

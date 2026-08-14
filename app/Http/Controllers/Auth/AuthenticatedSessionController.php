@@ -94,9 +94,9 @@ class AuthenticatedSessionController extends Controller
     private function validatePhone(string $phone): void
     {
         Validator::make(['phone' => $phone], [
-            'phone' => ['required', 'regex:/^\+380[0-9]{9}$/'],
+            'phone' => ['required', 'regex:/^\+[1-9][0-9]{7,14}$/'],
         ], [
-            'phone.regex' => 'Вкажіть номер телефону у форматі +380XXXXXXXXX.',
+            'phone.regex' => 'Вкажіть номер телефону в міжнародному форматі, наприклад +380671234567.',
         ])->validate();
     }
 }

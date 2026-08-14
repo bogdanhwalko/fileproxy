@@ -18,7 +18,7 @@ class PhoneAuthCheckCommand extends Command
         $code = (string) $this->argument('code');
 
         if (! $phoneAuth->isValidPhone($phone)) {
-            $this->error('Invalid phone. Expected +380XXXXXXXXX.');
+            $this->error('Invalid phone. Expected international format, e.g. +380671234567.');
 
             return self::FAILURE;
         }

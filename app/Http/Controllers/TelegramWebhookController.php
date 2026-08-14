@@ -120,7 +120,7 @@ class TelegramWebhookController extends Controller
         $phone = $phoneAuth->normalizePhone($this->contactPhoneNumber($contact));
 
         if (! $phoneAuth->isValidPhone($phone)) {
-            $telegram->sendMessage($chatId, 'Потрібен український номер у форматі +380XXXXXXXXX.');
+            $telegram->sendMessage($chatId, 'Не вдалося розпізнати номер телефону. Поділіться контактом ще раз.');
             $this->requestContact($telegram, $chatId);
 
             return;

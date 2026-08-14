@@ -111,9 +111,9 @@ class RegisteredUserController extends Controller
     private function validatePhoneForRegistration(string $phone): void
     {
         Validator::make(['phone' => $phone], [
-            'phone' => ['required', 'regex:/^\+380[0-9]{9}$/', 'unique:users,phone'],
+            'phone' => ['required', 'regex:/^\+[1-9][0-9]{7,14}$/', 'unique:users,phone'],
         ], [
-            'phone.regex' => 'Вкажіть номер телефону у форматі +380XXXXXXXXX.',
+            'phone.regex' => 'Вкажіть номер телефону в міжнародному форматі, наприклад +380671234567.',
             'phone.unique' => 'Користувач із таким номером телефону вже існує.',
         ])->validate();
     }

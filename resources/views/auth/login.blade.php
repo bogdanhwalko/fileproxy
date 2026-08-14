@@ -68,15 +68,23 @@
                 <label for="phone_local">Номер телефону <span class="required-mark">*</span></label>
                 <input id="phone" type="hidden" name="phone" value="{{ old('phone') }}" data-phone-full>
                 <div class="phone-input" data-phone-mask>
-                    <span class="phone-prefix">+380</span>
+                    <div class="phone-country-picker">
+                        <div class="phone-country-display" aria-hidden="true">
+                            <span data-phone-country-flag>🇺🇦</span>
+                            <span data-phone-country-code>+380</span>
+                        </div>
+                        <select class="phone-country-select" id="phone_country" aria-label="Код країни" data-phone-country>
+                            @include('partials.phone-country-options')
+                        </select>
+                    </div>
                     <input
                         class="field"
                         id="phone_local"
                         type="tel"
                         inputmode="numeric"
                         autocomplete="tel-national"
-                        placeholder="67 123-45-67"
-                        maxlength="16"
+                        placeholder="671234567"
+                        maxlength="14"
                         data-phone-local
                         required
                         autofocus

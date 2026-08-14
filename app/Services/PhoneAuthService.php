@@ -22,6 +22,10 @@ class PhoneAuthService
             $digits = substr($digits, 2);
         }
 
+        // Telegram sometimes hands back a contact's phone number in local Ukrainian
+        // format (10 digits, leading trunk 0) instead of the full international one.
+        // Only this narrow, historically-supported shape gets a country code assumed;
+        // any other input is trusted to already carry its own country code.
         if (strlen($digits) === 10 && str_starts_with($digits, '0')) {
             $digits = '38'.$digits;
         }
@@ -29,9 +33,13 @@ class PhoneAuthService
         return '+'.$digits;
     }
 
+    /**
+     * General E.164 check: a leading '+', country code can't start with 0,
+     * and 8-15 digits total — no single country is assumed.
+     */
     public function isValidPhone(string $phone): bool
     {
-        return (bool) preg_match('/^\+380[0-9]{9}$/', $phone);
+        return (bool) preg_match('/^\+[1-9][0-9]{7,14}$/', $phone);
     }
 
     public function createChallenge(string $phone): PhoneAuthChallenge
