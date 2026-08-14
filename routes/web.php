@@ -55,6 +55,7 @@ Route::middleware(['auth', 'not.blocked'])->group(function () {
     Route::get('/stats', [StatsController::class, 'index'])->name('stats.index');
     Route::get('/files', [FileController::class, 'index'])->name('files.index');
     Route::get('/files/archive', [FileController::class, 'downloadArchive'])->name('files.archive');
+    Route::get('/files/create', [FileController::class, 'create'])->name('files.create');
     Route::get('/files/create-text', [FileController::class, 'createText'])->name('files.create-text');
     Route::post('/files/create-text', [FileController::class, 'storeText'])
         ->middleware('throttle:uploads')

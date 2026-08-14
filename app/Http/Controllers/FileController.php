@@ -576,6 +576,24 @@ class FileController extends Controller
     ];
 
     /**
+     * Hub page listing the ways to create a new file (text/code, document, …).
+     */
+    public function create(Request $request): View
+    {
+        $user = $request->user();
+
+        $folderId = $request->query('folder');
+        $activeFolder = null;
+        if ($folderId !== null && ctype_digit((string) $folderId)) {
+            $activeFolder = $user->folders()->find((int) $folderId);
+        }
+
+        return view('files.create', [
+            'activeFolder' => $activeFolder,
+        ]);
+    }
+
+    /**
      * Show the inline text-file editor (create-new form).
      */
     public function createText(Request $request): View

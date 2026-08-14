@@ -402,35 +402,20 @@
     </section>
         </details>
 
-        <div class="upload-create-stack">
-            <a class="upload-text-create" href="{{ route('files.create-text', $activeFolder ? ['folder' => $activeFolder->id] : []) }}" title="Створити новий текстовий файл / код у браузері">
-                <span class="upload-text-create-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="16 18 22 12 16 6"/>
-                        <polyline points="8 6 2 12 8 18"/>
-                    </svg>
-                </span>
-                <span class="upload-text-create-text">
-                    <strong>Код / текст</strong>
-                    <span>Із підсвіткою · php, js, md, json, …</span>
-                </span>
-            </a>
-
-            <a class="upload-doc-create" href="{{ route('files.create-doc', $activeFolder ? ['folder' => $activeFolder->id] : []) }}" title="Створити форматований документ як у Word">
-                <span class="upload-doc-create-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <polyline points="14 2 14 8 20 8"/>
-                        <line x1="9" y1="13" x2="15" y2="13"/>
-                        <line x1="9" y1="17" x2="13" y2="17"/>
-                    </svg>
-                </span>
-                <span class="upload-doc-create-text">
-                    <strong>Документ</strong>
-                    <span>Word-like · заголовки, списки, форматування</span>
-                </span>
-            </a>
-        </div>
+        <a class="upload-create-cta" href="{{ route('files.create', $activeFolder ? ['folder' => $activeFolder->id] : []) }}" title="Створити текстовий файл, код або документ">
+            <span class="upload-create-cta-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="12" y1="18" x2="12" y2="12"/>
+                    <line x1="9" y1="15" x2="15" y2="15"/>
+                </svg>
+            </span>
+            <span class="upload-create-cta-text">
+                <strong>Створити файл</strong>
+                <span>Код, текст або документ</span>
+            </span>
+        </a>
     </div>
 
     <section class="workspace">

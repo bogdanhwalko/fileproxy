@@ -10,6 +10,7 @@ use Illuminate\Http\Response;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\HeaderUtils;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -613,11 +614,40 @@ class ManagedFileStorageService
 
     public function temporaryPathForArchive(ManagedFile $file): array
     {
+        if ($file->is_protected) {
+            return [$this->decryptToTemporaryPath($file), true];
+        }
+
         if ($file->is_telegram) {
             return [$this->telegram->downloadToTemporaryPath($file), true];
         }
 
         return [Storage::disk('local')->path($file->path), false];
+    }
+
+    private function decryptToTemporaryPath(ManagedFile $file): string
+    {
+        $directory = 'telegram-temp/'.$file->user_id;
+        Storage::disk('local')->makeDirectory($directory);
+
+        $storagePath = $directory.'/'.Str::uuid().'_'.($file->stored_name ?: 'protected-file');
+        $absolutePath = Storage::disk('local')->path($storagePath);
+
+        $handle = fopen($absolutePath, 'wb');
+
+        if ($handle === false) {
+            throw new RuntimeException("Could not open temporary file for protected file {$file->id}.");
+        }
+
+        try {
+            foreach ($this->protected->streamDecrypted($file) as $plaintext) {
+                fwrite($handle, $plaintext);
+            }
+        } finally {
+            fclose($handle);
+        }
+
+        return $absolutePath;
     }
 
     public function delete(ManagedFile $file): void
