@@ -63,7 +63,16 @@
         </div>
 
         <div class="preview-frame">
-            @if ($file->is_image)
+            @if ($file->is_protected && ! $protectedPreviewReady)
+                <div class="preview-locked" data-protected-preview-locked data-preload-url="{{ route('files.preload', $file) }}">
+                    <span class="preview-locked-icon" aria-hidden="true">🔒</span>
+                    <p>Файл захищено паролем і зашифровано. Щоб переглянути, спершу розшифруйте його — вміст буде завантажено з Telegram і розшифровано на сервері.</p>
+                    <button type="button" class="button" data-preload-trigger>
+                        <span data-preload-label>Розшифрувати та переглянути</span>
+                    </button>
+                    <p class="preview-locked-error" data-preload-error hidden></p>
+                </div>
+            @elseif ($file->is_image)
                 <img class="preview-image" src="{{ route('files.inline', $file) }}" alt="{{ $file->original_name }}">
             @elseif ($file->is_pdf)
                 <object class="preview-pdf" data="{{ route('files.inline', $file) }}#view=FitH" type="application/pdf">
@@ -81,4 +90,54 @@
             @endif
         </div>
     </section>
+
+    @if ($file->is_protected && ! $protectedPreviewReady)
+        @push('scripts')
+            <script>
+                (() => {
+                    const locked = document.querySelector('[data-protected-preview-locked]');
+                    const trigger = locked?.querySelector('[data-preload-trigger]');
+                    const label = locked?.querySelector('[data-preload-label]');
+                    const errorEl = locked?.querySelector('[data-preload-error]');
+
+                    if (! locked || ! trigger) {
+                        return;
+                    }
+
+                    const originalLabel = label ? label.textContent : '';
+
+                    trigger.addEventListener('click', async () => {
+                        trigger.disabled = true;
+                        if (errorEl) errorEl.hidden = true;
+                        if (label) label.textContent = 'Розшифровуємо…';
+
+                        try {
+                            const response = await fetch(locked.dataset.preloadUrl, {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                                    'Accept': 'application/json',
+                                },
+                            });
+
+                            const data = await response.json().catch(() => null);
+
+                            if (! response.ok || ! data?.ok) {
+                                throw new Error(data?.message || 'Не вдалося розшифрувати файл.');
+                            }
+
+                            window.location.reload();
+                        } catch (error) {
+                            trigger.disabled = false;
+                            if (label) label.textContent = originalLabel;
+                            if (errorEl) {
+                                errorEl.textContent = error.message || 'Сталася помилка. Спробуйте ще раз.';
+                                errorEl.hidden = false;
+                            }
+                        }
+                    });
+                })();
+            </script>
+        @endpush
+    @endif
 @endsection

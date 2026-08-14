@@ -83,6 +83,7 @@ Route::middleware(['auth', 'not.blocked'])->group(function () {
     Route::middleware('throttle:file-stream')->group(function () {
         Route::get('/files/{file}/inline', [FileController::class, 'inline'])->name('files.inline');
         Route::get('/files/{file}/download', [FileController::class, 'download'])->name('files.download');
+        Route::post('/files/{file}/preload', [FileController::class, 'preload'])->name('files.preload');
     });
     Route::post('/files/{file}/share', [ShareController::class, 'shareFile'])->name('files.share');
     Route::patch('/files/{file}/share', [ShareController::class, 'updateFileShareSettings'])->name('files.share.update');

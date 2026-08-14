@@ -525,12 +525,17 @@ class FileController extends Controller
         abort_unless((int) $file->user_id === (int) auth()->id(), 404);
         abort_unless($fileStorage->exists($file), 404);
         abort_unless($file->is_previewable, 404);
-        abort_if($file->is_protected, 404); // protected files have no inline preview
+
+        // Protected files need their chunks decrypted from Telegram into a
+        // local cache before they can be previewed (no live-stream Range/seek
+        // support) — see ManagedFileStorageService::warmProtectedPreviewCache().
+        // The view shows a "decrypt to preview" prompt until that cache is warm.
+        $protectedPreviewReady = ! $file->is_protected || $fileStorage->hasFreshProtectedPreviewCache($file);
 
         $content = null;
         $isTruncated = false;
 
-        if ($file->is_text) {
+        if ($file->is_text && $protectedPreviewReady) {
             [$content, $isTruncated] = $fileStorage->readTextPreview($file);
         }
 
@@ -538,6 +543,7 @@ class FileController extends Controller
             'content' => $content,
             'file' => $file,
             'isTruncated' => $isTruncated,
+            'protectedPreviewReady' => $protectedPreviewReady,
         ]);
     }
 
@@ -548,10 +554,35 @@ class FileController extends Controller
         // renders PDF inline via the application/pdf MIME). Other types stay
         // forbidden so we don't accidentally render HTML/SVG in the document.
         abort_unless($file->is_image || $file->is_pdf, 404);
-        abort_if($file->is_protected, 404); // protected files never serve thumbnail/inline previews
         abort_unless($fileStorage->exists($file), 404);
 
         return $fileStorage->inlineResponse($file);
+    }
+
+    /**
+     * Decrypt a protected file's Telegram chunks into a local preview cache
+     * so it can then be previewed like a normal file. User-triggered only —
+     * see the comment on warmProtectedPreviewCache() for why this isn't automatic.
+     */
+    public function preload(ManagedFile $file, ManagedFileStorageService $fileStorage)
+    {
+        abort_unless((int) $file->user_id === (int) auth()->id(), 404);
+        abort_unless($file->is_protected, 404);
+        abort_unless($fileStorage->exists($file), 404);
+        abort_unless($file->is_previewable, 404);
+
+        try {
+            $fileStorage->warmProtectedPreviewCache($file);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'Не вдалося розшифрувати файл для перегляду. Спробуйте ще раз.',
+            ], 500);
+        }
+
+        return response()->json(['ok' => true]);
     }
 
     /**

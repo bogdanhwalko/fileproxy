@@ -290,7 +290,17 @@ class ManagedFileStorageService
         }
 
         if ($file->is_protected) {
-            return $this->protectedStreamResponse($file, HeaderUtils::DISPOSITION_INLINE, $this->inlineSecurityHeaders($mime));
+            // Protected files have no Range/seek support when streamed live (each
+            // request would re-fetch and re-decrypt every chunk from Telegram from
+            // scratch), so inline preview only works once warmProtectedPreviewCache()
+            // has decrypted the file to a local temp cache — see preload().
+            abort_unless($this->hasFreshProtectedPreviewCache($file), 404);
+
+            return Storage::disk('local')->response(
+                $this->protectedPreviewCachePath($file),
+                $file->original_name,
+                $this->inlineSecurityHeaders($mime)
+            );
         }
 
         $inlineHeaders = $this->inlineSecurityHeaders($mime);
@@ -583,7 +593,14 @@ class ManagedFileStorageService
     {
         $temporaryPath = null;
 
-        if ($file->is_telegram) {
+        if ($file->is_protected) {
+            // Never read $file->path directly for protected files — it's a
+            // synthetic non-existent path; the real (decrypted) content only
+            // exists in the preview cache once warmProtectedPreviewCache() ran.
+            abort_unless($this->hasFreshProtectedPreviewCache($file), 404);
+
+            $stream = Storage::disk('local')->readStream($this->protectedPreviewCachePath($file));
+        } elseif ($file->is_telegram) {
             $temporaryPath = $this->telegram->downloadToTemporaryPath($file);
             $stream = fopen($temporaryPath, 'r');
         } else {
@@ -633,10 +650,17 @@ class ManagedFileStorageService
         $storagePath = $directory.'/'.Str::uuid().'_'.($file->stored_name ?: 'protected-file');
         $absolutePath = Storage::disk('local')->path($storagePath);
 
+        $this->decryptToFile($file, $absolutePath);
+
+        return $absolutePath;
+    }
+
+    private function decryptToFile(ManagedFile $file, string $absolutePath): void
+    {
         $handle = fopen($absolutePath, 'wb');
 
         if ($handle === false) {
-            throw new RuntimeException("Could not open temporary file for protected file {$file->id}.");
+            throw new RuntimeException("Could not open destination file for protected file {$file->id}.");
         }
 
         try {
@@ -646,8 +670,64 @@ class ManagedFileStorageService
         } finally {
             fclose($handle);
         }
+    }
 
-        return $absolutePath;
+    /**
+     * How long a decrypted protected-file preview cache stays usable after
+     * warmProtectedPreviewCache() runs. Cleaned up by the hourly temp-dir
+     * sweep in App\Console\Kernel regardless, this just governs freshness.
+     */
+    private const PROTECTED_PREVIEW_CACHE_TTL = 1800;
+
+    private function protectedPreviewCachePath(ManagedFile $file): string
+    {
+        return 'protected-preview-cache/'.$file->user_id.'/'.$file->id.'.bin';
+    }
+
+    public function hasFreshProtectedPreviewCache(ManagedFile $file): bool
+    {
+        $path = $this->protectedPreviewCachePath($file);
+        $disk = Storage::disk('local');
+
+        if (! $disk->exists($path)) {
+            return false;
+        }
+
+        $lastModified = $disk->lastModified($path);
+
+        return $lastModified !== false && $lastModified >= time() - self::PROTECTED_PREVIEW_CACHE_TTL;
+    }
+
+    /**
+     * Decrypt a protected file's chunks (from Telegram) to a local cache file
+     * so inline preview can serve it with normal Range/seek support instead of
+     * re-fetching and re-decrypting every chunk on every request. Triggered
+     * explicitly by the user via the "preload" action — never automatically —
+     * since it re-downloads the whole file from Telegram each time it's warmed.
+     */
+    public function warmProtectedPreviewCache(ManagedFile $file): void
+    {
+        if (! $file->is_protected) {
+            throw new RuntimeException("File {$file->id} is not protected.");
+        }
+
+        $finalPath = $this->protectedPreviewCachePath($file);
+        $disk = Storage::disk('local');
+        $disk->makeDirectory(dirname($finalPath));
+
+        $absoluteFinalPath = $disk->path($finalPath);
+        $absoluteTempPath = $absoluteFinalPath.'.'.Str::uuid().'.tmp';
+
+        try {
+            $this->decryptToFile($file, $absoluteTempPath);
+        } catch (\Throwable $e) {
+            @unlink($absoluteTempPath);
+
+            throw $e;
+        }
+
+        // Atomic rename: concurrent inline() reads never see a partially-written file.
+        rename($absoluteTempPath, $absoluteFinalPath);
     }
 
     public function delete(ManagedFile $file): void

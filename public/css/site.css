@@ -6601,6 +6601,33 @@
             font-size: 14px;
         }
 
+        .preview-locked {
+            display: grid;
+            justify-items: center;
+            gap: 14px;
+            min-height: 360px;
+            padding: 40px;
+            border: 1px dashed var(--line);
+            border-radius: 8px;
+            background: #f8fafc;
+            text-align: center;
+            align-content: center;
+        }
+        .preview-locked-icon {
+            font-size: 32px;
+            line-height: 1;
+        }
+        .preview-locked p {
+            margin: 0;
+            max-width: 440px;
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .preview-locked-error {
+            color: var(--danger);
+        }
+
         .public-share-shell,
         .public-folder-shell {
             max-width: 1120px;

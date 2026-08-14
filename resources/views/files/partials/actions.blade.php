@@ -30,7 +30,7 @@
 
         {{-- Quick actions: icon + label, compact row --}}
         <div class="fa-quick">
-            @if ($file->is_uploaded && $file->is_previewable && ! $file->is_protected)
+            @if ($file->is_uploaded && $file->is_previewable)
                 <a class="fa-quick-btn fa-quick-btn-accent" href="{{ route('files.preview', $file) }}" title="Переглянути">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                     <span>Переглянути</span>
