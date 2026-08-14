@@ -919,7 +919,7 @@
 
         .phone-input {
             display: grid;
-            grid-template-columns: 66px minmax(0, 1fr);
+            grid-template-columns: 96px minmax(0, 1fr);
             min-height: 46px;
             overflow: hidden;
             border: 1px solid var(--line);
@@ -941,6 +941,54 @@
             color: var(--ink);
             font-weight: 700;
             white-space: nowrap;
+        }
+
+        /* Shows only "flag + dial code" while closed; the underlying native
+           <select> (full country names) is stretched on top, invisible, so
+           the OS picker still opens on click/tap with no custom JS listbox. */
+        .phone-country-picker {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            border-right: 1px solid var(--line);
+            background: var(--surface-subtle);
+            padding: 0 8px;
+            overflow: hidden;
+        }
+
+        .phone-country-display {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 700;
+            color: var(--ink);
+            white-space: nowrap;
+            pointer-events: none;
+        }
+
+        .phone-country-display::after {
+            content: '';
+            width: 0;
+            height: 0;
+            margin-left: 2px;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 5px solid var(--muted);
+        }
+
+        .phone-country-select {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            opacity: 0;
+            cursor: pointer;
+            font-size: 16px;
         }
 
         .phone-input .field {
@@ -1520,7 +1568,11 @@
             z-index: 5;
         }
 
-        body.fp-actionpanel-open .sidebar-stack {
+        /* Only boost the sidebar above the backdrop when the OPEN action
+           menu is inside the sidebar itself (folder actions). For file
+           actions (where the menu lives in the file list region), the
+           sidebar should stay below the backdrop so it reads as dimmed. */
+        body.fp-actionpanel-open .sidebar-stack:has(details.file-action-menu[open]) {
             z-index: 1100;
         }
 
@@ -11962,20 +12014,113 @@ body.fp-actionpanel-open::before {
 }
 
 /* ============================================================
-   Dual create CTAs in the upload row — "Код / текст" + "Документ"
-   stacked vertically by default, fall back to single column on mobile.
+   Single "Create file" CTA in the upload row — links out to the
+   dedicated /files/create hub page (text/code vs. document choice).
    ============================================================ */
-.upload-create-stack {
-    display: grid;
-    grid-template-rows: 1fr 1fr;
-    gap: 8px;
-    min-width: 240px;
+.upload-create-cta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    border-radius: var(--radius);
+    border: 1px dashed rgba(99, 102, 241, 0.32);
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.04), rgba(99, 102, 241, 0.04));
+    text-decoration: none;
+    color: inherit;
+    min-width: 220px;
+    transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
 }
-.upload-create-stack > .upload-text-create,
-.upload-create-stack > .upload-doc-create {
-    padding: 10px 14px;
+.upload-create-cta:hover {
+    border-color: rgba(99, 102, 241, 0.5);
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(99, 102, 241, 0.08));
+    box-shadow: 0 6px 18px -6px rgba(99, 102, 241, 0.2);
+}
+.upload-create-cta-icon {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    background: rgba(99, 102, 241, 0.12);
+    color: #4f46e5;
+}
+.upload-create-cta-icon svg { width: 20px; height: 20px; }
+.upload-create-cta-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
     min-width: 0;
 }
+.upload-create-cta-text strong {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text);
+}
+.upload-create-cta-text span {
+    font-size: 11.5px;
+    color: var(--muted);
+}
+@media (max-width: 820px) {
+    .upload-create-cta {
+        min-width: 0;
+    }
+}
+
+/* ============================================================
+   /files/create hub page — same card styling as the upload row's
+   CTAs, laid out full-width with a back button + heading.
+   ============================================================ */
+.file-create-shell {
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.file-create-head {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 18px;
+    border-bottom: 1px solid rgba(15, 32, 24, 0.08);
+    background: linear-gradient(180deg, #f8fafc 0%, transparent 100%);
+}
+.file-create-back {
+    flex-shrink: 0;
+    height: 36px;
+    padding: 0 12px;
+    font-size: 12.5px;
+    min-height: 36px;
+}
+.file-create-back svg { width: 14px; height: 14px; }
+.file-create-head-title {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+.file-create-head-title h1 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+}
+.file-create-head-title p {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--muted);
+}
+.file-create-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 14px;
+    padding: 18px;
+}
+.file-create-grid > .upload-text-create,
+.file-create-grid > .upload-doc-create {
+    min-width: 0;
+}
+
 .upload-doc-create {
     display: flex;
     align-items: center;
@@ -12017,18 +12162,6 @@ body.fp-actionpanel-open::before {
 .upload-doc-create-text span {
     font-size: 11.5px;
     color: var(--muted);
-}
-
-@media (max-width: 820px) {
-    .upload-create-stack {
-        grid-template-rows: 1fr;
-        grid-template-columns: 1fr 1fr;
-    }
-}
-@media (max-width: 540px) {
-    .upload-create-stack {
-        grid-template-columns: 1fr;
-    }
 }
 
 /* ============================================================
