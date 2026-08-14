@@ -336,6 +336,40 @@ class ShareLinksTest extends TestCase
             ->assertHeader('content-type', 'application/zip');
     }
 
+    public function test_owner_cannot_publicly_share_a_password_protected_folder(): void
+    {
+        $user = User::factory()->create();
+        $folder = $user->folders()->create(['name' => 'Vault']);
+        $folder->setFolderPassword('super-secret');
+        $folder->save();
+
+        $this->actingAs($user)
+            ->postJson(route('folders.share', $folder))
+            ->assertStatus(422);
+
+        $this->assertNull($folder->refresh()->share_token);
+    }
+
+    public function test_public_folder_link_stops_working_if_folder_becomes_password_protected(): void
+    {
+        // Defensive backstop: even if a folder somehow ends up with both a
+        // share_token AND a password (e.g. data imported/edited outside the
+        // normal shareFolder() guard), the public route must still refuse it.
+        $user = User::factory()->create();
+        $folder = $user->folders()->create([
+            'name' => 'Vault',
+            'share_token' => 'vault-token',
+        ]);
+        $folder->setFolderPassword('super-secret');
+        $folder->save();
+
+        $this->get(route('share.folders.show', 'vault-token'))
+            ->assertNotFound();
+
+        $this->get(route('share.folders.download', 'vault-token'))
+            ->assertNotFound();
+    }
+
     public function test_shared_folder_link_rejects_files_from_other_folders(): void
     {
         Storage::fake('local');

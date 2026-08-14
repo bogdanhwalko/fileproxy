@@ -344,12 +344,18 @@ class ManagedFileStorageService
         ]);
     }
 
-    public function downloadLocalPathResponse(string $absolutePath, string $downloadName, string $contentType = 'application/zip'): Response|BinaryFileResponse
+    /**
+     * For temporary generated files only (e.g. archive zips) — deliberately
+     * always streams through PHP instead of offering X-Accel-Redirect like
+     * xAccelResponse() does for permanent managed files. Under X-Accel, nginx
+     * serves the file directly and finishes long after this method returns,
+     * with no signal back to PHP for when it's actually done — deleting the
+     * file from here would risk unlinking it while nginx is still streaming
+     * it out, truncating the client's download. deleteFileAfterSend() is only
+     * safe because PHP itself is the one holding the file open until sent.
+     */
+    public function downloadLocalPathResponse(string $absolutePath, string $downloadName, string $contentType = 'application/zip'): BinaryFileResponse
     {
-        if ($accel = $this->xAccelResponseForAbsolutePath($absolutePath, $downloadName, $contentType, HeaderUtils::DISPOSITION_ATTACHMENT)) {
-            return $accel;
-        }
-
         return response()
             ->download($absolutePath, $downloadName, ['Content-Type' => $contentType])
             ->deleteFileAfterSend();
@@ -650,7 +656,13 @@ class ManagedFileStorageService
         $storagePath = $directory.'/'.Str::uuid().'_'.($file->stored_name ?: 'protected-file');
         $absolutePath = Storage::disk('local')->path($storagePath);
 
-        $this->decryptToFile($file, $absolutePath);
+        try {
+            $this->decryptToFile($file, $absolutePath);
+        } catch (\Throwable $e) {
+            @unlink($absolutePath);
+
+            throw $e;
+        }
 
         return $absolutePath;
     }

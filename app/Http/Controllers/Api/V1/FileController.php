@@ -48,12 +48,17 @@ class FileController extends Controller
 
         // Protected files, and files in a password-protected folder, are
         // excluded from folder-agnostic listing here just like the web "All
-        // files" view — unless the caller asked for that exact protected
-        // folder by id, in which case they get its real contents (the owner's
-        // bearer token already proves access; there's no session-unlock
-        // concept in a stateless API).
+        // files" view — unless the caller asked for one specific folder by
+        // id, in which case they get its real contents (the owner's bearer
+        // token already proves access; there's no session-unlock concept in
+        // a stateless API). This is gated on "did the caller target a
+        // specific folder at all", not on whether that folder happens to be
+        // password-protected: a file can also be individually marked
+        // protected via the standalone upload-time toggle while living in an
+        // ordinary folder, and it must still appear when that folder is
+        // fetched directly by id.
         $protectedFolderIds = $user->folders()->whereNotNull('password_hash')->pluck('id')->all();
-        $targetingSpecificProtectedFolder = false;
+        $targetingSpecificFolder = false;
 
         if ($request->filled('folder_id')) {
             $folderId = $request->input('folder_id');
@@ -62,11 +67,11 @@ class FileController extends Controller
                 $query->whereNull('folder_id');
             } elseif (ctype_digit((string) $folderId)) {
                 $query->where('folder_id', (int) $folderId);
-                $targetingSpecificProtectedFolder = in_array((int) $folderId, $protectedFolderIds, true);
+                $targetingSpecificFolder = true;
             }
         }
 
-        if (! $targetingSpecificProtectedFolder) {
+        if (! $targetingSpecificFolder) {
             $query->where('is_protected', false);
 
             if (! empty($protectedFolderIds)) {
@@ -253,7 +258,13 @@ class FileController extends Controller
             return response()->json(['message' => 'File is not available for download.'], 404);
         }
 
-        return $fileStorage->downloadResponse($file);
+        try {
+            return $fileStorage->downloadResponse($file);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json(['message' => 'Could not fetch the file from Telegram. Try again shortly.'], 503);
+        }
     }
 
     public function destroy(Request $request, ManagedFile $file, ManagedFileStorageService $fileStorage): JsonResponse

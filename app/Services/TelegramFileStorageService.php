@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\ManagedFile;
 use App\Models\TelegramBotToken;
 use App\Models\TelegramStorageGroup;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
@@ -207,6 +208,18 @@ class TelegramFileStorageService
                         'caption' => $caption,
                         'disable_content_type_detection' => true,
                     ]);
+            } catch (ConnectionException $e) {
+                // Thrown for DNS/timeout/connection-refused failures — these never
+                // reach shouldRetryTelegramRequest() below (there's no $response),
+                // so without this catch a single network blip would skip the whole
+                // retry loop instead of being retried like any other transient error.
+                if ($attempt >= self::TELEGRAM_API_ATTEMPTS) {
+                    throw new RuntimeException('Не вдалося з’єднатися з Telegram API: '.$e->getMessage(), previous: $e);
+                }
+
+                usleep(random_int(250_000, 750_000));
+
+                continue;
             } finally {
                 if (is_resource($stream)) {
                     fclose($stream);
@@ -241,7 +254,21 @@ class TelegramFileStorageService
         $response = null;
 
         for ($attempt = 1; $attempt <= self::TELEGRAM_API_ATTEMPTS; $attempt++) {
-            $response = $request();
+            try {
+                $response = $request();
+            } catch (ConnectionException $e) {
+                // See the identical catch in sendDocumentRequest() — without this,
+                // a DNS/timeout/connection-refused failure throws immediately and
+                // skips the retry loop entirely instead of being retried like any
+                // other transient Telegram error.
+                if ($attempt >= self::TELEGRAM_API_ATTEMPTS) {
+                    throw new RuntimeException('Не вдалося з’єднатися з Telegram API: '.$e->getMessage(), previous: $e);
+                }
+
+                usleep(random_int(250_000, 750_000));
+
+                continue;
+            }
 
             if (! $this->shouldRetryTelegramRequest($response, $attempt)) {
                 return $response;

@@ -22,7 +22,19 @@ class PaletteController extends Controller
 
         $like = '%'.str_replace(['%', '_'], ['\\%', '\\_'], $q).'%';
 
+        // Protected files, and files in a password-protected folder, must
+        // stay out of this global search too — it's a folder-agnostic view
+        // just like "All files", tag filters, and the main search box (see
+        // FileController::index()); without this a locked folder's files
+        // (or an individually-protected file) would surface here even
+        // though they're excluded everywhere else.
+        $protectedFolderIds = $user->folders()->whereNotNull('password_hash')->pluck('id')->all();
+
         $files = $user->files()
+            ->where('is_protected', false)
+            ->when(! empty($protectedFolderIds), fn ($query) => $query->where(
+                fn ($q2) => $q2->whereNull('folder_id')->orWhereNotIn('folder_id', $protectedFolderIds)
+            ))
             ->where(function ($q2) use ($like) {
                 $q2->where('original_name', 'like', $like)
                     ->orWhere('mime_type', 'like', $like)
@@ -62,8 +74,6 @@ class PaletteController extends Controller
         // "All files" context (see FileController::index()) — otherwise a tag
         // whose files are all protected shows a non-zero count here but
         // navigating to it lands on an empty list.
-        $protectedFolderIds = $user->folders()->whereNotNull('password_hash')->pluck('id')->all();
-
         $tags = $user->tags()
             ->where('name', 'like', $like)
             ->withCount(['files' => function ($q) use ($protectedFolderIds) {

@@ -7,6 +7,7 @@ use App\Models\ManagedFile;
 use App\Models\Tag;
 use App\Models\TelegramStorageGroup;
 use App\Models\User;
+use App\Services\FolderUnlockService;
 use App\Services\ManagedFileStorageService;
 use Carbon\Carbon;
 use Illuminate\Contracts\Cache\LockTimeoutException;
@@ -108,7 +109,7 @@ class FileController extends Controller
 
         // Folder password gate: if the active folder is locked, redirect to
         // the unlock prompt instead of rendering files.
-        $unlock = app(\App\Services\FolderUnlockService::class);
+        $unlock = app(FolderUnlockService::class);
         if ($activeFolder && $activeFolder->is_password_protected && ! $unlock->isUnlocked($activeFolder)) {
             return redirect()->route('folders.unlock-prompt', ['folder' => $activeFolder->id]);
         }
@@ -120,14 +121,20 @@ class FileController extends Controller
         // grants access to that folder's own dedicated view (the redirect gate
         // above), not to the aggregate ones; otherwise unlocking a folder once
         // would silently re-expose its files everywhere else too.
+        //
+        // The gate is keyed on "are we browsing a specific folder at all"
+        // ($activeFolder === null), not on whether that particular folder
+        // carries a password: a file can also be individually marked
+        // protected via the standalone "Захистити" upload toggle while
+        // living in an ordinary, unprotected folder — that file must still
+        // show up when browsing its own folder directly, just not in any
+        // aggregate/cross-folder view.
         $protectedFolderIds = $user->folders()
             ->whereNotNull('password_hash')
             ->pluck('id')
             ->all();
 
-        $viewingProtectedFolderDirectly = $activeFolder && in_array($activeFolder->id, $protectedFolderIds, true);
-
-        if (! $viewingProtectedFolderDirectly) {
+        if ($activeFolder === null) {
             $baseQuery->where('is_protected', false);
 
             if (! empty($protectedFolderIds)) {
@@ -541,17 +548,25 @@ class FileController extends Controller
             ->withErrors([$field => $message]);
     }
 
-    public function download(ManagedFile $file, ManagedFileStorageService $fileStorage)
+    public function download(ManagedFile $file, ManagedFileStorageService $fileStorage, FolderUnlockService $unlock)
     {
         abort_unless((int) $file->user_id === (int) auth()->id(), 404);
+        $this->ensureFolderUnlocked($file, $unlock);
         abort_unless($fileStorage->exists($file), 404);
 
-        return $fileStorage->downloadResponse($file);
+        try {
+            return $fileStorage->downloadResponse($file);
+        } catch (\Throwable $e) {
+            report($e);
+
+            abort(503, 'Не вдалося отримати файл із Telegram. Спробуйте ще раз через кілька секунд.');
+        }
     }
 
-    public function preview(ManagedFile $file, ManagedFileStorageService $fileStorage)
+    public function preview(ManagedFile $file, ManagedFileStorageService $fileStorage, FolderUnlockService $unlock)
     {
         abort_unless((int) $file->user_id === (int) auth()->id(), 404);
+        $this->ensureFolderUnlocked($file, $unlock);
         abort_unless($fileStorage->exists($file), 404);
         abort_unless($file->is_previewable, 404);
 
@@ -565,7 +580,13 @@ class FileController extends Controller
         $isTruncated = false;
 
         if ($file->is_text && $protectedPreviewReady) {
-            [$content, $isTruncated] = $fileStorage->readTextPreview($file);
+            try {
+                [$content, $isTruncated] = $fileStorage->readTextPreview($file);
+            } catch (\Throwable $e) {
+                report($e);
+
+                abort(503, 'Не вдалося отримати файл із Telegram. Спробуйте ще раз через кілька секунд.');
+            }
         }
 
         return view('files.preview', [
@@ -576,16 +597,23 @@ class FileController extends Controller
         ]);
     }
 
-    public function inline(ManagedFile $file, ManagedFileStorageService $fileStorage)
+    public function inline(ManagedFile $file, ManagedFileStorageService $fileStorage, FolderUnlockService $unlock)
     {
         abort_unless((int) $file->user_id === (int) auth()->id(), 404);
+        $this->ensureFolderUnlocked($file, $unlock);
         // Allow inline serving for images AND PDFs (browser's native viewer
         // renders PDF inline via the application/pdf MIME). Other types stay
         // forbidden so we don't accidentally render HTML/SVG in the document.
         abort_unless($file->is_image || $file->is_pdf, 404);
         abort_unless($fileStorage->exists($file), 404);
 
-        return $fileStorage->inlineResponse($file);
+        try {
+            return $fileStorage->inlineResponse($file);
+        } catch (\Throwable $e) {
+            report($e);
+
+            abort(503, 'Не вдалося отримати файл із Telegram. Спробуйте ще раз через кілька секунд.');
+        }
     }
 
     /**
@@ -593,9 +621,10 @@ class FileController extends Controller
      * so it can then be previewed like a normal file. User-triggered only —
      * see the comment on warmProtectedPreviewCache() for why this isn't automatic.
      */
-    public function preload(ManagedFile $file, ManagedFileStorageService $fileStorage)
+    public function preload(ManagedFile $file, ManagedFileStorageService $fileStorage, FolderUnlockService $unlock)
     {
         abort_unless((int) $file->user_id === (int) auth()->id(), 404);
+        $this->ensureFolderUnlocked($file, $unlock);
         abort_unless($file->is_protected, 404);
         abort_unless($fileStorage->exists($file), 404);
         abort_unless($file->is_previewable, 404);
@@ -612,6 +641,20 @@ class FileController extends Controller
         }
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * The folder-password gate — enforced for the folder's own dedicated view
+     * in index() — must also cover any route that can reach a file directly
+     * by ID (download/preview/inline/preload), otherwise someone with access
+     * to an authenticated session (stolen cookie, unattended browser) could
+     * pull a locked folder's files without ever supplying its password.
+     */
+    private function ensureFolderUnlocked(ManagedFile $file, FolderUnlockService $unlock): void
+    {
+        $folder = $file->folder;
+
+        abort_if($folder && $folder->is_password_protected && ! $unlock->isUnlocked($folder), 404);
     }
 
     /**
@@ -805,7 +848,13 @@ class FileController extends Controller
             return back()->withErrors(['edit' => 'Файли із захищених папок не редагуються в браузері.']);
         }
 
-        [$content, $isTruncated] = $fileStorage->readFullText($file);
+        try {
+            [$content, $isTruncated] = $fileStorage->readFullText($file);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->withErrors(['edit' => 'Не вдалося отримати файл із Telegram. Спробуйте ще раз через кілька секунд.']);
+        }
 
         return view('files.text-editor', [
             'file' => $file,
@@ -1002,7 +1051,13 @@ class FileController extends Controller
             return back()->withErrors(['edit' => 'Файли із захищених папок не редагуються.']);
         }
 
-        [$content, $isTruncated] = $fileStorage->readFullText($file);
+        try {
+            [$content, $isTruncated] = $fileStorage->readFullText($file);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->withErrors(['edit' => 'Не вдалося отримати файл із Telegram. Спробуйте ще раз через кілька секунд.']);
+        }
 
         // Extract <title> and body from the saved HTML if it's our wrapper
         [$docTitle, $docBody] = $this->extractDocumentParts($content, $file->original_name);
@@ -1210,7 +1265,7 @@ HTML;
         return $refererHost && $refererHost === $appHost ? $referer : $fallback;
     }
 
-    public function downloadArchive(Request $request, ManagedFileStorageService $fileStorage): BinaryFileResponse
+    public function downloadArchive(Request $request, ManagedFileStorageService $fileStorage, FolderUnlockService $unlock): BinaryFileResponse
     {
         abort_unless(class_exists(ZipArchive::class), 503);
 
@@ -1232,6 +1287,7 @@ HTML;
             $folderName = 'root';
         } elseif ($folderFilter !== 'all' && $folderFilter !== '' && ctype_digit($folderFilter)) {
             $folder = $user->folders()->findOrFail((int) $folderFilter);
+            abort_if($folder->is_password_protected && ! $unlock->isUnlocked($folder), 404);
             $query->where('folder_id', $folder->id);
             $folderName = Str::slug($folder->name) ?: 'folder-'.$folder->id;
         } else {

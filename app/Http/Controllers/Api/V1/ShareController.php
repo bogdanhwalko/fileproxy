@@ -15,9 +15,17 @@ use Illuminate\Support\Str;
 
 class ShareController extends Controller
 {
-    public function enableFile(Request $request, ManagedFile $file): ManagedFileResource
+    public function enableFile(Request $request, ManagedFile $file): ManagedFileResource|JsonResponse
     {
         $this->ensureFileOwner($request->user(), $file);
+
+        // Files inside a password-protected folder can't be shared publicly —
+        // the whole point of the folder password is to keep them private.
+        $file->loadMissing('folder');
+
+        if ($file->folder && $file->folder->is_password_protected) {
+            return response()->json(['message' => 'Files inside a password-protected folder cannot be shared.'], 422);
+        }
 
         if (! $file->share_token) {
             $file->forceFill([
@@ -66,9 +74,15 @@ class ShareController extends Controller
         return response()->json(['message' => 'Public access to the file disabled.']);
     }
 
-    public function enableFolder(Request $request, FileFolder $folder): FileFolderResource
+    public function enableFolder(Request $request, FileFolder $folder): FileFolderResource|JsonResponse
     {
         $this->ensureFolderOwner($request->user(), $folder);
+
+        // A password-protected folder can't be shared publicly — the whole
+        // point of the folder password is to keep its contents private.
+        if ($folder->is_password_protected) {
+            return response()->json(['message' => 'A password-protected folder cannot be shared.'], 422);
+        }
 
         if (! $folder->share_token) {
             $folder->forceFill([
