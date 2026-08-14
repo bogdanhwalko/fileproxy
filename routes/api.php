@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AuthController as ApiAuthController;
 use App\Http\Controllers\Api\V1\FileController as ApiFileController;
 use App\Http\Controllers\Api\V1\FolderController as ApiFolderController;
 use App\Http\Controllers\Api\V1\ShareController as ApiShareController;
@@ -15,6 +16,17 @@ Route::post('/telegram/webhook/{secret}', TelegramWebhookController::class)
 
 Route::post('/telegram/storage/{bot}/{secret}', TelegramStorageWebhookController::class)
     ->name('telegram.storage-webhook');
+
+// Unauthenticated on purpose — these routes are how a client (e.g. the mobile
+// app) obtains a bearer token in the first place, so they can't sit behind
+// auth:sanctum. Throttled the same way as the web phone-login form.
+Route::prefix('v1')
+    ->name('api.v1.')
+    ->middleware('throttle:auth-phone')
+    ->group(function () {
+        Route::post('/auth/login', [ApiAuthController::class, 'login'])->name('auth.login');
+        Route::post('/auth/verify', [ApiAuthController::class, 'verify'])->name('auth.verify');
+    });
 
 Route::prefix('v1')
     ->name('api.v1.')

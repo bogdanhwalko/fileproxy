@@ -14,6 +14,14 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, Notifiable;
 
     /**
+     * Max concurrent Sanctum personal access tokens per user — enforced by
+     * both the web token-management page (ApiTokenController) and the API's
+     * own phone-login flow (Api\V1\AuthController::verify()), which also
+     * mints a token.
+     */
+    public const API_TOKEN_LIMIT = 10;
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var array<int, string>

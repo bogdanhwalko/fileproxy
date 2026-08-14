@@ -34,6 +34,7 @@
                 <span class="docs-aside-title">Зміст</span>
                 <ul>
                     <li><a href="#auth">Автентифікація</a></li>
+                    <li class="docs-aside-sub"><a href="#auth-phone">Логін через API (телефон)</a></li>
                     <li><a href="#errors">Формат помилок</a></li>
                     <li><a href="#rate-limits">Ліміти</a></li>
                     <li><a href="#user">User</a></li>
@@ -108,7 +109,69 @@
                         </div>
                     </div>
 
-                    <p>Максимум <strong>10 активних токенів</strong> на акаунт — створення 11-го поверне <code>422</code>, доки ви не відкличете інший. Токени створюються <strong>без строку дії</strong>: вони не «прострочуються» самі, лише відкликаються вручну.</p>
+                    <p>Максимум <strong>10 активних токенів</strong> на акаунт — створення 11-го поверне <code>422</code> (для сторінки токенів) або <code>403</code> (для логіну нижче), доки ви не відкличете інший. Токени створюються <strong>без строку дії</strong>: вони не «прострочуються» самі, лише відкликаються вручну.</p>
+
+                    <h3 id="auth-phone">Логін через API (телефон) — для мобільних застосунків</h3>
+                    <p>Якщо клієнт (наприклад, мобільний застосунок) не може попросити користувача зайти у вебкабінет і скопіювати токен вручну, він може отримати токен напряму — тим самим способом, що й вебсайт: номер телефону → код у Telegram-боті → обмін коду на токен. Обидва ендпоінти <strong>без автентифікації</strong> (саме вони її й видають) і мають той самий ліміт, що й форма входу на сайті: 5 запитів/хв на IP і 5 запитів/хв на номер телефону.</p>
+
+                    <article class="docs-endpoint is-post has-body">
+                        <div class="docs-endpoint-head">
+                            <span class="docs-method m-post">POST</span>
+                            <span class="docs-endpoint-path">/api/v1/auth/login</span>
+                            <span class="docs-endpoint-title">Крок 1 — запросити код</span>
+                        </div>
+                        <div class="docs-endpoint-body">
+                            <p>Body JSON: <code>{ "phone": "+380671234567" }</code></p>
+                            <p>Не розкриває, чи існує акаунт із цим номером — завжди повертає челлендж. Реальний код надсилається користувачу в Telegram (боту треба надіслати <code>/start</code> за посиланням <code>bot_link</code>, або поділитися контактом, якщо цей Telegram-чат ще не підтверджував цей номер раніше).</p>
+<pre><code>{
+  "challenge_token": "aBcD1234...",
+  "bot_link": "https://t.me/your_bot?start=fileproxy_aBcD1234...",
+  "expires_in": 600,
+  "local_code": null
+}</code></pre>
+                            <p class="muted"><code>local_code</code> — лише в локальному/dev-режимі сервера (поза продакшеном), щоб не ганяти реальний Telegram під час розробки.</p>
+                        </div>
+                    </article>
+
+                    <article class="docs-endpoint is-post has-body">
+                        <div class="docs-endpoint-head">
+                            <span class="docs-method m-post">POST</span>
+                            <span class="docs-endpoint-path">/api/v1/auth/verify</span>
+                            <span class="docs-endpoint-title">Крок 2 — підтвердити код і отримати токен</span>
+                        </div>
+                        <div class="docs-endpoint-body">
+                            <p>Body JSON:</p>
+<pre><code>{
+  "phone": "+380671234567",
+  "code": "123456",
+  "challenge_token": "aBcD1234...",
+  "device_name": "iPhone 15 Pro"
+}</code></pre>
+                            <table class="docs-table">
+                                <thead><tr><th>Поле</th><th>Тип</th><th>Опис</th></tr></thead>
+                                <tbody>
+                                    <tr><td>phone</td><td>string, required</td><td>Той самий номер, що й у кроці 1.</td></tr>
+                                    <tr><td>code</td><td>string, required</td><td>6-значний код із Telegram.</td></tr>
+                                    <tr><td>challenge_token</td><td>string, optional</td><td><code>challenge_token</code> із кроку 1. Не обовʼязковий для успіху (код і так звіряється по номеру), але потрібен для точного трекінгу спроб.</td></tr>
+                                    <tr><td>device_name</td><td>string, optional</td><td>Назва токена (напр. модель пристрою) — за замовчуванням «mobile-app».</td></tr>
+                                </tbody>
+                            </table>
+                            <p>Відповідь <code>201</code>:</p>
+<pre><code>{
+  "token": "1|aBcDeFgHiJkLmNoPqRsTuVwXyZ...",
+  "token_type": "Bearer",
+  "user": { "id": 1, "name": "Bohdan", "phone": "+380671234567", "is_admin": false }
+}</code></pre>
+                            <p class="muted"><code>token</code> — так само, як і токен зі сторінки налаштувань, показується лише в цій відповіді. Зберігайте одразу.</p>
+                            <table class="docs-table">
+                                <thead><tr><th>Код</th><th>Причина</th></tr></thead>
+                                <tbody>
+                                    <tr><td>422</td><td>Невірний номер, код, акаунт не існує або заблокований (одне узагальнене повідомлення — анти-енумерація)</td></tr>
+                                    <tr><td>403</td><td>Досягнуто ліміт 10 токенів на акаунт</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </article>
                 </section>
 
                 {{-- ============ ERRORS ============ --}}
@@ -149,9 +212,10 @@
                         <tbody>
                             <tr><td>Загальний</td><td>60 запитів / хвилину на акаунт</td></tr>
                             <tr><td>POST /files <em>(upload)</em></td><td>30 запитів / хвилину на акаунт</td></tr>
+                            <tr><td>POST /auth/login, /auth/verify</td><td>5 запитів / хвилину на IP <strong>і</strong> 5 / хвилину на номер телефону (окремо, до автентифікації)</td></tr>
                         </tbody>
                     </table>
-                    <p class="muted">Ліміт рахується на весь акаунт, а не на окремий токен — усі ваші токени ділять один і той самий ліміт запитів.</p>
+                    <p class="muted">Ліміт рахується на весь акаунт, а не на окремий токен — усі ваші токени ділять один і той самий ліміт запитів. Виняток — <code>/auth/*</code>, де акаунта (і токена) ще немає, тому ліміт рахується по IP і номеру телефону.</p>
                 </section>
 
                 {{-- ============ USER ============ --}}

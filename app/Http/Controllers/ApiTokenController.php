@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -9,8 +10,6 @@ use Laravel\Sanctum\PersonalAccessToken;
 
 class ApiTokenController extends Controller
 {
-    private const TOKEN_LIMIT_PER_USER = 10;
-
     public function index(Request $request): View
     {
         $user = $request->user();
@@ -19,7 +18,7 @@ class ApiTokenController extends Controller
             'tokens' => $user->tokens()->latest()->get(),
             'newToken' => $request->session()->pull('new_api_token'),
             'newTokenName' => $request->session()->pull('new_api_token_name'),
-            'tokenLimit' => self::TOKEN_LIMIT_PER_USER,
+            'tokenLimit' => User::API_TOKEN_LIMIT,
         ]);
     }
 
@@ -27,9 +26,9 @@ class ApiTokenController extends Controller
     {
         $user = $request->user();
 
-        if ($user->tokens()->count() >= self::TOKEN_LIMIT_PER_USER) {
+        if ($user->tokens()->count() >= User::API_TOKEN_LIMIT) {
             return back()->withErrors([
-                'name' => 'Досягнуто ліміт у '.self::TOKEN_LIMIT_PER_USER.' активних токенів. Відкличте старі, щоб створити новий.',
+                'name' => 'Досягнуто ліміт у '.User::API_TOKEN_LIMIT.' активних токенів. Відкличте старі, щоб створити новий.',
             ]);
         }
 
